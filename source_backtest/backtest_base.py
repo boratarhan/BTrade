@@ -34,15 +34,38 @@ class Trade(object):
         self.IsOpen = True
         self.unrealizedprofitloss = 0.0
         self.realizedprofitloss = 0.0
-        self.update( entrypricebid, entrypriceask )
+        self.highwatermark = 0.0
+        self.maxdrawndown = 0.0
+#        self.update( entrypricebid, entrypriceask )
     
-    def update(self, pricebid, priceask ):
-        price = pricebid if self.units > 0 else priceask      
-        self.unrealizedprofitloss = self.units * ( price - self.entryprice )
+    def update(self, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
+        price_c = price_bid_c if self.units > 0 else price_ask_c      
+        price_h = price_bid_h if self.units > 0 else price_ask_h      
+        price_l = price_bid_l if self.units > 0 else price_ask_l      
+        
+        self.unrealizedprofitloss = self.units * ( price_c - self.entryprice )
         self.required_margin = ( self.entryprice * abs(self.units) - self.unrealizedprofitloss ) * self.marginrate
+
+        temphighwatermark = 0.0
+        tempmaxdrawndown = 0.0
+
+        if self.units > 0:
+            temphighwatermark = self.units * ( price_h - self.entryprice )
+            tempmaxdrawndown = self.units * ( price_l - self.entryprice )
+        if self.units < 0:
+            temphighwatermark = self.units * ( price_l - self.entryprice )
+            tempmaxdrawndown = self.units * ( price_h - self.entryprice )
+
+        if temphighwatermark > self.highwatermark:
+            self.highwatermark = temphighwatermark
+        if tempmaxdrawndown < self.maxdrawndown:
+            self.maxdrawndown = tempmaxdrawndown
+                               
+        print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'highwatermark:', self.highwatermark, 'maxdrawndown:', self.maxdrawndown)
+        
                 
-    def close(self, units, exitdate, pricebid, priceask ):
-        exitprice = pricebid if self.units > 0 else priceask
+    def close(self, units, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
+        exitprice = price_bid_c if self.units > 0 else price_ask_c
         # ask price > bid pricez
         # if i am selling, i get bid price
         # if i am buying, i get ask price
@@ -74,7 +97,7 @@ class Trade(object):
             unclosedunits = self.units + units 
             self.IsOpen = False
             
-        self.update(pricebid, priceask)
+        self.update(price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l)
             
         return self.IsOpen, unclosedunits
         
@@ -191,18 +214,24 @@ class backtest_base(object):
         ''' Return price for a date.
         '''
 
-        price_ask = self.data.loc[date,'ask_c']
-        price_bid = self.data.loc[date,'bid_c']
+        price_ask_c = self.data.loc[date,'ask_c']
+        price_bid_c = self.data.loc[date,'bid_c']
+
+        price_ask_h = self.data.loc[date,'ask_h']
+        price_bid_h = self.data.loc[date,'bid_h']
+
+        price_ask_l = self.data.loc[date,'ask_l']
+        price_bid_l = self.data.loc[date,'bid_l']
             
-        return price_ask, price_bid
+        return price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l
 
     def open_long_trade(self, units, date):
 
-        priceask, pricebid = self.get_price(date)
+        price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
         self.data.loc[date,'units_to_buy'] = self.data.loc[date,'units_to_buy'] + units
                      
         if self.verbose:
-            print('%s | buying  %4d units at ask %7.5f' %(date, units, priceask))
+            print('%s | buying  %4d units at ask %7.5f' %(date, units, price_ask_c))
         
         while True:
 
@@ -210,7 +239,7 @@ class backtest_base(object):
         
             if len(self.listofOpenShortTrades) == 0:
                
-                etrade = Trade(self.symbol, units, date, pricebid, priceask, self.marginrate )
+                etrade = Trade(self.symbol, units, date, price_bid_c, price_ask_c, self.marginrate )
                 self.units_net = self.units_net + units
                 self.listofOpenTrades.append(etrade)
                                 
@@ -220,7 +249,7 @@ class backtest_base(object):
 
                 etrade = self.listofOpenShortTrades[-1]
 
-                IsOpen, unclosedunits = etrade.close(-units, date, pricebid, priceask )
+                IsOpen, unclosedunits = etrade.close(-units, date, price_bid_c, price_ask_c )
                 self.units_net = self.units_net + units
 
                 if not IsOpen:
@@ -238,7 +267,7 @@ class backtest_base(object):
                 
     def close_long_trades(self, date):
 
-        priceask, pricebid = self.get_price(date)
+        price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
         self.data.loc[date,'units_to_sell'] = self.units_net
 
         if self.verbose:
@@ -248,17 +277,17 @@ class backtest_base(object):
         
         for etrade in self.listofOpenLongTrades:
             self.units_net = self.units_net - etrade.units
-            etrade.close(-etrade.units, date, pricebid, priceask )
+            etrade.close(-etrade.units, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
             self.listofOpenTrades.remove(etrade)
             self.listofClosedTrades.append(etrade)
     
     def open_short_trade(self, units, date):
         
-        priceask, pricebid = self.get_price(date)
+        price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
         self.data.loc[date,'units_to_sell'] = self.data.loc[date,'units_to_sell'] - units
 
         if self.verbose:
-            print('%s | shorting %4d units at ask %7.5f' %(date, units, pricebid))
+            print('%s | shorting %4d units at ask %7.5f' %(date, units, price_bid_c))
         
         while True:
 
@@ -266,7 +295,7 @@ class backtest_base(object):
         
             if len(self.listofOpenLongTrades) == 0:
                
-                etrade = Trade(self.symbol, units, date, pricebid, priceask, self.marginrate )
+                etrade = Trade(self.symbol, units, date, price_bid_c, price_ask_c, self.marginrate )
                 self.units_net = self.units_net + units
                 self.listofOpenTrades.append(etrade)
                 self.longshort = 'short'
@@ -277,7 +306,7 @@ class backtest_base(object):
 
                 etrade = self.listofOpenLongTrades[-1]
 
-                IsOpen, unclosedunits = etrade.close(units, date, pricebid, priceask )
+                IsOpen, unclosedunits = etrade.close(units, date, price_bid_c, price_ask_c )
                 self.units_net = self.units_net + units - unclosedunits
 
                 if not IsOpen:
@@ -296,7 +325,7 @@ class backtest_base(object):
             
     def close_short_trades(self, date):
 
-        priceask, pricebid = self.get_price(date)
+        price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
         self.data.loc[date,'units_to_buy'] = -self.units_net
 
         if self.verbose:
@@ -306,14 +335,14 @@ class backtest_base(object):
         
         for etrade in self.listofOpenShortTrades:
             self.units_net = self.units_net - etrade.units
-            etrade.close(-etrade.units, date, pricebid, priceask )
+            etrade.close(-etrade.units, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
             self.listofOpenTrades.remove(etrade)
             self.listofClosedTrades.append(etrade)
     
     def close_all_trades(self, date):
         ''' Closing out all long or short positions.
         '''
-        priceask, pricebid = self.get_price(date)
+        price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
         if self.units_net < 0:
             self.data.loc[date,'units_to_buy'] = self.data.loc[date,'units_to_buy'] - self.units_net
         elif self.units_net > 0:
@@ -326,15 +355,15 @@ class backtest_base(object):
         
         for etrade in self.listofOpenTrades:
             self.units_net = self.units_net - etrade.units
-            etrade.close(-etrade.units, date, pricebid, priceask )
+            etrade.close(-etrade.units, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
             self.listofOpenTrades.remove(etrade)
             self.listofClosedTrades.append(etrade)
     
     def update(self, date):
 
-        priceask, pricebid = self.get_price(date)
+        price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
         for etrade in self.listofOpenTrades:
-            etrade.update( pricebid, priceask )
+            etrade.update( price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
         
         self.realizedprofitloss = sum( etrade.realizedprofitloss for etrade in self.listofClosedTrades )
         self.unrealizedprofitloss = sum( etrade.unrealizedprofitloss for etrade in self.listofOpenTrades )

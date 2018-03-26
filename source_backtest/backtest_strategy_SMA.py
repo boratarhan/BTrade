@@ -25,13 +25,7 @@ class backtest_strategy_SMA(backtest_base):
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
         print('=' * 55)
-        
-        self.equity = self.initial_equity
-        self.required_margin = 0.0
-        self.free_margin = self.equity
-        self.balance = self.equity
-        self.profit_loss = 0.0
-                
+                    
         for date, _ in self.data.iterrows():
     
             ''' Get signal
