@@ -42,11 +42,11 @@ def visualize(symbol, rows, trades = []):
 
         for eTrade in trades:
 
-            print( eTrade.entrydate, eTrade.entryprice )
+            print( 'Entry:', eTrade.entrydate, eTrade.entryprice )
             
             for eTradeExitTransaction in eTrade.exittransactions:
         
-                print( eTradeExitTransaction['date'], eTradeExitTransaction['price'] )
+                print( 'Exit:', eTradeExitTransaction['date'], eTradeExitTransaction['price'] )
         
                 if eTradeExitTransaction['realized P&L'] >= 0:
                 

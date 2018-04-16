@@ -22,8 +22,12 @@ sys.path.remove('..\\source_system')
  # A micro lot = 1,000 units of base currency.
 
 class Trade(object):
-    
+
+    trade_counter = 1
+        
     def __init__(self, symbol, units, entrydate, entrypricebid, entrypriceask, marginrate ):
+        self.ID = Trade.trade_counter
+        Trade.trade_counter += 1
         self.symbol = symbol
         self.units = units #number of units of base currency
         self.longshort = 'long' if self.units > 0 else 'short'
@@ -34,8 +38,10 @@ class Trade(object):
         self.IsOpen = True
         self.unrealizedprofitloss = 0.0
         self.realizedprofitloss = 0.0
-        self.highwatermark = 0.0
-        self.maxdrawndown = 0.0
+        self.maxFavorableExcursion = 0.0
+        self.maxAdverseExcursion = 0.0
+        self.stat_required_margin = []
+        self.stat_unrealizedprofitloss = []                                   
 #        self.update( entrypricebid, entrypriceask )
     
     def update(self, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
@@ -44,24 +50,27 @@ class Trade(object):
         price_l = price_bid_l if self.units > 0 else price_ask_l      
         
         self.unrealizedprofitloss = self.units * ( price_c - self.entryprice )
-        self.required_margin = ( self.entryprice * abs(self.units) - self.unrealizedprofitloss ) * self.marginrate
+        self.stat_unrealizedprofitloss.append(self.unrealizedprofitloss)
 
-        temphighwatermark = 0.0
-        tempmaxdrawndown = 0.0
+        self.required_margin = ( self.entryprice * abs(self.units) - self.unrealizedprofitloss ) * self.marginrate
+        self.stat_required_margin.append(self.required_margin)                                   
+
+        tempmaxFavorableExcursion = 0.0
+        tempmaxAdverseExcursion = 0.0
 
         if self.units > 0:
-            temphighwatermark = self.units * ( price_h - self.entryprice )
-            tempmaxdrawndown = self.units * ( price_l - self.entryprice )
+            tempmaxFavorableExcursion = self.units * ( price_h - self.entryprice )
+            tempmaxAdverseExcursion = self.units * ( price_l - self.entryprice )
         if self.units < 0:
-            temphighwatermark = self.units * ( price_l - self.entryprice )
-            tempmaxdrawndown = self.units * ( price_h - self.entryprice )
+            tempmaxFavorableExcursion = self.units * ( price_l - self.entryprice )
+            tempmaxAdverseExcursion = self.units * ( price_h - self.entryprice )
 
-        if temphighwatermark > self.highwatermark:
-            self.highwatermark = temphighwatermark
-        if tempmaxdrawndown < self.maxdrawndown:
-            self.maxdrawndown = tempmaxdrawndown
+        if tempmaxFavorableExcursion > self.maxFavorableExcursion:
+            self.maxFavorableExcursion = tempmaxFavorableExcursion
+        if tempmaxAdverseExcursion < self.maxAdverseExcursion:
+            self.maxAdverseExcursion = tempmaxAdverseExcursion
                                
-        print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'highwatermark:', self.highwatermark, 'maxdrawndown:', self.maxdrawndown)
+        print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
         
                 
     def close(self, units, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
@@ -129,6 +138,8 @@ class backtest_base(object):
         self.balance = self.equity
         self.unrealizedprofitloss = 0.0
         self.realizedprofitloss = 0.0
+        self.listofrealizedprofitloss = np.array([])
+        self.sharpe_ratio = 0.0
         
         self.units_to_buy = 0
         self.units_to_sell = 0
@@ -173,11 +184,11 @@ class backtest_base(object):
 
     def run_strategy(self):
 
+        print('=' * 55)
         msg = '\n\nRunning strategy '
         msg += '\nFixed costs %.2f | ' % self.ftc
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
-        print('=' * 55)
         
         self.equity = self.initial_equity
         self.required_margin = 0.0
@@ -205,11 +216,6 @@ class backtest_base(object):
     def run_core_strategy(self):
         pass
         
-    def plot_data(self):
-        ''' Plots the (adjusted) closing prices for symbol.
-        '''
-        self.data['ask_c'].plot(figsize=(10, 6), title=self.symbol)
-
     def get_price(self, date):
         ''' Return price for a date.
         '''
@@ -382,20 +388,105 @@ class backtest_base(object):
         
     def close_out(self):
     
-        if self.verbose:
-            print('=' * 55)
-        print('Final equity   [$] %13.2f' % self.equity)
-        print('Net Performance [%%] %13.2f' % ((self.equity - self.initial_equity) / self.initial_equity * 100))
-        print('Number of transactions: ', len(self.listofClosedTrades) )
-        print('=' * 55)
-
-        self.data['return-asset'] = self.data['ask_c'] / self.data.ix[0,'ask_c']
-        self.data['cumret-strategy'] = self.data['equity'] / self.data.ix[0,'equity']
+        self.numberoftrades = len(self.listofClosedTrades)
+        self.data['return-asset'] = self.data['ask_c'] / self.data.ix[0,'ask_c'] - 1
+        self.data['cumret-strategy'] = ( self.data['equity'] / self.initial_equity - 1 )
         self.data['cumret-max'] = self.data['cumret-strategy'].cummax()
         self.data['cumret-min'] = self.data['cumret-strategy'].cummin()
+        self.data['drawdown'] = self.data['cumret-max'] - self.data['cumret-strategy']
+    
+        self.maxdrawdown = self.data['drawdown'].max()
+        
+        if self.verbose:
+            print('=' * 55)
+        print('Initial equity   [$] {0:.2f}'.format(self.initial_equity))
+        print('Final equity   [$] {0:.2f}'.format(self.equity))
+        print('Net Performance [%] {0:.2f}'.format(self.data['cumret-strategy'][-1] * 100) )
+        print('Number of transactions: {}'.format(self.numberoftrades ))
+        print('Maximum drawdown: [%] {0:.2f}'.format(self.maxdrawdown * 100) )
 
     def optimizer(self, args):
         pass
+
+    def plot(self):
+
+        self.plot_PnL_vs_Trade_Number()
+#        self.plot_data()
+        self.plot_returns()
+        self.plot_drawdown()
+
+    def plot_data(self):
+        ''' Plots the (adjusted) closing prices for symbol.
+        '''
+        fig1 = self.data['ask_c'].plot(figsize=(10, 6), title=self.symbol)
+        fig2 = fig1.get_figure()
+        fig2.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\data.pdf')
+        
+    def plot_returns(self):
+
+        fig1 = self.data[['cumret-strategy','cumret-max', 'return-asset']].plot(figsize=(10,6))
+        fig2 = fig1.get_figure()
+        fig2.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\returns.pdf')
+
+    def plot_drawdown(self):
+
+        fig1 = self.data[['drawdown']].plot(figsize=(10,6))
+        fig2 = fig1.get_figure()
+        fig2.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\drawdown.pdf')
+
+    def plot_PnL_vs_Trade_Number(self):
+
+        plt.plot(self.listofrealizedprofitloss, 'ro', markersize = 4)
+        plt.title('PnL vs. Trade Number')
+        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\PnL_vs_Trade_Number.pdf')
+
+
+    def calculate_stats(self):
+        
+        self.calculate_PnL()
+        self.calculate_sharpe_ratio()
+        self.calculate_winning_losing_ratio()
+        self.calculate_sortino_ratio(0)
+
+    def calculate_PnL(self):
+
+        temp = []
+        for etrade in self.listofClosedTrades:
+            temp.append(etrade.realizedprofitloss)
+        self.listofrealizedprofitloss = np.array(temp)
+        
+    def calculate_sharpe_ratio(self):
+
+        pnl = self.listofrealizedprofitloss.mean()
+        std = self.listofrealizedprofitloss.std()
+        self.sharpe_ratio = pnl / std
+        
+        msg = 'Sharpe Ratio: {0:.2f}'.format(self.sharpe_ratio)
+        print(msg)
+
+    def calculate_sortino_ratio(self, threshold):
+
+        pnl = self.listofrealizedprofitloss.mean()
+        std = self.listofrealizedprofitloss[self.listofrealizedprofitloss<self.listofrealizedprofitloss.mean()].std()
+        self.sortino_ratio = pnl / std
+        msg = 'Sortino Ratio: {0:.2f}'.format(self.sortino_ratio)
+        print(msg)
+
+    def calculate_information_ratio(self):
+
+        self.information_ratio = 0
+        msg = 'Information Ratio: {0:.2f}'.format(self.information_ratio)
+        print(msg)
+
+    def calculate_winning_losing_ratio(self):
+        
+        self.winning_ratio = np.count_nonzero(self.listofrealizedprofitloss[self.listofrealizedprofitloss>=0]) / self.numberoftrades
+        self.losing_ratio = 1 - self.winning_ratio
+        
+        msg = 'Winning Ratio: [%] {0:.2f} '.format(self.winning_ratio * 100)
+        msg += '\nLosing Ratio: [%] {0:.2f}'.format(self.losing_ratio * 100)
+        print(msg)
+
 
 if __name__ == '__main__':
 
@@ -410,7 +501,3 @@ if __name__ == '__main__':
      bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginrate)
 
      visualize(bb.symbol, bb.data, bb.listofClosedTrades)
-        
-#     bb.plot_data()
-#     plt.savefig('../plot.pdf')
-

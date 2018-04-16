@@ -63,6 +63,7 @@ if __name__ == '__main__':
      account_type = 'practice'
      granularity = 'S5'
      decision_frequency = '1H'
+#     decision_frequency = '1T'
      start_datetime = datetime.datetime(2017,1,1,0,0,0)
      end_datetime = datetime.datetime(2017,8,1,0,0,0)
      marginrate = 0.01
@@ -75,6 +76,13 @@ if __name__ == '__main__':
      bb.verbose = True
      bb.run_strategy(14, 28)
      
-     visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+     bb.calculate_stats()
+     bb.plot()
      
-     write2excel( bb.data, 'output' )
+     #visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+     # write2excel( bb.data, 'output' )
+
+     for eTrade in bb.listofClosedTrades:
+        print(eTrade.ID, eTrade.maxAdverseExcursion, eTrade.maxFavorableExcursion)
+    
+    
