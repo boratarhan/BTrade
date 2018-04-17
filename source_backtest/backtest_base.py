@@ -410,10 +410,13 @@ class backtest_base(object):
 
     def plot(self):
 
-        self.plot_PnL_vs_Trade_Number()
+#        self.plot_PnL_vs_Trade_Number()
 #        self.plot_data()
-        self.plot_returns()
-        self.plot_drawdown()
+#        self.plot_returns()
+        self.plot_PnL_histogram()
+#        self.plot_drawdown()
+        self.plot_MAE()
+        self.plot_MFE()
 
     def plot_data(self):
         ''' Plots the (adjusted) closing prices for symbol.
@@ -428,6 +431,16 @@ class backtest_base(object):
         fig2 = fig1.get_figure()
         fig2.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\returns.pdf')
 
+    def plot_PnL_histogram(self):
+        
+        binwidth = 10
+        val_pnl = []
+        
+        for eTrade in self.listofClosedTrades:
+            val_pnl.append(eTrade.realizedprofitloss)
+        
+        plt.hist(val_pnl, bins=range( np.int(np.floor(min(val_pnl))), np.int(np.ceil(max(val_pnl))) + binwidth, binwidth))
+        
     def plot_drawdown(self):
 
         fig1 = self.data[['drawdown']].plot(figsize=(10,6))
@@ -439,15 +452,91 @@ class backtest_base(object):
         plt.plot(self.listofrealizedprofitloss, 'ro', markersize = 4)
         plt.title('PnL vs. Trade Number')
         plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\PnL_vs_Trade_Number.pdf')
+        plt.show()
+        plt.close()
 
+    def plot_MAE(self):
+    
+        val_ID = []
+        val_MAE = []
+        val_pnl = []
+        
+        for eTrade in self.listofClosedTrades:
+            if eTrade.realizedprofitloss >= 0:
+                val_ID.append(eTrade.ID)
+                val_MAE.append(eTrade.maxAdverseExcursion)
+                val_pnl.append(eTrade.realizedprofitloss)
+        
+        plt.scatter(val_MAE, val_pnl, color='g', marker='o', s = 8)
+        plt.title("MAE vs PnL")
+        plt.xlabel("MAE")
+        plt.ylabel("PnL")
+        plt.show()
+        plt.close()
+           
+        val_ID = []
+        val_MAE = []
+        val_pnl = []
+        
+        for eTrade in self.listofClosedTrades:
+            if eTrade.realizedprofitloss < 0:
+                val_ID.append(eTrade.ID)
+                val_MAE.append(eTrade.maxAdverseExcursion)
+                val_pnl.append(eTrade.realizedprofitloss)
+        
+        plt.scatter(val_MAE, val_pnl, color='r', marker='o', s = 8)
+        plt.title("MAE vs PnL")
+        plt.xlabel("MAE")
+        plt.ylabel("PnL")
+        plt.show()
+        plt.close()    
 
+    def plot_MFE(self):
+        
+        val_ID = []
+        val_MFE = []
+        val_pnl = []
+        
+        for eTrade in self.listofClosedTrades:
+            if eTrade.realizedprofitloss >= 0:
+                val_ID.append(eTrade.ID)
+                val_MFE.append(eTrade.maxFavorableExcursion)
+                val_pnl.append(eTrade.realizedprofitloss)
+        
+        plt.scatter(val_MFE, val_pnl, color='g', marker='o', s = 8)
+        plt.title("MFE vs PnL")
+        plt.xlabel("MFE")
+        plt.ylabel("PnL")
+        plt.show()
+        plt.close()
+           
+        val_ID = []
+        val_MFE = []
+        val_pnl = []
+    
+        for eTrade in self.listofClosedTrades:
+            if eTrade.realizedprofitloss < 0:
+                val_ID.append(eTrade.ID)
+                val_MFE.append(eTrade.maxFavorableExcursion)
+                val_pnl.append(eTrade.realizedprofitloss)
+    
+        plt.scatter(val_MFE, val_pnl, color='r', marker='o', s = 8)
+        plt.title("MFE vs PnL")
+        plt.xlabel("MFE")
+        plt.ylabel("PnL")
+        plt.show()
+        plt.close()
+        
     def calculate_stats(self):
         
         self.calculate_PnL()
         self.calculate_sharpe_ratio()
         self.calculate_winning_losing_ratio()
         self.calculate_sortino_ratio(0)
-
+        self.calculate_average_win()
+        self.calculate_average_lose()
+        self.calculate_expectancy()
+        
     def calculate_PnL(self):
 
         temp = []
@@ -478,6 +567,14 @@ class backtest_base(object):
         msg = 'Information Ratio: {0:.2f}'.format(self.information_ratio)
         print(msg)
 
+    def calculate_average_win(self):
+
+        self.average_win = self.listofrealizedprofitloss[self.listofrealizedprofitloss > 0].mean()
+
+    def calculate_average_lose(self):
+
+        self.average_lose = self.listofrealizedprofitloss[self.listofrealizedprofitloss < 0].mean()
+
     def calculate_winning_losing_ratio(self):
         
         self.winning_ratio = np.count_nonzero(self.listofrealizedprofitloss[self.listofrealizedprofitloss>=0]) / self.numberoftrades
@@ -486,6 +583,20 @@ class backtest_base(object):
         msg = 'Winning Ratio: [%] {0:.2f} '.format(self.winning_ratio * 100)
         msg += '\nLosing Ratio: [%] {0:.2f}'.format(self.losing_ratio * 100)
         print(msg)
+
+    def calculate_expectancy(self):
+        
+#        (AW × PW + AL × PL) ⁄ |AL|
+#        AW = average winning trade (excluding maximum win) 
+#        PW = probability of winning (PW = <wins> ⁄ NST where <wins> is total wins excluding maximum win) 
+#        AL = average losing trade (negative, excluding scratch losses) 
+#        |AL| = absolute value of AL 
+#        PL = probability of losing (PL = <non-scratch losses> ⁄ NST)
+
+        self.expectancy = ( self.winning_ratio * self.average_win + self.losing_ratio * self.average_lose ) / np.abs(self.average_lose)
+        msg = 'Expectancy: {0:.2f} '.format(self.expectancy)
+        print(msg)
+        
 
 
 if __name__ == '__main__':

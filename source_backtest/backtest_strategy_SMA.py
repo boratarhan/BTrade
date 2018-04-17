@@ -77,12 +77,9 @@ if __name__ == '__main__':
      bb.run_strategy(14, 28)
      
      bb.calculate_stats()
-     bb.plot()
-     
-     #visualize(bb.symbol, bb.data, bb.listofClosedTrades)
-     # write2excel( bb.data, 'output' )
+     #bb.plot()
 
-     for eTrade in bb.listofClosedTrades:
-        print(eTrade.ID, eTrade.maxAdverseExcursion, eTrade.maxFavorableExcursion)
+#     visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+     # write2excel( bb.data, 'output' )
     
     
