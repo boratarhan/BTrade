@@ -526,6 +526,22 @@ class backtest_base(object):
         plt.ylabel("PnL")
         plt.show()
         plt.close()
+
+    def plot_consecutive_win(self):
+
+        lists = sorted(self.consecutive_win.items()) # sorted by key, return a list of tuples
+        x, y = zip(*lists) # unpack a list of pairs into two tuples
+        plt.bar(x, y)
+        plt.title("Number of Consecutive Win")
+        plt.show()
+
+    def plot_consecutive_loss(self):
+
+        lists = sorted(self.consecutive_loss.items()) # sorted by key, return a list of tuples
+        x, y = zip(*lists) # unpack a list of pairs into two tuples
+        plt.bar(x, y)
+        plt.title("Number of Consecutive Loss")
+        plt.show()
         
     def calculate_stats(self):
         
@@ -536,6 +552,7 @@ class backtest_base(object):
         self.calculate_average_win()
         self.calculate_average_lose()
         self.calculate_expectancy()
+        self.calculate_consecutive_win_loss()
         
     def calculate_PnL(self):
 
@@ -556,7 +573,7 @@ class backtest_base(object):
     def calculate_sortino_ratio(self, threshold):
 
         pnl = self.listofrealizedprofitloss.mean()
-        std = self.listofrealizedprofitloss[self.listofrealizedprofitloss<self.listofrealizedprofitloss.mean()].std()
+        std = self.listofrealizedprofitloss[self.listofrealizedprofitloss<threshold].std()
         self.sortino_ratio = pnl / std
         msg = 'Sortino Ratio: {0:.2f}'.format(self.sortino_ratio)
         print(msg)
@@ -597,7 +614,91 @@ class backtest_base(object):
         msg = 'Expectancy: {0:.2f} '.format(self.expectancy)
         print(msg)
         
+    def calculate_consecutive_win_loss(self):
 
+        # Compare consecutive trades to find out the cosecutive win/loss
+            
+        self.consecutive_win = {}
+    
+        self.consecutive_loss = {}
+        
+        same = 1
+        
+        prev_Trade = self.listofClosedTrades[0]
+        
+        for eTrade in self.listofClosedTrades[1:]:
+                
+            current_Trade = eTrade
+            
+            if current_Trade.realizedprofitloss * prev_Trade.realizedprofitloss >= 0:
+    
+                same = same + 1
+                
+            elif current_Trade.realizedprofitloss * prev_Trade.realizedprofitloss < 0:
+    
+                if prev_Trade.realizedprofitloss < 0:
+    
+#                    if not '{}'.format(same) in self.consecutive_loss.keys():
+#                        
+#                        self.consecutive_loss['{}'.format(same)] = 0
+#                    
+#                    self.consecutive_loss['{}'.format(same)] = self.consecutive_loss['{}'.format(same)]+1
+                    if not same in self.consecutive_loss.keys():
+                        
+                        self.consecutive_loss[same] = 0
+                    
+                    self.consecutive_loss[same] = self.consecutive_loss[same]+1
+                    
+                if prev_Trade.realizedprofitloss > 0:
+    
+#                    if not '{}'.format(same) in self.consecutive_win.keys():
+#                    
+#                        self.consecutive_win['{}'.format(same)] = 0
+#    
+#                    self.consecutive_win['{}'.format(same)] = self.consecutive_win['{}'.format(same)]+1
+                    if not same in self.consecutive_win.keys():
+                    
+                        self.consecutive_win[same] = 0
+    
+                    self.consecutive_win[same] = self.consecutive_win[same]+1
+    
+                same = 1
+    
+            if current_Trade == self.listofClosedTrades[-1]:
+                                
+                if current_Trade.realizedprofitloss * prev_Trade.realizedprofitloss >= 0:
+                
+                    same = same + 1
+                    
+                elif current_Trade.realizedprofitloss * prev_Trade.realizedprofitloss < 0:
+                               
+                    if current_Trade.realizedprofitloss < 0:
+        
+#                        if not '{}'.format(same) in self.consecutive_loss.keys():
+#    
+#                            self.consecutive_loss['{}'.format(same)] = 0
+#                        
+#                        self.consecutive_loss['{}'.format(same)] = self.consecutive_loss['{}'.format(same)]+1
+                        if not same in self.consecutive_loss.keys():
+    
+                            self.consecutive_loss[same] = 0
+                        
+                        self.consecutive_loss[same] = self.consecutive_loss[same]+1
+                        
+                    if current_Trade.realizedprofitloss > 0:
+        
+                        if not same in self.consecutive_win.keys():
+                        
+                            self.consecutive_win[same] = 0
+        
+                        self.consecutive_win[same] = self.consecutive_win[same]+1
+                                    
+            prev_Trade = current_Trade
+
+        msg = 'Consecutive Win: {} '.format(self.consecutive_win)
+        msg += '\nConsecutive Loss: {} '.format(self.consecutive_loss)
+        print(msg)
+       
 
 if __name__ == '__main__':
 

@@ -77,9 +77,11 @@ if __name__ == '__main__':
      bb.run_strategy(14, 28)
      
      bb.calculate_stats()
-     #bb.plot()
+#     bb.plot()
 
+     bb.plot_consecutive_win()
+     bb.plot_consecutive_loss()
+    
 #     visualize(bb.symbol, bb.data, bb.listofClosedTrades)
      # write2excel( bb.data, 'output' )
-    
     
