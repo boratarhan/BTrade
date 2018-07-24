@@ -26,9 +26,9 @@ for instrument in instruments:
             
 
 #acc_summary = response.get('account')
-#
+
 #print( acc_summary.dict() )
-#
+
 ## Information about the last few trades
 #
 ## This is not working, do not know if it is vecause of lack otf transactions.

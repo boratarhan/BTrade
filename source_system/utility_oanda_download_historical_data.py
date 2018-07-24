@@ -61,7 +61,7 @@ class downloader_historical_data(object):
 
         self.accountID = self.config['oanda_v20']['account_number_live']
         self.access_token = self.config['oanda_v20']['access_token_live']
-        self.api = oandapyV20.API(access_token=self.access_token)
+        self.api = oandapyV20.API(access_token=self.access_token, environment="live")
 
     def connect_broker_practice(self):
 
@@ -144,12 +144,14 @@ if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read('..\..\configinfo.cfg')
     
-    account_type = 'practice'
+#    account_type = 'practice'
+#    symbol_list = ['EUR_USD', 'AUD_USD', 'USD_CAD', 'USD_JPY', 'USD_TRY']
 
-    symbol_list = ['EUR_USD', 'AUD_USD', 'USD_CAD', 'USD_JPY', 'USD_TRY']
+    account_type = 'live'
+    symbol_list = ['EUR_USD']
     
-    start_datetime = datetime.datetime(2010,1,1,0,0,0)
-    end_datetime = datetime.datetime(2018,1,1,0,0,0)
+    start_datetime = datetime.datetime(2005,1,1,0,0,0)
+    end_datetime = datetime.datetime(2018,7,20,0,0,0)
 #    end_datetime = datetime.datetime.utcnow()
     
     granularity = 'S5'
@@ -160,7 +162,3 @@ if __name__ == '__main__':
     for symbol in symbol_list:
     
         d1 = downloader_historical_data(config,account_type,symbol,start_datetime,end_datetime,granularity,askbidmid,step)
-        
-        
-    
-    

@@ -126,7 +126,7 @@ class feeder(object):
 
         self.accountID = self.config['oanda_v20']['account_number_live']
         self.access_token = self.config['oanda_v20']['access_token_live']
-        self.api = oandapyV20.API(access_token=self.access_token)
+        self.api = oandapyV20.API(access_token=self.access_token, environment="live")
 
     def connect_broker_practice(self):
 
@@ -436,7 +436,7 @@ def ContinueLooping(config,symbol,granularity,account_type,socket_number,downloa
     while True:
             
         f1 = feeder(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency)
-
+    
         try:
 
             f1.start()  
@@ -459,9 +459,9 @@ if __name__ == '__main__':
     except:
         print( 'Error in reading configuration file' )
 
-    symbol = 'USD_TRY'
-    symbol = 'AUD_USD'
-    account_type = 'practice'
+    symbol = 'EUR_USD'
+#    account_type = 'practice'
+    account_type = 'live'
     socket_number = 5555    
     granularity = 'S5'
     download_frequency = datetime.timedelta(seconds=60)

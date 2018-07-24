@@ -8,23 +8,24 @@ import utility_functions as uf
 import time
 
 # Reading ts file
-#symbol = 'USD_JPY'
-#file_path_h5 = '..\\..\\datastore\\S5_data\\USD_JPY.h5'
-#file_path_h5 = '..\\..\\datastore\\M1_data\\EUR_USD.h5'
-file_path_h5 = '..\\..\\datastore\\_practice\\USD_TRY\\S5.h5'
+account_type = 'live'
+symbol = 'EUR_USD'
+granularity = 'S5'
+file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(account_type,symbol,granularity)
 
-f = tables.open_file(file_path_h5,'r')
+f = tables.open_file(file_path,'r')
 ts = f.root.data._f_get_timeseries()
 
-read_start_dt = datetime.datetime(2017,1,1,00,00)
-read_end_dt = datetime.datetime(2017,9,1,00,00)
+read_start_dt = datetime.datetime(2005,1,1,0,0,0)
+read_end_dt = datetime.datetime(2018,12,1,0,0,0)
 
 rows = ts.read_range(read_start_dt,read_end_dt)
 
 f.close()
 
 print(rows.tail)
-#
+
+
 #ohlc_dict = {                                                                                                             
 #    'ask_o':'first',                                                                                                    
 #    'ask_h':'max',                                                                                                       
