@@ -7,7 +7,7 @@ import os
 import tables 
 import tstables 
 
-def download_historical_tick_data(instrument,start_date,end_date):
+def download_historical_tick_data_from_Dukascopy(instrument,start_date,end_date):
     ''' Download tick data for the instrument for each day
         Example input arguments for the method are as follows:
         instrument = 'EUR_USD'

@@ -2,6 +2,7 @@ import oandapyV20
 import oandapyV20.endpoints.instruments as instruments
 import oandapyV20.endpoints.pricing as pricing
 from oandapyV20.exceptions import V20Error
+from oandapyV20.exceptions import StreamTerminated
 from requests.exceptions import ConnectionError
 import zmq
 import pandas as pd
@@ -13,14 +14,16 @@ import time
 import utility_functions as uf
 import threading
 import os
-import logging
 import json
 
+'''
+import logging
 logging.basicConfig(
     filename="v20.log",
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s : %(message)s',
 )
+'''
 
 isAlive = True
 
@@ -47,7 +50,7 @@ class feeder(object):
     ''' Feeder receives data from broker and publishes messages for the rest of the objects in the system
         Ideally, feeder only deals with tick data and the rest of the objects handle resampling. However,
         OANDA streams only a portion of the entire tick data therefore feeder is designed to collect 5S data. 
-        Tick data is collected only for future analysis or visual purposes.
+        Tick data may be collected only for future analysis or visual purposes.
     '''
 
     def __init__(self,config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency):
@@ -58,8 +61,15 @@ class feeder(object):
         self.account_type = account_type
         self.socket_pub_socket_number = socket_number
         self.socket_sub_socket_number = socket_number + 3 
+        '''
+        Defined two frequencies:
+        - download_frequency is the frequency to download bar data and append to in-memory dataframe, e.g. 1 min
+        - update_signal_frequency is the frequency to append in-memory dataframe to database, e.g. 1 hour
+        - main idea is to make decisions every hour but get updates every minute for assessment.
+        '''        
         self.download_frequency = download_frequency
         self.update_signal_frequency = update_signal_frequency
+        
 
         self.askbidmid = 'AB'
         self.ticks = 0
@@ -76,12 +86,7 @@ class feeder(object):
         self.socket_pub = self.context_pub.socket(zmq.PUB)
         self.socket_pub.set_hwm(0)
         self.socket_pub.connect("tcp://127.0.0.1:{}".format(self.socket_pub_socket_number))
-
-        self.context_pub = zmq.Context()
-        self.socket_pub = self.context_pub.socket(zmq.PUB)
-        self.socket_pub.set_hwm(0)
-        self.socket_pub.connect("tcp://127.0.0.1:{}".format(self.socket_pub_socket_number))
-
+        
         self.context_sub = zmq.Context()
         self.socket_sub = self.context_sub.socket(zmq.SUB)
         self.socket_sub.setsockopt_string(zmq.SUBSCRIBE, "")
@@ -93,7 +98,7 @@ class feeder(object):
 
         global isAlive
         isAlive = True
-           
+                   
         if( self.account_type == 'live'):
             
             self.connect_broker_live()
@@ -106,20 +111,21 @@ class feeder(object):
             
             print('Error in account type, it should be either live, practice, or backtest') 
            
-        self.open_database(self.file_path_ohlc)
-           
+        self.open_database()
+
         self.download_missing_data()
 
         print('Feeder Ready to go')
 
-        # Run two threads for receiving real-time data and candle data                    
-        t1 = threading.Thread( target=self.receive_realtime_tick_data )
+        # Running two threads for receiving real-time data and candle data seems                    
+        # to cause problems - running only candles
+#        t1 = threading.Thread( target=self.receive_realtime_tick_data )
         t2 = threading.Thread( target=self.receive_realtime_bar_data, args=(self.granularity, self.askbidmid, ) )
 
-        t1.start()
+#        t1.start()
         t2.start()
 
-        t1.join()
+#        t1.join()
         t2.join()
 
     def connect_broker_live(self):
@@ -134,22 +140,27 @@ class feeder(object):
         self.access_token = self.config['oanda_v20']['access_token_practice']
         self.api = oandapyV20.API(access_token=self.access_token, environment="practice")
 
-    def open_database(self, file_path):
+    def open_database(self):
         ''' Open an existing h5 file or create a new file and table 
         '''
-
-        if( os.path.exists(file_path) ):
+        
+        if( os.path.exists(self.file_path_ohlc) ):
             ''' If a file exists, then start with current time and go back to find the
                 last data point stored in the database.
                 Otherwise create a new database.
             '''
 
-            self.h5 = tables.open_file(file_path, 'a')
+            self.h5 = tables.open_file(self.file_path_ohlc, 'a')
             self.ts = self.h5.root.data._f_get_timeseries()
             
             read_start_dt = datetime.datetime.utcnow() - offset - datetime.timedelta(days=1)
             read_end_dt = datetime.datetime.utcnow() - offset
             
+            '''
+            tstables does not have a built-in function to return the last row. Therefore,
+            I find the last entry in this loop.
+            '''
+
             while True:
                 
                 rows = self.ts.read_range(read_start_dt,read_end_dt)
@@ -161,20 +172,25 @@ class feeder(object):
                                      
         else:
 
-            if( not os.path.exists(self.folder_path)):
-                
-                os.mkdir(self.folder_path) 
+            self.create_database()
 
-            self.h5 = tables.open_file(file_path, 'w')
-            self.ts = self.h5.create_ts('/', 'data', desc)
-            self.current_timestamp = datetime.datetime(2010,1,1,0,0,0)
+    def create_database(self):
+        
+        if( not os.path.exists(self.folder_path)):
+            
+            os.mkdir(self.folder_path) 
+
+        self.h5 = tables.open_file(self.file_path_ohlc, 'w')
+        self.ts = self.h5.create_ts('/', 'data', desc)
+        self.current_timestamp = datetime.datetime(2010,1,1,0,0,0)
 
     def download_missing_data(self):
-
-        if datetime.datetime.utcnow() - self.current_timestamp > datetime.timedelta(hours=1):
-            
+       
+        if ( datetime.datetime.utcnow() - self.current_timestamp > datetime.timedelta(hours=1) ):
+                                   
             print('More than 1 hour of data missing, need to download before starting')
-            
+            print('Downloading chunks of data in 1 hour duration')            
+
             start_time = self.current_timestamp
             end_time = start_time + datetime.timedelta(hours=1)
             
@@ -188,9 +204,9 @@ class feeder(object):
                 end_time = start_time + datetime.timedelta(hours=1)
                                 
             self.h5.close()
-            
-            self.open_database(self.file_path_ohlc)
-        
+
+            self.open_database()
+       
     def download_ohlc_data(self, start_datetime, end_datetime, granularity, askbidmid):
         
         start_datetime = start_datetime
@@ -249,8 +265,8 @@ class feeder(object):
         return data
                 
     def receive_realtime_bar_data(self,granularity,askbidmid):
-        ''' Constantly check the current time
-            At evey 5 seconds, download 5S bar
+        ''' 
+        Constantly check the current time evey 5 seconds, download 5S bar
         '''
         
         global isAlive
@@ -274,6 +290,7 @@ class feeder(object):
                 try:
 
                     data = self.download_ohlc_data(fromTime, toTime, granularity, askbidmid)
+
                     self.append_bar_data_to_in_memory_bar_ohlc_df(data)
 
                     if current_slack_signal < previous_slack_signal:
@@ -414,12 +431,12 @@ class feeder(object):
                 
             except V20Error as e:
                 # catch API related errors that may occur
-                print("Error: {}".format(e))
+                print("V20Error Error: {}".format(e))
                 isAlive = False
                 break
 
             except ConnectionError as e:
-                print("Error: {}".format(e))
+                print("ConnectionError Error: {}".format(e))
 
             except StreamTerminated as e:
                 print("Error: {}".format(e))
