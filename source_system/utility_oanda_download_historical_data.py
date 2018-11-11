@@ -7,6 +7,9 @@ import zmq
 import pandas as pd
 import tables 
 import tstables  
+# Note that tstables broke due to changes in Pandas
+# Updates in https://github.com/afiedler/tstables/pull/8/commits/ffc3cba62fd8a1a69baea0f31732bf69d24660c8
+# helped me restore on 2018-10-07
 import datetime
 import configparser
 import time
@@ -84,7 +87,7 @@ class downloader_historical_data(object):
             temp = self.download_ohlc_data(day_begin, day_end, self.granularity, self.askbidmid)
              
             self.ts.append(temp)
-            
+           
             day_begin = day_end
             day_end = day_begin + step
             
@@ -111,7 +114,7 @@ class downloader_historical_data(object):
         
         raw = r.response.get('candles')
         raw = [cs for cs in raw if cs['complete']]
-
+        
         data = pd.DataFrame()
         
         if len(raw) > 0:
@@ -131,12 +134,12 @@ class downloader_historical_data(object):
                 del cs['complete']
 
             data = pd.DataFrame(raw)
-                       
+            
             data = data.set_index('time')  
             data.index = pd.DatetimeIndex(data.index)  
                     
             data[['ask_c', 'ask_l', 'ask_h', 'ask_o','bid_c', 'bid_l', 'bid_h', 'bid_o']] = data[['ask_c', 'ask_l', 'ask_h', 'ask_o','bid_c', 'bid_l', 'bid_h', 'bid_o']].astype('float64')
- 
+            
         return data
 
 if __name__ == '__main__':
@@ -148,16 +151,16 @@ if __name__ == '__main__':
 #    symbol_list = ['EUR_USD', 'AUD_USD', 'USD_CAD', 'USD_JPY', 'USD_TRY']
 
     account_type = 'live'
-    symbol_list = ['EUR_USD']
+    symbol_list = ['USD_CAD']
     
-    start_datetime = datetime.datetime(2005,1,1,0,0,0)
-    end_datetime = datetime.datetime(2018,7,20,0,0,0)
+    start_datetime = datetime.datetime(2007,7,22,0,0,0)
+    end_datetime = datetime.datetime(2012,4,1,0,0,0)
 #    end_datetime = datetime.datetime.utcnow()
     
-    granularity = 'S5'
+    granularity = 'D'
     askbidmid = 'AB'
     
-    step = datetime.timedelta(hours=1)
+    step = datetime.timedelta(hours=24)
 
     for symbol in symbol_list:
     
