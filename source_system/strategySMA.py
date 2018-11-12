@@ -106,7 +106,7 @@ if __name__ == '__main__':
 
 #    symbol = 'USD_JPY'
 #    account_type = 'live'
-    symbol = 'USD_TRY'
+    symbol = 'EUR_USD'
     account_type = 'practice'
     granularity = 'S5'
 

@@ -64,7 +64,7 @@ class portfolio(object):
             
             print('{} Sell Orders Sent'.format(units) )
 
-        elif units < 0:
+        elif units > 0:
             
             print('{} Buy Orders Sent'.format(units) )
         
@@ -88,26 +88,26 @@ class portfolio(object):
 
                 if longshort == 'Short':
 
-                    units = 2
+                    units = 2000
                     self.create_order(symbol,-units)
                 
             if self.position[symbol] < 0:
 
                 if longshort == 'Long':
                 
-                    units = 2
+                    units = 2000
                     self.create_order(symbol,units)
 
             if self.position[symbol] == 0:
                 
                 if longshort == 'Short':
 
-                    units = 1
+                    units = 1000
                     self.create_order(symbol,-units)
                     
                 elif longshort == 'Long':
 
-                    units = 1
+                    units = 1000
                     self.create_order(symbol,units)
 
             self.get_positions_for_instruments()

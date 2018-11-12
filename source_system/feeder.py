@@ -8,8 +8,8 @@ import zmq
 import pandas as pd
 import tables 
 import tstables  
-import datetime
 import configparser
+import datetime
 import time
 import utility_functions as uf
 import threading
@@ -189,7 +189,7 @@ class feeder(object):
         if ( datetime.datetime.utcnow() - self.current_timestamp > datetime.timedelta(hours=1) ):
                                    
             print('More than 1 hour of data missing, need to download before starting')
-            print('Downloading chunks of data in 1 hour duration')            
+            print('Downloading chunks of data of 1 hour length of duration')            
 
             start_time = self.current_timestamp
             end_time = start_time + datetime.timedelta(hours=1)
@@ -287,15 +287,16 @@ class feeder(object):
                 fromTime = self.current_timestamp
                 toTime = timestamp_bar_end
                 
+                print('fromTime:', fromTime, ' toTime:', toTime)
                 try:
 
                     data = self.download_ohlc_data(fromTime, toTime, granularity, askbidmid)
-
+                    
                     self.append_bar_data_to_in_memory_bar_ohlc_df(data)
 
                     if current_slack_signal < previous_slack_signal:
                         self.append_in_memory_bar_ohlc_df_to_database()
-                    
+                                        
                     self.number_of_bars = self.number_of_bars + 1
         
                 except Exception as e:
@@ -477,8 +478,8 @@ if __name__ == '__main__':
         print( 'Error in reading configuration file' )
 
     symbol = 'EUR_USD'
-#    account_type = 'practice'
-    account_type = 'live'
+    account_type = 'practice'
+#    account_type = 'live'
     socket_number = 5555    
     granularity = 'S5'
     download_frequency = datetime.timedelta(seconds=60)

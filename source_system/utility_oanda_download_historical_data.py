@@ -78,7 +78,7 @@ class downloader_historical_data(object):
         self.ts = self.h5.create_ts('/', 'data', desc)
         
         day_begin = self.start_datetime
-        day_end = day_begin + step
+        day_end = day_begin + self.step
         
         while day_end <= self.end_datetime:
             
@@ -89,7 +89,7 @@ class downloader_historical_data(object):
             self.ts.append(temp)
            
             day_begin = day_end
-            day_end = day_begin + step
+            day_end = day_begin + self.step
             
         self.h5.close()
 
@@ -151,16 +151,16 @@ if __name__ == '__main__':
 #    symbol_list = ['EUR_USD', 'AUD_USD', 'USD_CAD', 'USD_JPY', 'USD_TRY']
 
     account_type = 'live'
-    symbol_list = ['USD_CAD']
+    symbol_list = ['EUR_USD']
     
     start_datetime = datetime.datetime(2007,7,22,0,0,0)
-    end_datetime = datetime.datetime(2012,4,1,0,0,0)
-#    end_datetime = datetime.datetime.utcnow()
+#    end_datetime = datetime.datetime(2012,4,1,0,0,0)
+    end_datetime = datetime.datetime.utcnow()
     
-    granularity = 'D'
+    granularity = 'S5'
     askbidmid = 'AB'
     
-    step = datetime.timedelta(hours=24)
+    step = datetime.timedelta(hours=1)
 
     for symbol in symbol_list:
     

@@ -8,7 +8,7 @@ import utility_functions as uf
 import time
 
 # Reading ts file
-account_type = 'live'
+account_type = 'practice'
 symbol = 'EUR_USD'
 granularity = 'S5'
 file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(account_type,symbol,granularity)
