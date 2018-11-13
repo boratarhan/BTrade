@@ -50,6 +50,7 @@ class strategy(object):
         self.indicatorlist = []
                                      
     def start(self):
+
         print('Strategy Ready to go')
                 
         while True:
@@ -74,7 +75,7 @@ class strategy(object):
         pass
 
     def create_order(self):
-        ''' Send order signal to Protfolio object
+        ''' Send order signal to Portfolio object
         '''
         pass
     

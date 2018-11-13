@@ -146,6 +146,7 @@ class portfolio(object):
             self.connect_broker_practice()
 
         self.get_instrument_list()
+
         self.get_positions_for_instruments()
            
         self.wait_order_signals()
