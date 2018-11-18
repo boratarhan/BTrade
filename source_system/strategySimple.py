@@ -12,32 +12,20 @@ import utility_functions as uf
 from strategy import *
 from indicators import *
 
-class SMA_Crossover(strategy):
+class SimpleStrategy(strategy):
+    
+    '''
+    Idea is to buy and wait until there is potential positive return
+    '''
     
     def __init__(self,symbol,account_type,daily_lookback,granularity,socket_number):
         
         strategy.__init__(self,symbol,account_type,daily_lookback,granularity,socket_number)
         
-        self.strategy_name = "SMA_Crossover"
+        self.strategy_name = "SimpleStrategy"
         
         self.start()
-
-    def start(self):
-        print('Strategy Ready to go')
-                
-        while True:
-
-            msg = self.socket_sub.recv_string()
-            print("Strategy Received message: {}".format(msg))
-        
-            self.read_data()
-
-            self.core_strategy()
-    
-            msg = 'Resampler completed...'
-            print("Sending message: {0}".format(msg))
-            self.socket_pub.send_string(msg)
-                
+               
     def core_strategy(self):
         
         self.resample_data('M1')
@@ -49,19 +37,23 @@ class SMA_Crossover(strategy):
         result = pd.concat([self.df_aggregate['1T'], self.df_status], axis=1)
         print(result.tail)
         
-        
     def add_indicators(self):
 
-        self.df_aggregate['1T'], self.indicatorlist = AddSMA( self.df_aggregate['1T'], self.indicatorlist, 'bid', 'c', 5)
-        self.df_aggregate['1T'], self.indicatorlist = AddSMA( self.df_aggregate['1T'], self.indicatorlist, 'bid', 'c', 3)
-        self.df_aggregate['1T'] = self.df_aggregate['1T'].dropna()
+        pass
                      
     def create_order_signal(self):
 
         try:
             
             temp_index = self.df_aggregate['1T'].index[-1]
-                       
+                
+            '''
+            self.get_positions_for_instruments()
+            
+            if self.position[symbol] > 0:
+            ''' 
+                
+                
             if self.df_aggregate['1T']['SMA_5_bid_c'][-1] > self.df_aggregate['1T']['SMA_3_bid_c'][-1]:
     
                 print('Short')
