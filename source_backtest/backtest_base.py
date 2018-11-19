@@ -1,19 +1,19 @@
 import sys
 from sys import exit
-import os
-import math
+#import os
+#import math
 import numpy as np
 import pandas as pd
-from pandas_datareader import data as web
+#from pandas_datareader import data as web
 import matplotlib.pyplot as plt
 import datetime
 import tables 
-import tstables  
+#import tstables  
 plt.style.use('seaborn')
 
 sys.path.append('..\\source_system')
 from indicators import *
-from visualizer import *
+import visualizer as viz
 from utility_functions import *
 sys.path.remove('..\\source_system')
 
@@ -42,13 +42,12 @@ class Trade(object):
         self.maxAdverseExcursion = 0.0
         self.stat_required_margin = []
         self.stat_unrealizedprofitloss = []                                   
-#        self.update( entrypricebid, entrypriceask )
     
     def update(self, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
         price_c = price_bid_c if self.units > 0 else price_ask_c      
         price_h = price_bid_h if self.units > 0 else price_ask_h      
         price_l = price_bid_l if self.units > 0 else price_ask_l      
-        
+
         self.unrealizedprofitloss = self.units * ( price_c - self.entryprice )
         self.stat_unrealizedprofitloss.append(self.unrealizedprofitloss)
 
@@ -71,8 +70,7 @@ class Trade(object):
             self.maxAdverseExcursion = tempmaxAdverseExcursion
                                
         print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
-        
-                
+                        
     def close(self, units, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
         exitprice = price_bid_c if self.units > 0 else price_ask_c
         # ask price > bid pricez
@@ -107,7 +105,7 @@ class Trade(object):
             self.IsOpen = False
             
         self.update(price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l)
-            
+
         return self.IsOpen, unclosedunits
         
 class backtest_base(object):
@@ -124,7 +122,7 @@ class backtest_base(object):
         self.end = end
         self.indicatorlist = []
         self.listofOpenTrades = []
-        self.listofClosedTrades = []        
+        self.listofClosedTrades = []
         
         # Notation:
         # Equity = Balance + UnrealizedP&L
@@ -139,14 +137,15 @@ class backtest_base(object):
         self.unrealizedprofitloss = 0.0
         self.realizedprofitloss = 0.0
         self.listofrealizedprofitloss = np.array([])
-        self.sharpe_ratio = 0.0
-        
+        self.sharpe_ratio = 0.0 
+        self.df_trades = pd.DataFrame()
+            
         self.units_to_buy = 0
         self.units_to_sell = 0
         self.units_net = 0
 
-        self.ftc = ftc
-        self.ptc = ptc
+        self.ftc = ftc # Fixed transaction cost
+        self.ptc = ptc # Variable transaction cost
         self.trades = 0
         self.verbose = True
         self.get_data()
@@ -190,10 +189,10 @@ class backtest_base(object):
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
         
-        self.equity = self.initial_equity
-        self.required_margin = 0.0
-        self.free_margin = self.equity
-        self.balance = self.equity
+#        self.equity = self.initial_equity
+#        self.required_margin = 0.0
+#        self.free_margin = self.equity
+#        self.balance = self.equity
         self.profit_loss = 0.0
 
         for date, _ in self.data.iterrows():
@@ -233,9 +232,10 @@ class backtest_base(object):
 
     def open_long_trade(self, units, date):
 
-        price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
         self.data.loc[date,'units_to_buy'] = self.data.loc[date,'units_to_buy'] + units
                      
+        price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
+
         if self.verbose:
             print('%s | buying  %4d units at ask %7.5f' %(date, units, price_ask_c))
         
@@ -256,6 +256,7 @@ class backtest_base(object):
                 etrade = self.listofOpenShortTrades[-1]
 
                 IsOpen, unclosedunits = etrade.close(-units, date, price_bid_c, price_ask_c )
+
                 self.units_net = self.units_net + units
 
                 if not IsOpen:
@@ -273,8 +274,9 @@ class backtest_base(object):
                 
     def close_long_trades(self, date):
 
-        price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
         self.data.loc[date,'units_to_sell'] = self.units_net
+
+        price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
 
         if self.verbose:
             print('%s | closing long trades' %date)
@@ -399,11 +401,11 @@ class backtest_base(object):
         
         if self.verbose:
             print('=' * 55)
-        print('Initial equity   [$] {0:.2f}'.format(self.initial_equity))
-        print('Final equity   [$] {0:.2f}'.format(self.equity))
-        print('Net Performance [%] {0:.2f}'.format(self.data['cumret-strategy'][-1] * 100) )
-        print('Number of transactions: {}'.format(self.numberoftrades ))
-        print('Maximum drawdown: [%] {0:.2f}'.format(self.maxdrawdown * 100) )
+            print('Initial equity   [$] {0:.2f}'.format(self.initial_equity))
+            print('Final equity   [$] {0:.2f}'.format(self.equity))
+            print('Net Performance [%] {0:.2f}'.format(self.data['cumret-strategy'][-1] * 100) )
+            print('Number of transactions: {}'.format(self.numberoftrades ))
+            print('Maximum drawdown: [%] {0:.2f}'.format(self.maxdrawdown * 100) )
 
     def optimizer(self, args):
         pass
@@ -456,11 +458,11 @@ class backtest_base(object):
         plt.close()
 
     def plot_MAE(self):
-    
+
         val_ID = []
         val_MAE = []
         val_pnl = []
-        
+
         for eTrade in self.listofClosedTrades:
             if eTrade.realizedprofitloss >= 0:
                 val_ID.append(eTrade.ID)
@@ -468,7 +470,7 @@ class backtest_base(object):
                 val_pnl.append(eTrade.realizedprofitloss)
         
         plt.scatter(val_MAE, val_pnl, color='g', marker='o', s = 8)
-        plt.title("MAE vs PnL")
+        plt.title("MAE vs PnL for winning trades")
         plt.xlabel("MAE")
         plt.ylabel("PnL")
         plt.show()
@@ -485,7 +487,7 @@ class backtest_base(object):
                 val_pnl.append(eTrade.realizedprofitloss)
         
         plt.scatter(val_MAE, val_pnl, color='r', marker='o', s = 8)
-        plt.title("MAE vs PnL")
+        plt.title("MAE vs PnL for losing trades")
         plt.xlabel("MAE")
         plt.ylabel("PnL")
         plt.show()
@@ -504,7 +506,7 @@ class backtest_base(object):
                 val_pnl.append(eTrade.realizedprofitloss)
         
         plt.scatter(val_MFE, val_pnl, color='g', marker='o', s = 8)
-        plt.title("MFE vs PnL")
+        plt.title("MFE vs PnL for winning trades")
         plt.xlabel("MFE")
         plt.ylabel("PnL")
         plt.show()
@@ -521,7 +523,7 @@ class backtest_base(object):
                 val_pnl.append(eTrade.realizedprofitloss)
     
         plt.scatter(val_MFE, val_pnl, color='r', marker='o', s = 8)
-        plt.title("MFE vs PnL")
+        plt.title("MFE vs PnL for losing trades")
         plt.xlabel("MFE")
         plt.ylabel("PnL")
         plt.show()
@@ -575,7 +577,7 @@ class backtest_base(object):
         pnl = self.listofrealizedprofitloss.mean()
         std = self.listofrealizedprofitloss[self.listofrealizedprofitloss<threshold].std()
         self.sortino_ratio = pnl / std
-        msg = 'Sortino Ratio: {0:.2f}'.format(self.sortino_ratio)
+        msg = 'Sortino Ratio for threshold of {0:.2f}: {0:.2f}'.format(threshold, self.sortino_ratio)
         print(msg)
 
     def calculate_information_ratio(self):
@@ -700,9 +702,42 @@ class backtest_base(object):
         print(msg)
        
 
+    def write_all_trades_to_excel(self):
+        
+        for eTrade in self.listofClosedTrades:
+                
+            self.df_trades.loc[eTrade.ID,'symbol'] = eTrade.symbol
+            self.df_trades.loc[eTrade.ID,'units'] = eTrade.units
+            self.df_trades.loc[eTrade.ID,'longshort'] = eTrade.longshort
+            self.df_trades.loc[eTrade.ID,'entrydate'] = eTrade.entrydate
+            self.df_trades.loc[eTrade.ID,'entryprice'] = eTrade.entryprice
+            self.df_trades.loc[eTrade.ID,'realizedprofitloss'] = eTrade.realizedprofitloss
+            self.df_trades.loc[eTrade.ID,'maxFavorableExcursion'] = eTrade.maxFavorableExcursion
+            self.df_trades.loc[eTrade.ID,'maxAdverseExcursion'] = eTrade.maxAdverseExcursion
+            self.df_trades.loc[eTrade.ID,'marginrate'] = eTrade.marginrate
+                                        
+            for idx, exTrade in enumerate(eTrade.exittransactions):
+                
+                self.df_trades.loc[eTrade.ID,'exit_{}_date'.format(idx)] = exTrade['date']
+                self.df_trades.loc[eTrade.ID,'exit_{}_unit'.format(idx)] = exTrade['units']
+                self.df_trades.loc[eTrade.ID,'exit_{}_price'.format(idx)] = exTrade['price']
+                self.df_trades.loc[eTrade.ID,'exit_{}_realized P&L'.format(idx)] = exTrade['realized P&L']                
+                
+        now = datetime.datetime.now()
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\trades_{}_{}.xlsx'.format(self.symbol, now.strftime("%Y-%m-%d-%H-%M"))
+
+        # Create a Pandas Excel writer using XlsxWriter as the engine.
+        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+        
+        # Convert the dataframe to an XlsxWriter Excel object.
+        self.df_trades.to_excel(writer, sheet_name='Sheet1')
+        
+        # Close the Pandas Excel writer and output the Excel file.
+        writer.save()
+       
 if __name__ == '__main__':
 
-     symbol = 'USD_TRY'
+     symbol = 'EUR_USD'
      account_type = 'practice'
      granularity = 'S5'
      decision_frequency = '1H'
@@ -712,4 +747,4 @@ if __name__ == '__main__':
             
      bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginrate)
 
-     visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+     viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
