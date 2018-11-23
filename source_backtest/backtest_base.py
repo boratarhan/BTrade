@@ -16,6 +16,7 @@ from indicators import *
 import visualizer as viz
 from utility_functions import *
 sys.path.remove('..\\source_system')
+import random
 
  # A standard lot = 100,000 units of base currency. 
  # A mini lot = 10,000 units of base currency.
@@ -565,14 +566,15 @@ class backtest_base(object):
         
     def count_number_of_trades(self):
         
-        msg = 'Number of trades: {}'.format(len(set(self.listofClosedTrades)))
-        print(msg)
-
-        msg = 'Number of long trades: {}'.format(len(set([x for x in self.listofClosedTrades if x.longshort == 'long'])))
-        print(msg)
+        self.numberofClosedTrades = len(set(self.listofClosedTrades))
         
-        msg = 'Number of short trades: {}'.format(len(set([x for x in self.listofClosedTrades if x.longshort == 'short'])))
-        print(msg)
+    def count_number_of_long_trades(self):
+        
+        self.numberofClosedLongTrades = len(set([x for x in self.listofClosedTrades if x.longshort == 'long']))
+        
+    def count_number_of_short_trades(self):
+
+        self.numberofClosedShortTrades = len(set([x for x in self.listofClosedTrades if x.longshort == 'short']))
         
     def calculate_PnL(self):
 
@@ -788,7 +790,58 @@ class backtest_base(object):
         writer.save()
 
         self.data.drop( ['return_check_ask_h_over_c', 'return_check_ask_l_over_c', 'return_check_ask_c_over_c', 'return_check_bid_h_over_c', 'return_check_bid_l_over_c', 'return_check_bid_c_over_c', 'outlier_ask_h_over_c', 'outlier_ask_l_over_c', 'outlier_ask_c_over_c', 'outlier_bid_h_over_c', 'outlier_bid_l_over_c', 'outlier_bid_c_over_c'], axis=1, inplace=True )
+
+    def calculate_number_of_trades_to_simulate(self):
         
+        self.count_number_of_trades()
+        
+        frequency = (self.data.index[-1] - self.data.index[0]) / self.numberofClosedTrades
+        
+        return int( pd.Timedelta(value='365D') / frequency )
+
+        
+    def monte_carlo_simulator(self, cols=2500):
+        '''
+        Function to simulate trades for a given number of times.
+    
+        Parameters
+        ==========
+        rows: int
+            number of trades to pick
+        cols: int
+            number of simulations
+   
+        Returns
+        =======
+        df: DataFrame object with simulated data
+        '''
+    
+        no_of_rows = self.calculate_number_of_trades_to_simulate()
+        no_of_cols = int(cols)
+        
+        # generate column names
+        columns = ['Sim%d' % i for i in range(1, no_of_cols+1, 1)]
+        rows = [i for i in range(1, no_of_rows+2, 1)]
+        
+        # generate sample paths for a selected set of trades
+        self.simulations_df = pd.DataFrame( index=rows, columns=columns )
+        
+        for eSim in columns:
+        
+            temp = [ self.initial_equity ]
+                   
+            total = self.initial_equity
+            
+            for eperiod in rows[:-1]:
+        
+                total = total + random.choice(self.listofrealizedprofitloss)
+                temp.append( total )
+                
+            self.simulations_df[eSim] = temp
+
+        self.simulations_df['mean'] = self.simulations_df.mean(axis=1)
+        
+        self.simulations_df['mean'].plot()
         
 if __name__ == '__main__':
 
