@@ -555,6 +555,24 @@ class backtest_base(object):
         self.calculate_average_lose()
         self.calculate_expectancy()
         self.calculate_consecutive_win_loss()
+        self.count_number_of_trading_days()
+        self.count_number_of_trades()
+        
+    def count_number_of_trading_days(self):
+        
+        msg = 'Number of trading days: {}'.format(len(set(self.data.index.date)))
+        print(msg)
+        
+    def count_number_of_trades(self):
+        
+        msg = 'Number of trades: {}'.format(len(set(self.listofClosedTrades)))
+        print(msg)
+
+        msg = 'Number of long trades: {}'.format(len(set([x for x in self.listofClosedTrades if x.longshort == 'long'])))
+        print(msg)
+        
+        msg = 'Number of short trades: {}'.format(len(set([x for x in self.listofClosedTrades if x.longshort == 'short'])))
+        print(msg)
         
     def calculate_PnL(self):
 
@@ -735,6 +753,43 @@ class backtest_base(object):
         # Close the Pandas Excel writer and output the Excel file.
         writer.save()
        
+    def check_data_quality(self):
+        
+        '''
+        Purpose is to check the returns from previous day based on high, low, close and find out if there are any that
+        stands out 4 sigma. They should be extreme cases, o/w it is bad data.
+        '''
+
+        self.data['return_check_ask_h_over_c'] = self.data['ask_h'] / self.data['ask_c'].shift(1)
+        self.data['return_check_ask_l_over_c'] = self.data['ask_l'] / self.data['ask_c'].shift(1)
+        self.data['return_check_ask_c_over_c'] = self.data['ask_c'] / self.data['ask_c'].shift(1)
+
+        self.data['return_check_bid_h_over_c'] = self.data['bid_h'] / self.data['bid_c'].shift(1)
+        self.data['return_check_bid_l_over_c'] = self.data['bid_l'] / self.data['bid_c'].shift(1)
+        self.data['return_check_bid_c_over_c'] = self.data['bid_c'] / self.data['bid_c'].shift(1)
+        
+        self.data['outlier_ask_h_over_c'] = np.abs( self.data['return_check_ask_h_over_c'] - self.data['return_check_ask_h_over_c'].mean() ) / self.data['return_check_ask_h_over_c'].std()
+        self.data['outlier_ask_l_over_c'] = np.abs( self.data['return_check_ask_l_over_c'] - self.data['return_check_ask_l_over_c'].mean() ) / self.data['return_check_ask_l_over_c'].std()
+        self.data['outlier_ask_c_over_c'] = np.abs( self.data['return_check_ask_c_over_c'] - self.data['return_check_ask_c_over_c'].mean() ) / self.data['return_check_ask_c_over_c'].std()
+
+        self.data['outlier_bid_h_over_c'] = np.abs( self.data['return_check_bid_h_over_c'] - self.data['return_check_bid_h_over_c'].mean() ) / self.data['return_check_bid_h_over_c'].std()
+        self.data['outlier_bid_l_over_c'] = np.abs( self.data['return_check_bid_l_over_c'] - self.data['return_check_bid_l_over_c'].mean() ) / self.data['return_check_bid_l_over_c'].std()
+        self.data['outlier_bid_c_over_c'] = np.abs( self.data['return_check_bid_c_over_c'] - self.data['return_check_bid_c_over_c'].mean() ) / self.data['return_check_bid_c_over_c'].std()
+
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\datastore\\outliers_{}.xlsx'.format(self.symbol)
+
+        # Create a Pandas Excel writer using XlsxWriter as the engine.
+        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+        
+        # Convert the dataframe to an XlsxWriter Excel object.
+        self.data.to_excel(writer, sheet_name='Sheet1')
+        
+        # Close the Pandas Excel writer and output the Excel file.
+        writer.save()
+
+        self.data.drop( ['return_check_ask_h_over_c', 'return_check_ask_l_over_c', 'return_check_ask_c_over_c', 'return_check_bid_h_over_c', 'return_check_bid_l_over_c', 'return_check_bid_c_over_c', 'outlier_ask_h_over_c', 'outlier_ask_l_over_c', 'outlier_ask_c_over_c', 'outlier_bid_h_over_c', 'outlier_bid_l_over_c', 'outlier_bid_c_over_c'], axis=1, inplace=True )
+        
+        
 if __name__ == '__main__':
 
      symbol = 'EUR_USD'
@@ -746,5 +801,7 @@ if __name__ == '__main__':
      marginrate = 0.1
             
      bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginrate)
+     bb.check_data_quality()
 
-     viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+#     viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+    
