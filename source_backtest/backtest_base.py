@@ -17,6 +17,7 @@ import visualizer as viz
 from utility_functions import *
 sys.path.remove('..\\source_system')
 import random
+import statistics
 
  # A standard lot = 100,000 units of base currency. 
  # A mini lot = 10,000 units of base currency.
@@ -73,6 +74,7 @@ class Trade(object):
         print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
                         
     def close(self, units, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
+        
         exitprice = price_bid_c if self.units > 0 else price_ask_c
         # ask price > bid pricez
         # if i am selling, i get bid price
@@ -131,7 +133,7 @@ class backtest_base(object):
         
         self.initial_equity = amount
         self.equity = self.initial_equity
-        self.marginrate = marginrate # = 1 / Leverage
+        self.marginrate = marginrate # leverage = 100 / marginrate
         self.required_margin = 0.0
         self.free_margin = self.equity
         self.balance = self.equity
@@ -557,16 +559,11 @@ class backtest_base(object):
         self.calculate_expectancy()
         self.calculate_consecutive_win_loss()
         self.count_number_of_trading_days()
-        self.count_number_of_trades()
         
     def count_number_of_trading_days(self):
         
         msg = 'Number of trading days: {}'.format(len(set(self.data.index.date)))
         print(msg)
-        
-    def count_number_of_trades(self):
-        
-        self.numberofClosedTrades = len(set(self.listofClosedTrades))
         
     def count_number_of_long_trades(self):
         
@@ -792,14 +789,34 @@ class backtest_base(object):
         self.data.drop( ['return_check_ask_h_over_c', 'return_check_ask_l_over_c', 'return_check_ask_c_over_c', 'return_check_bid_h_over_c', 'return_check_bid_l_over_c', 'return_check_bid_c_over_c', 'outlier_ask_h_over_c', 'outlier_ask_l_over_c', 'outlier_ask_c_over_c', 'outlier_bid_h_over_c', 'outlier_bid_l_over_c', 'outlier_bid_c_over_c'], axis=1, inplace=True )
 
     def calculate_number_of_trades_to_simulate(self):
-        
-        self.count_number_of_trades()
-        
-        frequency = (self.data.index[-1] - self.data.index[0]) / self.numberofClosedTrades
+                
+        frequency = (self.data.index[-1] - self.data.index[0]) / self.numberoftrades
         
         return int( pd.Timedelta(value='365D') / frequency )
 
-        
+
+    def durbin_watson_test(self, data):
+        '''
+        The null hypothesis of the test is that there is no serial correlation. The Durbin-Watson test statistics is defined as:
+            ∑t=2T((et−et−1)2)/∑t=1Te2t
+
+        The test statistic is approximately equal to 2*(1-r) where r is the sample autocorrelation of the residuals. Thus, for r == 0, 
+        indicating no serial correlation, the test statistic equals 2. This statistic will always be between 0 and 4. The closer to 0 the 
+        statistic, the more evidence for positive serial correlation. The closer to 4, the more evidence for negative serial correlation.
+        '''
+        from statsmodels.regression.linear_model import OLS
+        from statsmodels.stats.stattools import durbin_watson
+
+        ols_res = OLS(data, np.ones(len(data))).fit()
+
+        print('=' * 55)
+        msg = 'Durbin Watson Test:  '
+        msg += '\nNo serial correlation, the test statistic equals 2.'
+        msg += '\nThe closer to 0 the statistic, the more evidence for positive serial correlation.' 
+        msg += '\nThe closer to 4, the more evidence for negative serial correlation.'
+        msg += '\nDW Statistic: %.4f ' % durbin_watson(ols_res.resid)
+        print(msg)
+                
     def monte_carlo_simulator(self, cols=2500):
         '''
         Function to simulate trades for a given number of times.
@@ -815,7 +832,14 @@ class backtest_base(object):
         =======
         df: DataFrame object with simulated data
         '''
-    
+
+        '''
+        It is a good practice to run Durbin-Watson test to check serial-correlation
+        of trade returns. If there is no autocorrelation between trade results, then
+        monte carlo can be used.        
+        '''
+        self.durbin_watson_test(self.listofrealizedprofitloss)
+        
         no_of_rows = self.calculate_number_of_trades_to_simulate()
         no_of_cols = int(cols)
         
@@ -826,6 +850,9 @@ class backtest_base(object):
         # generate sample paths for a selected set of trades
         self.simulations_df = pd.DataFrame( index=rows, columns=columns )
         
+        self.simulations_maxdrawdown_pct = []
+        self.simulations_profit_pct = []
+
         for eSim in columns:
         
             temp = [ self.initial_equity ]
@@ -838,11 +865,41 @@ class backtest_base(object):
                 temp.append( total )
                 
             self.simulations_df[eSim] = temp
+            
+            self.simulations_df['cumret-strategy_{}'.format(eSim)] = ( self.simulations_df[eSim] / self.initial_equity - 1 )
+            self.simulations_df['cumret-max_{}'.format(eSim)] = self.simulations_df['cumret-strategy_{}'.format(eSim)].cummax()
+            self.simulations_df['cumret-min_{}'.format(eSim)] = self.simulations_df['cumret-strategy_{}'.format(eSim)].cummin()
+            self.simulations_df['drawdown_pct_{}'.format(eSim)] = ( self.simulations_df['cumret-max_{}'.format(eSim)] - self.simulations_df['cumret-strategy_{}'.format(eSim)] ) / self.simulations_df['cumret-max_{}'.format(eSim)]
+            #self.simulations_df['drawdown_pct_{}'.format(eSim)][self.simulations_df['drawdown_pct_{}'.format(eSim)] == np.inf] = 0
+            self.simulations_df.loc[self.simulations_df['drawdown_pct_{}'.format(eSim)] == np.inf, 'drawdown_pct_{}'.format(eSim)] = 0
+            
+            self.simulations_maxdrawdown_pct.append( self.simulations_df['drawdown_pct_{}'.format(eSim)].max() )
+            self.simulations_profit_pct.append( self.simulations_df['cumret-strategy_{}'.format(eSim)].iloc[-1] )
 
+            del self.simulations_df['cumret-strategy_{}'.format(eSim)]
+            del self.simulations_df['cumret-max_{}'.format(eSim)]
+            del self.simulations_df['cumret-min_{}'.format(eSim)]
+            del self.simulations_df['drawdown_pct_{}'.format(eSim)]
+            
         self.simulations_df['mean'] = self.simulations_df.mean(axis=1)
         
         self.simulations_df['mean'].plot()
         
+        self.simulations_mean_maxdrawdown_pct = np.mean( self.simulations_maxdrawdown_pct )
+        self.simulations_median_maxdrawdown_pct = statistics.median( self.simulations_maxdrawdown_pct )
+       
+        self.simulations_mean_profit_pct = np.mean( self.simulations_profit_pct )
+        self.simulations_median_profit_pct = statistics.median( self.simulations_profit_pct ) 
+
+        self.calmar_ratio = self.simulations_median_profit_pct / self.simulations_median_maxdrawdown_pct
+
+        print('=' * 55)
+        msg = 'Monte Carlo Simulation Results:  '
+        msg += '\nMean Max Drawdown Percent:   %.2f ' % self.simulations_mean_maxdrawdown_pct
+        msg += '\nMedian Max Drawdown Percent: %.2f ' % self.simulations_median_maxdrawdown_pct
+        msg += '\nCalmar Ratio                 %.4f ' % self.calmar_ratio
+        print(msg)
+    
 if __name__ == '__main__':
 
      symbol = 'EUR_USD'
