@@ -66,13 +66,13 @@ if __name__ == '__main__':
 #     decision_frequency = '1T'
      start_datetime = datetime.datetime(2017,1,1,0,0,0)
      end_datetime = datetime.datetime(2017,8,1,0,0,0)
-     marginrate = 0.01
+     marginpercent = 100
      
      # A standard lot = 100,000 units of base currency. 
      # A mini lot = 10,000 units of base currency.
      # A micro lot = 1,000 units of base currency.
 
-     bb = backtest_strategy_SMA(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginrate)
+     bb = backtest_strategy_SMA(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginpercent)
      bb.verbose = True
      bb.run_strategy(14, 28)
      
@@ -81,6 +81,12 @@ if __name__ == '__main__':
 
      bb.plot_consecutive_win()
      bb.plot_consecutive_loss()
+     bb.monte_carlo_simulator(2500)
+     
+     filename = 'xxx.xlsx'
+     writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+     bb.simulations_df.to_excel(writer, sheet_name='Sheet1')
+     writer.save()
     
 #     visualize(bb.symbol, bb.data, bb.listofClosedTrades)
      # write2excel( bb.data, 'output' )

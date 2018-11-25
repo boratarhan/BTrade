@@ -22,12 +22,13 @@ import statistics
  # A standard lot = 100,000 units of base currency. 
  # A mini lot = 10,000 units of base currency.
  # A micro lot = 1,000 units of base currency.
+ # A nano lot = 100 units of base currency.
 
 class Trade(object):
 
     trade_counter = 1
         
-    def __init__(self, symbol, units, entrydate, entrypricebid, entrypriceask, marginrate ):
+    def __init__(self, symbol, units, entrydate, entrypricebid, entrypriceask, marginpercent ):
         self.ID = Trade.trade_counter
         Trade.trade_counter += 1
         self.symbol = symbol
@@ -35,7 +36,7 @@ class Trade(object):
         self.longshort = 'long' if self.units > 0 else 'short'
         self.entrydate = entrydate
         self.entryprice = entrypriceask if self.units > 0 else entrypricebid
-        self.marginrate = marginrate
+        self.marginpercent = marginpercent
         self.exittransactions = [] 
         self.IsOpen = True
         self.unrealizedprofitloss = 0.0
@@ -46,6 +47,7 @@ class Trade(object):
         self.stat_unrealizedprofitloss = []                                   
     
     def update(self, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
+        
         price_c = price_bid_c if self.units > 0 else price_ask_c      
         price_h = price_bid_h if self.units > 0 else price_ask_h      
         price_l = price_bid_l if self.units > 0 else price_ask_l      
@@ -53,7 +55,7 @@ class Trade(object):
         self.unrealizedprofitloss = self.units * ( price_c - self.entryprice )
         self.stat_unrealizedprofitloss.append(self.unrealizedprofitloss)
 
-        self.required_margin = ( self.entryprice * abs(self.units) - self.unrealizedprofitloss ) * self.marginrate
+        self.required_margin = ( self.entryprice * abs(self.units) - self.unrealizedprofitloss ) * self.marginpercent / 100
         self.stat_required_margin.append(self.required_margin)                                   
 
         tempmaxFavorableExcursion = 0.0
@@ -115,7 +117,7 @@ class backtest_base(object):
     ''' Base class for event-based backtesting of trading strategies.
     '''
 
-    def __init__(self, symbol, account_type, granularity, decision_frequency, start, end, amount, marginrate, ftc=0.0, ptc=0.0):
+    def __init__(self, symbol, account_type, granularity, decision_frequency, start, end, amount, marginpercent, ftc=0.0, ptc=0.0):
         self.symbol = symbol
         self.account_type = account_type
         self.granularity = granularity
@@ -133,7 +135,11 @@ class backtest_base(object):
         
         self.initial_equity = amount
         self.equity = self.initial_equity
-        self.marginrate = marginrate # leverage = 100 / marginrate
+
+        self.marginpercent = marginpercent 
+        # leverage = 100 / marginpercent
+        # Leverage is conventionally displayed as a ratio, such as 20:1 or 50:1. However, here 
+        # we use only the number on the left since the number on the right is always 1.
         self.required_margin = 0.0
         self.free_margin = self.equity
         self.balance = self.equity
@@ -248,7 +254,7 @@ class backtest_base(object):
         
             if len(self.listofOpenShortTrades) == 0:
                
-                etrade = Trade(self.symbol, units, date, price_bid_c, price_ask_c, self.marginrate )
+                etrade = Trade(self.symbol, units, date, price_bid_c, price_ask_c, self.marginpercent )
                 self.units_net = self.units_net + units
                 self.listofOpenTrades.append(etrade)
                                 
@@ -306,7 +312,7 @@ class backtest_base(object):
         
             if len(self.listofOpenLongTrades) == 0:
                
-                etrade = Trade(self.symbol, units, date, price_bid_c, price_ask_c, self.marginrate )
+                etrade = Trade(self.symbol, units, date, price_bid_c, price_ask_c, self.marginpercent )
                 self.units_net = self.units_net + units
                 self.listofOpenTrades.append(etrade)
                 self.longshort = 'short'
@@ -731,7 +737,7 @@ class backtest_base(object):
             self.df_trades.loc[eTrade.ID,'realizedprofitloss'] = eTrade.realizedprofitloss
             self.df_trades.loc[eTrade.ID,'maxFavorableExcursion'] = eTrade.maxFavorableExcursion
             self.df_trades.loc[eTrade.ID,'maxAdverseExcursion'] = eTrade.maxAdverseExcursion
-            self.df_trades.loc[eTrade.ID,'marginrate'] = eTrade.marginrate
+            self.df_trades.loc[eTrade.ID,'marginpercent'] = eTrade.marginpercent
                                         
             for idx, exTrade in enumerate(eTrade.exittransactions):
                 
@@ -908,9 +914,9 @@ if __name__ == '__main__':
      decision_frequency = '1H'
      start_datetime = datetime.datetime(2017,1,1,0,0,0)
      end_datetime = datetime.datetime(2017,8,1,0,0,0)
-     marginrate = 0.1
+     marginpercent = 10
             
-     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginrate)
+     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginpercent)
      bb.check_data_quality()
 
 #     viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
