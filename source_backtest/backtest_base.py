@@ -140,11 +140,25 @@ class backtest_base(object):
         # leverage = 100 / marginpercent
         # Leverage is conventionally displayed as a ratio, such as 20:1 or 50:1. However, here 
         # we use only the number on the left since the number on the right is always 1.
+        
+        # It is important to understand the relation between:
+        # - Leverage
+        # - Free Margin
+        # - Trade size
+        # - Risk
+        # Leverage -> Free Margin -> Trade Size -> Risk (Arrow shows what affects what)
+        # In simple case our trade size is fixed so leverage only affects free margin
+        # Unless the required margin exceed current equity (definition above), algorithm works.
+        # People associate leverage with risk because, typical investor uses high leverage
+        # which leads to high free margin, which allows trader to take large trade size
+        # It is the large trade size that ruins the trader.
+        # Trade size should not exceed 1-2% of equity.
+        
         self.required_margin = 0.0
         self.free_margin = self.equity
         self.balance = self.equity
         self.unrealizedprofitloss = 0.0
-        self.realizedprofitloss = 0.0
+        self.realizedcumulativeprofitloss = 0.0
         self.listofrealizedprofitloss = np.array([])
         self.sharpe_ratio = 0.0 
         self.df_trades = pd.DataFrame()
@@ -382,9 +396,9 @@ class backtest_base(object):
         for etrade in self.listofOpenTrades:
             etrade.update( price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
         
-        self.realizedprofitloss = sum( etrade.realizedprofitloss for etrade in self.listofClosedTrades )
+        self.realizedcumulativeprofitloss = sum( etrade.realizedprofitloss for etrade in self.listofClosedTrades )
         self.unrealizedprofitloss = sum( etrade.unrealizedprofitloss for etrade in self.listofOpenTrades )
-        self.balance = self.initial_equity + self.realizedprofitloss
+        self.balance = self.initial_equity + self.realizedcumulativeprofitloss
         self.equity = self.balance + self.unrealizedprofitloss
         self.required_margin = sum( etrade.required_margin for etrade in self.listofOpenTrades )
         self.free_margin = self.equity - self.required_margin
@@ -392,7 +406,7 @@ class backtest_base(object):
         self.data.loc[date,'units_net'] = self.units_net
         self.data.loc[date,'equity'] = self.equity                    
         self.data.loc[date,'balance'] = self.balance                    
-        self.data.loc[date,'realized P/L'] = self.realizedprofitloss                   
+        self.data.loc[date,'realized cumulative P/L'] = self.realizedcumulativeprofitloss                   
         self.data.loc[date,'unrealized P/L'] = self.unrealizedprofitloss                   
         self.data.loc[date,'required margin'] = self.required_margin                   
         self.data.loc[date,'free margin'] = self.free_margin                   
@@ -421,9 +435,9 @@ class backtest_base(object):
 
     def plot(self):
 
-#        self.plot_PnL_vs_Trade_Number()
 #        self.plot_data()
-#        self.plot_returns()
+        self.plot_returns()
+#        self.plot_PnL_vs_Trade_Number()
         self.plot_PnL_histogram()
 #        self.plot_drawdown()
         self.plot_MAE()
@@ -553,6 +567,17 @@ class backtest_base(object):
         plt.bar(x, y)
         plt.title("Number of Consecutive Loss")
         plt.show()
+
+    def plot_equity(self):
+
+        if len(self.data[self.data['free margin'] < 0 ]) > 0:                
+        
+            print('Margin requirement exceeded equity at least one point in time, need to change trade size')
+            
+        else:
+            
+            self.data[['required margin','free margin']].plot.area(title="Equity (required + free margin)")
+            self.data['balance'].plot(title="Balance")
         
     def calculate_stats(self):
         

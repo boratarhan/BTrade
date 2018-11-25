@@ -134,10 +134,17 @@ def parse_date(timestamp):
     return timestamp
 
 def write2excel( df, filename ):
-    filepath = os.path.join('..', '..', 'datastore', filename) + '.xlsx'
-    writer = pd.ExcelWriter(filepath, engine='xlsxwriter')
-    df.to_excel(writer )
-    writer.save()
+    
+    try:
+        
+        filepath = os.path.join('..', '..', 'datastore', filename) + '.xlsx'
+        writer = pd.ExcelWriter(filepath, engine='xlsxwriter')
+        df.to_excel(writer )
+        writer.save()
+
+    except:
+        
+        print('Problem writing to file. Please make sure that the file is closed.')
 
 def write_hdf_file(df, filename):
     filepath = os.path.join('..', '..', 'datastore', filename)

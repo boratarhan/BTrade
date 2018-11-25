@@ -77,17 +77,20 @@ if __name__ == '__main__':
      bb.run_strategy(14, 28)
      
      bb.calculate_stats()
-#     bb.plot()
+     bb.plot()
 
-     bb.plot_consecutive_win()
-     bb.plot_consecutive_loss()
-     bb.monte_carlo_simulator(2500)
+#     bb.plot_consecutive_win()
+#     bb.plot_consecutive_loss()
+#     bb.monte_carlo_simulator(2500)
+     bb.plot_equity()
+     write2excel( bb.data, 'output' )
+         
+#     filename = 'xxx.xlsx'
+#     writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+#     bb.simulations_df.to_excel(writer, sheet_name='Sheet1')
+#     writer.save()
      
-     filename = 'xxx.xlsx'
-     writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-     bb.simulations_df.to_excel(writer, sheet_name='Sheet1')
-     writer.save()
+     
     
 #     visualize(bb.symbol, bb.data, bb.listofClosedTrades)
-     # write2excel( bb.data, 'output' )
-    
+
