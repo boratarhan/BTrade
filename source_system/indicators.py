@@ -82,7 +82,7 @@ def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
     
     for index, row in df.iterrows():
         
-        print(index)
+        #print(index)
             
         if df.index.get_loc(index) >= lookback:
             
@@ -258,6 +258,32 @@ def VolumeWeightedPrice(df, indicator_list, askbidmid, lookback):
     indicator_list.extend(['vwap'])
     return df, indicator_list
 
+def AddPivotPoints(df, indicator_list, askbidmid, rightstrength, leftstrength):
+
+    df['pivot'] = 0
+    df['pivot-discovered'] = 0
+    
+    for index, row in df[:100].iterrows():
+
+        loc = df.index.get_loc(index)
+
+        if loc >= leftstrength+1 and loc <= len(df.index) - rightstrength:
+
+            temp = df[loc-leftstrength:loc+rightstrength+1]
+            
+            if temp['{}_h'.format(askbidmid)].loc[index] == max(temp['{}_h'.format(askbidmid)]):
+                
+                df['pivot'].loc[index] = 1
+
+            if temp['{}_l'.format(askbidmid)].loc[index] == min(temp['{}_l'.format(askbidmid)]):
+                
+                df['pivot'].loc[index] = -1
+                  
+            if df['pivot'].loc[index] != 0:
+                
+                df['pivot-discovered'].iloc[loc+rightstrength] = 1
+                
+    return df, indicator_list
 
                 
 #def AddDivergenceMACDDMI(df):
