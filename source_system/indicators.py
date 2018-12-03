@@ -63,15 +63,60 @@ def AddATR(df, indicator_list, askbidmid, timeperiod=14):
     return df, indicator_list
 
 def AddMinorHighLow(df, indicator_list, askbidmid):
-    df['minorhigh'] = np.where(( df['{}_h'.format(askbidmid)] > df['{}_h'.format(askbidmid)].shift(1) )     \
+    '''
+    Since the discovery of certain conditions become clear only after several bars passed, two columns are 
+    generated. One is the indicator and the other indicator-discovered. Latter represents the time when the
+    last signal was generated.
+    '''
+    
+    df['minorhighlow'] = 0
+    df['minorhighlow-discovered'] = 0
+
+    df['minorhighlow'] = np.where(( df['{}_h'.format(askbidmid)] > df['{}_h'.format(askbidmid)].shift(1) )     \
                              & ( df['{}_h'.format(askbidmid)] > df['{}_h'.format(askbidmid)].shift(-1) )    \
                              & ( df['{}_l'.format(askbidmid)] > df['{}_l'.format(askbidmid)].shift(1) )     \
-                             & ( df['{}_l'.format(askbidmid)] > df['{}_l'.format(askbidmid)].shift(-1) ), 1, 0)
-    df['minorlow'] = np.where(( df['{}_h'.format(askbidmid)] < df['{}_h'.format(askbidmid)].shift(1) )      \
+                             & ( df['{}_l'.format(askbidmid)] > df['{}_l'.format(askbidmid)].shift(-1) ), 1, 0) \
+                       + np.where(( df['{}_h'.format(askbidmid)] < df['{}_h'.format(askbidmid)].shift(1) )      \
                              & ( df['{}_h'.format(askbidmid)] < df['{}_h'.format(askbidmid)].shift(-1) )    \
                              & ( df['{}_l'.format(askbidmid)] < df['{}_l'.format(askbidmid)].shift(1) )     \
-                             & ( df['{}_l'.format(askbidmid)] < df['{}_l'.format(askbidmid)].shift(-1) ), 1, 0)
-    indicator_list.extend(['minorhigh','minorlow'])
+                             & ( df['{}_l'.format(askbidmid)] < df['{}_l'.format(askbidmid)].shift(-1) ), -1, 0)
+    
+    df['minorhighlow-discovered'] = np.abs(df['minorhighlow'].shift(1))
+
+    indicator_list.extend(['minorhighlow','minorhighlow-discovered'])
+    return df, indicator_list
+
+def AddPivotPoints(df, indicator_list, askbidmid, rightstrength, leftstrength):
+    '''
+    Since the discovery of certain conditions become clear only after several bars passed, two columns are 
+    generated. One is the indicator and the other indicator-discovered. Latter represents the time when the
+    last signal was generated.
+    '''
+
+    df['pivot'] = 0
+    df['pivot-discovered'] = 0
+
+    for index, row in df.iterrows():
+
+        loc = df.index.get_loc(index)
+            
+        if loc >= leftstrength-1 and loc <= len(df.index) - rightstrength:
+
+            temp = df[loc-leftstrength+1:loc+rightstrength+1]
+
+            if temp['{}_h'.format(askbidmid)].loc[index] == temp['{}_h'.format(askbidmid)].max():
+                
+                df.loc[index, 'pivot'] = 1
+
+            if temp['{}_l'.format(askbidmid)].loc[index] == temp['{}_l'.format(askbidmid)].min():
+                
+                df.loc[index, 'pivot'] = -1
+                  
+            if df['pivot'].loc[index] != 0:
+                
+                df['pivot-discovered'].iloc[loc+rightstrength] = 1
+        
+    indicator_list.extend(['pivot','pivot-discovered'])
     return df, indicator_list
 
 def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
@@ -81,13 +126,10 @@ def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
     df['divergencehiddensell'] = 0
     
     for index, row in df.iterrows():
-        
-        #print(index)
-            
-        if df.index.get_loc(index) >= lookback:
+                    
+        if df.index.get_loc(index) >= lookback and (row['pivot'] != 0):
             
             loc = df.index.get_loc(index)
-            #print(loc)
             
             stopdivergenceregularbuy = False
             stopdivergencehiddenbuy = False
@@ -258,32 +300,6 @@ def VolumeWeightedPrice(df, indicator_list, askbidmid, lookback):
     indicator_list.extend(['vwap'])
     return df, indicator_list
 
-def AddPivotPoints(df, indicator_list, askbidmid, rightstrength, leftstrength):
-
-    df['pivot'] = 0
-    df['pivot-discovered'] = 0
-    
-    for index, row in df[:100].iterrows():
-
-        loc = df.index.get_loc(index)
-
-        if loc >= leftstrength+1 and loc <= len(df.index) - rightstrength:
-
-            temp = df[loc-leftstrength:loc+rightstrength+1]
-            
-            if temp['{}_h'.format(askbidmid)].loc[index] == max(temp['{}_h'.format(askbidmid)]):
-                
-                df['pivot'].loc[index] = 1
-
-            if temp['{}_l'.format(askbidmid)].loc[index] == min(temp['{}_l'.format(askbidmid)]):
-                
-                df['pivot'].loc[index] = -1
-                  
-            if df['pivot'].loc[index] != 0:
-                
-                df['pivot-discovered'].iloc[loc+rightstrength] = 1
-                
-    return df, indicator_list
 
                 
 #def AddDivergenceMACDDMI(df):

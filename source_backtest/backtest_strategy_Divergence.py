@@ -7,9 +7,14 @@ class backtest_strategy_SMA(backtest_base):
         self.data, self.indicatorlist = AddSlowStochastic(self.data, self.indicatorlist, 'bid', fastk_period=14, slowk_period=3, slowd_period=3)
         self.data = self.data.dropna()
          
-        self.data, self.indicatorlist = AddPivotPoints(self.data, self.indicatorlist, 'bid', rightstrength=1, leftstrength=5)
+        self.data, self.indicatorlist = AddPivotPoints(self.data, self.indicatorlist, 'bid', rightstrength=1, leftstrength=10)
         self.data = self.data.dropna()
         
+        self.data, self.indicatorlist = AddMinorHighLow(self.data, self.indicatorlist, 'bid')
+        #self.data = self.data.dropna()
+            
+        #self.data, self.indicatorlist = AddDivergence(self.data, self.indicatorlist, 'bid', lookback=24, threshold=0.0020)
+            
         #self.data, self.indicatorlist = AddDivergence( self.data, self.indicatorlist, 'bid', 24, 0.0020)
 
     def go_long(self, date, units):
