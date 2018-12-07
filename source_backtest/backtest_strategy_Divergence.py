@@ -11,19 +11,17 @@ class backtest_strategy_SMA(backtest_base):
         self.data = self.data.dropna()
         
         self.data, self.indicatorlist = AddMinorHighLow(self.data, self.indicatorlist, 'bid')
-        #self.data = self.data.dropna()
+        self.data = self.data.dropna()
             
-        #self.data, self.indicatorlist = AddDivergence(self.data, self.indicatorlist, 'bid', lookback=24, threshold=0.0020)
+        self.data, self.indicatorlist = AddDivergence(self.data, self.indicatorlist, 'bid', lookback=6, threshold=0.0020)
+
+    def buy(self, date, units):
+
+        self.open_long_trade(units=10000, date=date)
             
-        #self.data, self.indicatorlist = AddDivergence( self.data, self.indicatorlist, 'bid', 24, 0.0020)
+    def sell(self, date, units):
 
-    def go_long(self, date, units):
-
-        pass
-            
-    def go_short(self, date, units):
-
-        pass
+        self.open_short_trade(units=-10000, date=date)
     
     def run_strategy(self):
 
@@ -34,7 +32,7 @@ class backtest_strategy_SMA(backtest_base):
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
         print('=' * 55)
-                    
+                            
         for date, _ in self.data.iterrows():
     
             ''' Get signal
@@ -45,7 +43,36 @@ class backtest_strategy_SMA(backtest_base):
                 	Either add to the list
                 	Eliminate some from list, move to ListofClosedOrders
             '''
+
+            #self.close_short_trades(date=date)
+            #self.close_long_trades(date=date)
+        
+            '''
+            if self.data.loc[date,'divergenceregularbuy'] == 1:
+                self.buy(date=date, units=10000)
+
+            if self.data.loc[date,'divergencehiddenbuy'] == 1:
+                self.sell(date=date, units=-10000)
+            '''
             
+            if self.data.loc[date,'divergenceregularbuy'] >= 1:
+                self.buy(date=date, units=10000)
+
+            if self.data.loc[date,'divergencehiddenbuy'] >= 1:
+                self.buy(date=date, units=10000)
+
+            if self.data.loc[date,'divergenceregularsell'] >= 1:
+                self.sell(date=date, units=-10000)
+
+            if self.data.loc[date,'divergencehiddensell'] >= 1:
+                self.sell(date=date, units=-10000)
+            
+            '''
+                Divergence signal
+                divergenceregularbuy	divergencehiddenbuy	divergenceregularsell	divergencehiddensell
+                Then add swing or pivot points
+            
+            '''            
             self.update(date)
         
         self.close_all_trades(date)
@@ -67,6 +94,12 @@ if __name__ == '__main__':
      bb.verbose = True
      bb.run_strategy()
      
+     bb.analyze_trades()
+     
      write2excel( bb.data, 'output' )
          
-    
+     viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID))
+     
+     
+     
+     

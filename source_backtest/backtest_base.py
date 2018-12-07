@@ -18,6 +18,7 @@ from utility_functions import *
 sys.path.remove('..\\source_system')
 import random
 import statistics
+import pickle
 
  # A standard lot = 100,000 units of base currency. 
  # A mini lot = 10,000 units of base currency.
@@ -45,9 +46,12 @@ class Trade(object):
         self.maxAdverseExcursion = 0.0
         self.stat_required_margin = []
         self.stat_unrealizedprofitloss = []                                   
+        self.duration = 0.0
     
     def update(self, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
-        
+
+        self.duration = datetime.datetime.now() - self.entrydate
+                     
         price_c = price_bid_c if self.units > 0 else price_ask_c      
         price_h = price_bid_h if self.units > 0 else price_ask_h      
         price_l = price_bid_l if self.units > 0 else price_ask_l      
@@ -128,6 +132,7 @@ class backtest_base(object):
         self.indicatorlist = []
         self.listofOpenTrades = []
         self.listofClosedTrades = []
+        self.stat_number_of_open_trades = []
         
         # Notation:
         # Equity = Balance + UnrealizedP&L
@@ -278,7 +283,7 @@ class backtest_base(object):
 
                 etrade = self.listofOpenShortTrades[-1]
 
-                IsOpen, unclosedunits = etrade.close(-units, date, price_bid_c, price_ask_c )
+                IsOpen, unclosedunits = etrade.close(-units, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
 
                 self.units_net = self.units_net + units
 
@@ -337,7 +342,7 @@ class backtest_base(object):
 
                 etrade = self.listofOpenLongTrades[-1]
 
-                IsOpen, unclosedunits = etrade.close(units, date, price_bid_c, price_ask_c )
+                IsOpen, unclosedunits = etrade.close(units, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
                 self.units_net = self.units_net + units - unclosedunits
 
                 if not IsOpen:
@@ -402,7 +407,8 @@ class backtest_base(object):
         self.equity = self.balance + self.unrealizedprofitloss
         self.required_margin = sum( etrade.required_margin for etrade in self.listofOpenTrades )
         self.free_margin = self.equity - self.required_margin
-        
+
+        self.stat_number_of_open_trades.append(len(self.listofOpenTrades))
         self.data.loc[date,'units_net'] = self.units_net
         self.data.loc[date,'equity'] = self.equity                    
         self.data.loc[date,'balance'] = self.balance                    
@@ -931,6 +937,31 @@ class backtest_base(object):
         msg += '\nCalmar Ratio                 %.4f ' % self.calmar_ratio
         print(msg)
     
+    def analyze_trades(self):
+        
+        self.trade_performance_over_time = pd.DataFrame()
+
+        for eTrade in self.listofClosedTrades:
+        
+            for i in range( 1, len(eTrade.stat_unrealizedprofitloss)+1 ):
+                
+                self.trade_performance_over_time.loc[eTrade.ID, i] = eTrade.stat_unrealizedprofitloss[i-1]
+        
+        now = datetime.datetime.now()
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\datastore\\trades_performance_over_time_{}_{}.xlsx'.format(self.symbol, now.strftime("%Y-%m-%d-%H-%M"))
+
+        # Create a Pandas Excel writer using XlsxWriter as the engine.
+        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+        
+        # Convert the dataframe to an XlsxWriter Excel object.
+        self.trade_performance_over_time.to_excel(writer, sheet_name='Sheet1')
+        
+        # Close the Pandas Excel writer and output the Excel file.
+        writer.save()
+
+
+
+        
 if __name__ == '__main__':
 
      symbol = 'EUR_USD'
@@ -944,5 +975,6 @@ if __name__ == '__main__':
      bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginpercent)
      bb.check_data_quality()
 
-#     viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+     viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID))
+     
     

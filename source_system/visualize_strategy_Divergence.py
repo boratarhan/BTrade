@@ -77,4 +77,4 @@ def visualize(symbol, rows, trades = []):
     )
    
     fig = dict(data=data, layout=layout)
-    ply.offline.plot(fig, filename='..\\..\\visualizations\\simple_ohlc.html')
+    ply.offline.plot(fig, filename='..\\..\\visualizations\\visualizationssimple_ohlc.html')
