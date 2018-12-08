@@ -19,7 +19,7 @@ ohlc_dict = { 'ask_o':'first', 'ask_h':'max', 'ask_l':'min', 'ask_c': 'last',
               'volume': 'sum'                                                                                                        
             }
 
-def visualize(symbol, rows, trades = []):
+def visualize(symbol, rows, trades = [], verbose = False):
         
     df1 = rows.resample('1H', closed='left', label='left').apply(ohlc_dict).dropna()
     df1 = df1[['bid_o','bid_h','bid_l','bid_c','volume']]
@@ -42,11 +42,14 @@ def visualize(symbol, rows, trades = []):
 
         for eTrade in trades:
 
-            print( 'Entry:', eTrade.entrydate, eTrade.entryprice )
+            if verbose:
+                
+                print( 'Entry:', eTrade.entrydate, eTrade.entryprice )
             
             for eTradeExitTransaction in eTrade.exittransactions:
         
-                print( 'Exit:', eTradeExitTransaction['date'], eTradeExitTransaction['price'] )
+                if verbose:
+                    print( 'Exit:', eTradeExitTransaction['date'], eTradeExitTransaction['price'] )
         
                 if eTradeExitTransaction['realized P&L'] >= 0:
                 

@@ -19,6 +19,7 @@ sys.path.remove('..\\source_system')
 import random
 import statistics
 import pickle
+from statistics import mean
 
  # A standard lot = 100,000 units of base currency. 
  # A mini lot = 10,000 units of base currency.
@@ -77,7 +78,7 @@ class Trade(object):
         if tempmaxAdverseExcursion < self.maxAdverseExcursion:
             self.maxAdverseExcursion = tempmaxAdverseExcursion
                                
-        print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
+        #print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
                         
     def close(self, units, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
         
@@ -121,7 +122,7 @@ class backtest_base(object):
     ''' Base class for event-based backtesting of trading strategies.
     '''
 
-    def __init__(self, symbol, account_type, granularity, decision_frequency, start, end, amount, marginpercent, ftc=0.0, ptc=0.0):
+    def __init__(self, symbol, account_type, granularity, decision_frequency, start, end, amount, marginpercent, ftc=0.0, ptc=0.0, verbose=False):
         self.symbol = symbol
         self.account_type = account_type
         self.granularity = granularity
@@ -175,7 +176,7 @@ class backtest_base(object):
         self.ftc = ftc # Fixed transaction cost
         self.ptc = ptc # Variable transaction cost
         self.trades = 0
-        self.verbose = True
+        self.verbose = verbose
         self.get_data()
         
     def get_data(self):
@@ -428,13 +429,12 @@ class backtest_base(object):
     
         self.maxdrawdown = self.data['drawdown'].max()
         
-        if self.verbose:
-            print('=' * 55)
-            print('Initial equity   [$] {0:.2f}'.format(self.initial_equity))
-            print('Final equity   [$] {0:.2f}'.format(self.equity))
-            print('Net Performance [%] {0:.2f}'.format(self.data['cumret-strategy'][-1] * 100) )
-            print('Number of transactions: {}'.format(self.numberoftrades ))
-            print('Maximum drawdown: [%] {0:.2f}'.format(self.maxdrawdown * 100) )
+        print('=' * 55)
+        print('Initial equity   [$] {0:.2f}'.format(self.initial_equity))
+        print('Final equity   [$] {0:.2f}'.format(self.equity))
+        print('Net Performance [%] {0:.2f}'.format(self.data['cumret-strategy'][-1] * 100) )
+        print('Number of transactions: {}'.format(self.numberoftrades ))
+        print('Maximum drawdown: [%] {0:.2f}'.format(self.maxdrawdown * 100) )
 
     def optimizer(self, args):
         pass
@@ -939,6 +939,8 @@ class backtest_base(object):
     
     def analyze_trades(self):
         
+        # Purpose is to collect stats from closed trades. This one collects all trades P/L for each
+        # time period while they are open.
         self.trade_performance_over_time = pd.DataFrame()
 
         for eTrade in self.listofClosedTrades:
@@ -959,9 +961,38 @@ class backtest_base(object):
         # Close the Pandas Excel writer and output the Excel file.
         writer.save()
 
+    def calculate_average_number_of_bars_before_profitability(self):
 
+        # Calculate how many time periods it typically takes to become profitable
+        periods_before_profitable = {}
+        periods_before_profitable_list = []
 
+        for eTrade in self.listofClosedTrades:
         
+            temp = self.trade_performance_over_time.loc[eTrade.ID, :]
+            
+            periods_before_profitable[eTrade.ID] = 0
+                
+            for i in range(1,len(temp)+1):
+                
+                if temp[i] > 0:
+                    
+                    periods_before_profitable[eTrade.ID] = i
+                    break
+                 
+            if periods_before_profitable[eTrade.ID] == 0:
+                
+                periods_before_profitable[eTrade.ID] = len(temp)
+                
+            periods_before_profitable_list.append(periods_before_profitable[eTrade.ID])
+                            
+        periods_before_profitable_list_filtered = list(filter(lambda a: a < 24, periods_before_profitable_list))
+        
+        print('Mean number of periods (trade length < 24):', mean(periods_before_profitable_list_filtered))
+        num_bins = 24 
+        plt.hist(periods_before_profitable_list_filtered, num_bins)
+        plt.show()
+
 if __name__ == '__main__':
 
      symbol = 'EUR_USD'
@@ -971,10 +1002,11 @@ if __name__ == '__main__':
      start_datetime = datetime.datetime(2017,1,1,0,0,0)
      end_datetime = datetime.datetime(2017,8,1,0,0,0)
      marginpercent = 10
-            
-     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginpercent)
+     verbose = False
+       
+     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginpercent, verbose)
      bb.check_data_quality()
 
-     viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID))
+     viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)
      
     

@@ -89,16 +89,19 @@ if __name__ == '__main__':
      start_datetime = datetime.datetime(2017,1,1,0,0,0)
      end_datetime = datetime.datetime(2017,8,1,0,0,0)
      marginpercent = 100
+     verbose = False
      
-     bb = backtest_strategy_SMA(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginpercent)
-     bb.verbose = True
+     bb = backtest_strategy_SMA(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginpercent, verbose)
+
      bb.run_strategy()
      
      bb.analyze_trades()
      
+     bb.calculate_average_number_of_bars_before_profitability()
+     
      write2excel( bb.data, 'output' )
          
-     viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID))
+     viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)
      
      
      
