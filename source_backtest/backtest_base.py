@@ -217,6 +217,7 @@ class backtest_base(object):
         msg += '\nFixed costs %.2f | ' % self.ftc
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
+        print('=' * 55)
         
 #        self.equity = self.initial_equity
 #        self.required_margin = 0.0
@@ -268,6 +269,11 @@ class backtest_base(object):
         if self.verbose:
             print('%s | buying  %4d units at ask %7.5f' %(date, units, price_ask_c))
         
+        etrade = Trade(self.symbol, units, date, price_bid_c, price_ask_c, self.marginpercent )
+        self.units_net = self.units_net + units
+        self.listofOpenTrades.append(etrade)
+
+        '''
         while True:
 
             self.listofOpenShortTrades = [ etrade for etrade in self.listofOpenTrades if etrade.units < 0 ]
@@ -300,7 +306,8 @@ class backtest_base(object):
                 else:
                 
                     break
-                
+        '''
+        
     def close_long_trades(self, date):
 
         self.data.loc[date,'units_to_sell'] = self.units_net
@@ -326,6 +333,11 @@ class backtest_base(object):
         if self.verbose:
             print('%s | shorting %4d units at ask %7.5f' %(date, units, price_bid_c))
         
+        etrade = Trade(self.symbol, units, date, price_bid_c, price_ask_c, self.marginpercent )
+        self.units_net = self.units_net + units
+        self.listofOpenTrades.append(etrade)
+
+        '''
         while True:
 
             self.listofOpenLongTrades = [ etrade for etrade in self.listofOpenTrades if etrade.units > 0 ]
@@ -335,7 +347,8 @@ class backtest_base(object):
                 etrade = Trade(self.symbol, units, date, price_bid_c, price_ask_c, self.marginpercent )
                 self.units_net = self.units_net + units
                 self.listofOpenTrades.append(etrade)
-                self.longshort = 'short'
+                # THIS SEEMS TO BE EXTRA ... COMMENTED OUT 12/10/18
+                #self.longshort = 'short'
                                 
                 break
             
@@ -359,6 +372,7 @@ class backtest_base(object):
                 
                     break
         
+        '''
             
     def close_short_trades(self, date):
 
@@ -435,6 +449,7 @@ class backtest_base(object):
         print('Net Performance [%] {0:.2f}'.format(self.data['cumret-strategy'][-1] * 100) )
         print('Number of transactions: {}'.format(self.numberoftrades ))
         print('Maximum drawdown: [%] {0:.2f}'.format(self.maxdrawdown * 100) )
+        print('=' * 55)
 
     def optimizer(self, args):
         pass
@@ -778,7 +793,7 @@ class backtest_base(object):
                 self.df_trades.loc[eTrade.ID,'exit_{}_realized P&L'.format(idx)] = exTrade['realized P&L']                
                 
         now = datetime.datetime.now()
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\trades_{}_{}.xlsx'.format(self.symbol, now.strftime("%Y-%m-%d-%H-%M"))
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\output\\trades_{}_{}.xlsx'.format(self.symbol, now.strftime("%Y-%m-%d-%H-%M"))
 
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
@@ -812,7 +827,7 @@ class backtest_base(object):
         self.data['outlier_bid_l_over_c'] = np.abs( self.data['return_check_bid_l_over_c'] - self.data['return_check_bid_l_over_c'].mean() ) / self.data['return_check_bid_l_over_c'].std()
         self.data['outlier_bid_c_over_c'] = np.abs( self.data['return_check_bid_c_over_c'] - self.data['return_check_bid_c_over_c'].mean() ) / self.data['return_check_bid_c_over_c'].std()
 
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\datastore\\outliers_{}.xlsx'.format(self.symbol)
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\output\\outliers_{}.xlsx'.format(self.symbol)
 
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
@@ -950,7 +965,7 @@ class backtest_base(object):
                 self.trade_performance_over_time.loc[eTrade.ID, i] = eTrade.stat_unrealizedprofitloss[i-1]
         
         now = datetime.datetime.now()
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\datastore\\trades_performance_over_time_{}_{}.xlsx'.format(self.symbol, now.strftime("%Y-%m-%d-%H-%M"))
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\output\\trades_performance_over_time_{}_{}.xlsx'.format(self.symbol, now.strftime("%Y-%m-%d-%H-%M"))
 
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')

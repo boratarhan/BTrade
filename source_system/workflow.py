@@ -13,13 +13,13 @@ symbol = 'AUD_USD'
 
 # 2) Check tick data downloaded
 
-file_path_h5 = '..\\..\\datastore\\_practice\\{}\\S5.h5'.format(symbol)
+file_path_h5 = '..\\..\\datastore\\_live\\{}\\S5.h5'.format(symbol)
 
 f = tables.open_file(file_path_h5,'r')
 ts = f.root.data._f_get_timeseries()
 
 read_start_dt = datetime.datetime(2000,1,1,00,00)
-read_end_dt = datetime.datetime(2018,1,1,00,00)
+read_end_dt = datetime.datetime(2019,1,1,00,00)
 
 rows = ts.read_range(read_start_dt,read_end_dt)
 

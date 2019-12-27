@@ -38,8 +38,10 @@ def visualize(symbol, rows, trades = [], verbose = False):
     
     data = [trace1, trace2]
 
-    if len(trades) > 0:
+    annotationslist = []
 
+    if len(trades) > 0:
+        
         for eTrade in trades:
 
             if verbose:
@@ -59,25 +61,57 @@ def visualize(symbol, rows, trades = [], verbose = False):
                     
                     linecolor = 'red'
 
+                '''
                 traceline = dict( type = 'scatter', 
                               x = [ eTrade.entrydate, eTradeExitTransaction['date'] ],  
                               y = [ eTrade.entryprice, eTradeExitTransaction['price'] ], 
                               yaxis='y1',
                               mode = 'lines', line = dict( color = linecolor, dash = 'dot'), showlegend=False )
-
+                
                 data.append(traceline)
-    
-    layout = go.Layout(title=symbol, plot_bgcolor = 'black', paper_bgcolor = 'black', font=dict(color='white'),
-        margin=dict(l=40, r=40, t=40, b=40),
-        yaxis = dict( domain = [0.25, 1], showgrid=True, mirror='ticks', gridcolor='grey', gridwidth=0.5, ),
-        yaxis2 = dict( domain = [0, 0.2], showgrid=True, mirror='ticks', gridcolor='grey', gridwidth=0.5, ),
-        xaxis = dict( showgrid=True, mirror='ticks', gridcolor='grey', gridwidth=0.5, 
-            anchor = 'y2',
-            rangeslider = dict(
-                visible = False,
-            ),
-        ),
-    )
+                '''
+                
+            if eTrade.longshort == 'long':
+            
+                temp_dict = dict(   x=eTrade.entrydate,
+                                    y=df1[df1['date'] == eTrade.entrydate]['low'].values[0] - 0.001, # df1.loc[eTrade.entrydate, 'low'] - 0.001,
+                                    xref='x',
+                                    yref='y1',
+                                    text='',
+                                    #showarrow=True,
+                                    #arrowhead=7,
+                                    arrowcolor = "green",
+                                    ax=0,
+                                    ay=20,
+                                    font = dict( color = "white", size = 12 )
+                                    )
+
+            else:
+                
+                temp_dict = dict(   x=eTrade.entrydate,
+                                    y=df1[df1['date'] == eTrade.entrydate]['high'].values[0] + 0.001,  #df1.loc[eTrade.entrydate, 'high'] + 0.001,
+                                    xref='x',
+                                    yref='y1',
+                                    text='',
+                                    #showarrow=True,
+                                    #arrowhead=7,
+                                    arrowcolor = "red",
+                                    ax=0,
+                                    ay=-20,
+                                    font = dict( color = "white", size = 12 )
+                                    )
+            
+            annotationslist.append( temp_dict )        
+        
+        layout = go.Layout(title=symbol, plot_bgcolor = 'black', paper_bgcolor = 'black', font=dict(color='white'),
+                            margin=dict(l=40, r=40, t=40, b=40),
+                            yaxis = dict( domain = [0.25, 1], showgrid=True, mirror='ticks', gridcolor='grey', gridwidth=0.5, ),
+                            yaxis2 = dict( domain = [0, 0.2], showgrid=True, mirror='ticks', gridcolor='grey', gridwidth=0.5, ),
+                            xaxis = dict( showgrid=True, mirror='ticks', gridcolor='grey', gridwidth=0.5, 
+                                anchor = 'y2',
+                                rangeslider = dict( visible = False, ),
+                                        ),
+                            annotations = annotationslist )
    
     fig = dict(data=data, layout=layout)
     ply.offline.plot(fig, filename='..\\..\\visualizations\\visualizationssimple_ohlc.html')

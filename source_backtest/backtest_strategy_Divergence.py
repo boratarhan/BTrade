@@ -1,6 +1,6 @@
 from backtest_base import *
 
-class backtest_strategy_SMA(backtest_base):
+class backtest_strategy_Divergence(backtest_base):
 
     def add_indicators(self):
 
@@ -13,7 +13,7 @@ class backtest_strategy_SMA(backtest_base):
         self.data, self.indicatorlist = AddMinorHighLow(self.data, self.indicatorlist, 'bid')
         self.data = self.data.dropna()
             
-        self.data, self.indicatorlist = AddDivergence(self.data, self.indicatorlist, 'bid', lookback=6, threshold=0.0020)
+        self.data, self.indicatorlist = AddDivergence(self.data, self.indicatorlist, 'bid', lookback=24, threshold=0.0010)
 
     def buy(self, date, units):
 
@@ -27,7 +27,8 @@ class backtest_strategy_SMA(backtest_base):
 
         self.add_indicators()
 
-        msg = '\n\nRunning Divergence strategy'
+        print('=' * 55)
+        msg = 'Running Divergence strategy'
         msg += '\nFixed costs %.2f | ' % self.ftc
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
@@ -82,16 +83,16 @@ class backtest_strategy_SMA(backtest_base):
 if __name__ == '__main__':
 
      symbol = 'EUR_USD'
-     account_type = 'practice'
+     account_type = 'live'
      granularity = 'S5'
      decision_frequency = '1H'
 #     decision_frequency = '1T'
      start_datetime = datetime.datetime(2017,1,1,0,0,0)
-     end_datetime = datetime.datetime(2017,8,1,0,0,0)
+     end_datetime = datetime.datetime(2017,12,31,0,0,0)
      marginpercent = 100
      verbose = False
      
-     bb = backtest_strategy_SMA(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginpercent, verbose)
+     bb = backtest_strategy_Divergence(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginpercent, verbose)
 
      bb.run_strategy()
      

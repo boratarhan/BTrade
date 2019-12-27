@@ -139,11 +139,17 @@ def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
             temp = df[loc-lookback:loc]
             for index2, row2 in temp[::-1].iterrows():
 
+                loc2 = df.index.get_loc(index2)
+                temp2 = df[loc2:loc]
+                minpoint = temp2['{}_l'.format(askbidmid)].min()
+                maxpoint = temp2['{}_h'.format(askbidmid)].max()
+
                 if( ( row2['{}_l'.format(askbidmid)] > df.ix[index]['{}_l'.format(askbidmid)] ) &
                     ( row2['slowk'] < df.ix[index]['slowk'] ) &
                     ( row2['slowk'] < 50 ) &
                     ( df.ix[index]['slowk'] < 50 ) &
                     ( np.abs( row2['{}_l'.format(askbidmid)] - df.ix[index]['{}_l'.format(askbidmid)] ) < threshold ) &
+                    ( minpoint >= df.ix[index]['{}_l'.format(askbidmid)] ) &
                     ( not stopdivergenceregularbuy ) ):
 
                     loc2 = df.index.get_loc(index2)
@@ -155,6 +161,7 @@ def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
                     ( row2['slowk'] < 50 ) &
                     ( df.ix[index]['slowk'] < 50 ) &
                     ( np.abs( row['{}_l'.format(askbidmid)] - df.ix[index]['{}_l'.format(askbidmid)] ) < threshold ) &
+                    ( minpoint >= row2['{}_l'.format(askbidmid)] ) &
                     ( not stopdivergencehiddenbuy ) ):
 
                     loc2 = df.index.get_loc(index2)
@@ -166,6 +173,7 @@ def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
                     ( row['slowk'] > 50 ) &
                     ( df.ix[index]['slowk'] > 50 ) &
                     ( np.abs( row['{}_h'.format(askbidmid)] - df.ix[index]['{}_h'.format(askbidmid)] ) < threshold ) &
+                    ( maxpoint <= df.ix[index]['{}_h'.format(askbidmid)] ) &
                     ( not stopdivergenceregularsell ) ):
                     
                     loc2 = df.index.get_loc(index2)
@@ -177,6 +185,7 @@ def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
                     ( row['slowk'] > 50 ) &
                     ( df.ix[index]['slowk'] > 50 ) &
                     ( np.abs( row['{}_h'.format(askbidmid)] - df.ix[index]['{}_h'.format(askbidmid)] ) < threshold ) &
+                    ( maxpoint <= row2['{}_h'.format(askbidmid)] ) &
                     ( not stopdivergencehiddensell ) ):
                     
                     loc2 = df.index.get_loc(index2)
@@ -185,6 +194,10 @@ def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
                                 
     indicator_list.extend(['divergenceregularbuy','divergencehiddenbuy','divergenceregularsell','divergencehiddensell'])
     return df, indicator_list
+
+
+# NOTE THAT BEFORE GOING LIVE, BELOW YOU NEED TO INCLUDE MAXPOINT, MINPOINT idea (eliminating dips between two points)
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 # In order to calculate the divergence for only the last bar, made some minor changes.
 def AddDivergenceRegularBuyLast(df, indicator_list, askbidmid, lookback, threshold):
