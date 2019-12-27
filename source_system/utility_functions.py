@@ -2,7 +2,6 @@
 
 import datetime
 import pandas as pd
-import v20
 import os
 import tables 
 import tstables 
