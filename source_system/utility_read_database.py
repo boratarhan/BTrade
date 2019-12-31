@@ -8,7 +8,7 @@ import utility_functions as uf
 import time
 
 # Reading ts file
-account_type = 'practice'
+account_type = 'live'
 symbol = 'EUR_USD'
 granularity = 'S5'
 file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(account_type,symbol,granularity)
@@ -16,12 +16,11 @@ file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(account_type,symbol,gr
 f = tables.open_file(file_path,'r')
 ts = f.root.data._f_get_timeseries()
 
-read_start_dt = datetime.datetime(2018,6,1,0,0,0)
-read_end_dt = datetime.datetime(2018,12,1,0,0,0)
+read_start_dt = datetime.datetime(2010,1,1,0,0,0)
+read_end_dt = datetime.datetime.utcnow()
 
 rows = ts.read_range(read_start_dt,read_end_dt)
 
 f.close()
 
 print(rows.tail)
-

@@ -127,7 +127,7 @@ class feeder(object):
 
 #        t1.join()
         t2.join()
-
+        
     def connect_broker_live(self):
 
         self.accountID = self.config['oanda_v20']['account_number_live']
@@ -141,7 +141,9 @@ class feeder(object):
         self.api = oandapyV20.API(access_token=self.access_token, environment="practice")
 
     def open_database(self):
-        ''' Open an existing h5 file or create a new file and table 
+
+        ''' 
+        Open an existing h5 file or create a new file and table 
         '''
         
         if( os.path.exists(self.file_path_ohlc) ):
@@ -152,9 +154,9 @@ class feeder(object):
 
             self.h5 = tables.open_file(self.file_path_ohlc, 'a')
             self.ts = self.h5.root.data._f_get_timeseries()
-            
-            read_start_dt = datetime.datetime.utcnow() - offset - datetime.timedelta(days=1)
-            read_end_dt = datetime.datetime.utcnow() - offset
+                        
+            read_start_dt = datetime.datetime.utcnow() - offset - datetime.timedelta(days=1)    # datetime.datetime
+            read_end_dt = datetime.datetime.utcnow() - offset                                   # datetime.datetime
             
             '''
             tstables does not have a built-in function to return the last row. Therefore,
@@ -164,8 +166,13 @@ class feeder(object):
             while True:
                 
                 rows = self.ts.read_range(read_start_dt,read_end_dt)
+                
                 if rows.shape[0] > 0:
-                    self.current_timestamp = rows.index[-1]        
+                    # When data is read from TsTables, timezone info is lost. Need to set it back to UTC.
+                    rows=rows.tz_localize('UTC')                                        #datetime64
+                    self.current_timestamp = rows.index[-1]                             #pandas._libs.tslibs.timestamps.Timestamp      
+                    self.current_timestamp = self.current_timestamp.to_pydatetime()     #datetime.datetime 
+                    
                     break
                 else:
                     read_start_dt = read_start_dt - datetime.timedelta(days=1)
@@ -173,7 +180,7 @@ class feeder(object):
         else:
 
             self.create_database()
-
+                
     def create_database(self):
         
         if( not os.path.exists(self.folder_path)):
@@ -182,11 +189,12 @@ class feeder(object):
 
         self.h5 = tables.open_file(self.file_path_ohlc, 'w')
         self.ts = self.h5.create_ts('/', 'data', desc)
-        self.current_timestamp = datetime.datetime(2010,1,1,0,0,0)
+        
+        self.current_timestamp = pd.datetime(2019,12,27,0,0,0,0,datetime.timezone.utc)  #datetime.datetime 
 
     def download_missing_data(self):
        
-        if ( datetime.datetime.utcnow() - self.current_timestamp > datetime.timedelta(hours=1) ):
+        if ( pd.datetime.now(datetime.timezone.utc) - self.current_timestamp > datetime.timedelta(hours=1) ):
                                    
             print('More than 1 hour of data missing, need to download before starting')
             print('Downloading chunks of data of 1 hour length of duration')            
@@ -194,7 +202,7 @@ class feeder(object):
             start_time = self.current_timestamp
             end_time = start_time + datetime.timedelta(hours=1)
             
-            while end_time <= datetime.datetime.utcnow():
+            while end_time <= pd.datetime.now(datetime.timezone.utc):
                     
                 temp = self.download_ohlc_data(start_time, end_time, self.granularity, self.askbidmid)
                  
@@ -208,10 +216,7 @@ class feeder(object):
             self.open_database()
        
     def download_ohlc_data(self, start_datetime, end_datetime, granularity, askbidmid):
-        
-        start_datetime = start_datetime
-        end_datetime = end_datetime
-        
+                
         start_datetime = start_datetime.replace(microsecond=0)
         end_datetime = end_datetime.replace(microsecond=0)
         slack = end_datetime - end_datetime.replace(second=0)
@@ -221,8 +226,12 @@ class feeder(object):
         print('Downloading data from', start_datetime, 'to', end_datetime, 'requested at', datetime.datetime.utcnow())
         
         suffix = '.000000000Z'  
-        start_datetime = start_datetime.isoformat('T') + suffix  
-        end_datetime = end_datetime.isoformat('T') + suffix  
+
+        # Start datetime comes from self.current_timestamp  
+        # Since self.current_timestamp has timezone information at the end
+        # tz information needs to be eliminated by using [0:-6] because API does not accept that format 
+        start_datetime = start_datetime.isoformat('T')[0:-6] + suffix  
+        end_datetime = end_datetime.isoformat('T')[0:-6] + suffix  
 
         params = {"from": start_datetime,
                   "to": end_datetime,
@@ -258,8 +267,11 @@ class feeder(object):
             data = data.set_index('time')  
             data.index = pd.DatetimeIndex(data.index)  
                     
-            data[['ask_c', 'ask_l', 'ask_h', 'ask_o','bid_c', 'bid_l', 'bid_h', 'bid_o']] = data[['ask_c', 'ask_l', 'ask_h', 'ask_o','bid_c', 'bid_l', 'bid_h', 'bid_o']].astype('float64')
+            data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o']] = data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o']].astype('float64')
  
+            # Make sure that the sequence of columns are identical to the description of class desc(tables.IsDescription)
+            data = data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o','volume']]
+        
             data = data[data.index > self.current_timestamp]
     
         return data
@@ -276,7 +288,7 @@ class feeder(object):
        
         while isAlive:
 
-            timestamp_bar_end = datetime.datetime.utcnow() - offset
+            timestamp_bar_end = pd.datetime.now(datetime.timezone.utc) - offset
             slack = timestamp_bar_end - timestamp_bar_end.replace(minute=0,second=0)
             
             current_slack_download = slack % self.download_frequency
@@ -334,7 +346,7 @@ class feeder(object):
         hour = dataframe.index[-1].hour
         minute = dataframe.index[-1].minute
         second = dataframe.index[-1].second
-        self.current_timestamp = datetime.datetime(year,month,day,hour,minute,second)
+        self.current_timestamp = pd.datetime(year,month,day,hour,minute,second, tzinfo=datetime.timezone.utc)
         
     def append_in_memory_bar_ohlc_df_to_database(self):
         ''' Append dataframe which keeps in-memory data to h5 file on disk
@@ -459,7 +471,7 @@ def ContinueLooping(config,symbol,granularity,account_type,socket_number,downloa
 
             f1.start()  
             print('Trying to restart feeder:', retries)
-            
+                
         except Exception as e:
             
             print(e)
@@ -467,7 +479,7 @@ def ContinueLooping(config,symbol,granularity,account_type,socket_number,downloa
             retries += 1        
             print('Trying to restart feeder:', retries)
             ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,retries)
-
+    
 if __name__ == '__main__':
         
     try:
@@ -478,12 +490,14 @@ if __name__ == '__main__':
         print( 'Error in reading configuration file' )
 
     symbol = 'EUR_USD'
-    account_type = 'practice'
-#    account_type = 'live'
+#    account_type = 'practice'
+    account_type = 'live'
     socket_number = 5555    
     granularity = 'S5'
     download_frequency = datetime.timedelta(seconds=60)
     update_signal_frequency = datetime.timedelta(seconds=60)
 
     ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,retries=0)
-    
+    #f1 = feeder(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency)
+    #f1.start()  
+            

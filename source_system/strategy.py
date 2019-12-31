@@ -82,15 +82,15 @@ class strategy(object):
     def read_data(self):
         ''' Open an existing h5 file or throw an error 
         '''
-
+        
         if( os.path.exists(self.file_path) ):
 
             self.h5 = tables.open_file(self.file_path, 'r')
             self.ts = self.h5.root.data._f_get_timeseries()
             
-            read_end_dt = datetime.datetime.utcnow()
-            read_start_dt = datetime.datetime.utcnow() - datetime.timedelta(days=self.daily_lookback)
-            
+            read_end_dt = pd.datetime.now(datetime.timezone.utc)
+            read_start_dt = pd.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=self.daily_lookback)
+                            
             self.df = self.ts.read_range(read_start_dt,read_end_dt)
             self.h5.close()
 
