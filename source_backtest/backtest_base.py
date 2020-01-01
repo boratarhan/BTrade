@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 #from pandas_datareader import data as web
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import datetime
 import tables 
 #import tstables  
@@ -35,6 +36,7 @@ class Trade(object):
         Trade.trade_counter += 1
         self.symbol = symbol
         self.units = units #number of units of base currency
+        self.entry_unit = units #number of units of base currency
         self.longshort = 'long' if self.units > 0 else 'short'
         self.entrydate = entrydate
         self.entryprice = entrypriceask if self.units > 0 else entrypricebid
@@ -448,7 +450,9 @@ class backtest_base(object):
         self.plot_drawdown()
         self.plot_MAE()
         self.plot_MFE()
-
+        self.plot_consecutive_win()
+        self.plot_consecutive_loss()
+        
     def plot_data(self):
         ''' Plots the (adjusted) closing prices for symbol.
         '''
@@ -579,17 +583,21 @@ class backtest_base(object):
 
         lists = sorted(self.consecutive_win.items()) # sorted by key, return a list of tuples
         x, y = zip(*lists) # unpack a list of pairs into two tuples
+        plt.figure().gca().xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.bar(x, y)
         plt.title("Number of Consecutive Win")
         plt.show()
+        plt.close()
 
     def plot_consecutive_loss(self):
 
         lists = sorted(self.consecutive_loss.items()) # sorted by key, return a list of tuples
         x, y = zip(*lists) # unpack a list of pairs into two tuples
-        plt.bar(x, y)
+        plt.figure().gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.bar(x, y)      
         plt.title("Number of Consecutive Loss")
         plt.show()
+        plt.close()
 
     def plot_equity(self):
 
@@ -605,8 +613,8 @@ class backtest_base(object):
     def calculate_stats(self):
         
         self.calculate_PnL()
-        self.calculate_sharpe_ratio()
         self.calculate_winning_losing_ratio()
+        self.calculate_sharpe_ratio()
         self.calculate_sortino_ratio(0)
         self.calculate_average_win()
         self.calculate_average_lose()
@@ -648,13 +656,7 @@ class backtest_base(object):
         pnl = self.listofrealizedprofitloss.mean()
         std = self.listofrealizedprofitloss[self.listofrealizedprofitloss<threshold].std()
         self.sortino_ratio = pnl / std
-        msg = 'Sortino Ratio for threshold of {0:.2f}: {0:.2f}'.format(threshold, self.sortino_ratio)
-        print(msg)
-
-    def calculate_information_ratio(self):
-
-        self.information_ratio = 0
-        msg = 'Information Ratio: {0:.2f}'.format(self.information_ratio)
+        msg = 'Sortino Ratio for threshold of {0:.2f}: {1:.3f}'.format(threshold, round(self.sortino_ratio,3))
         print(msg)
 
     def calculate_average_win(self):
@@ -681,10 +683,11 @@ class backtest_base(object):
 #        PW = probability of winning (PW = <wins> ⁄ NST where <wins> is total wins excluding maximum win) 
 #        AL = average losing trade (negative, excluding scratch losses) 
 #        |AL| = absolute value of AL 
+#        It is important to have the |AL| in the denominator of expectancy because this converts the expectancy to "risk units" — earnings per dollar risked.   
 #        PL = probability of losing (PL = <non-scratch losses> ⁄ NST)
 
         self.expectancy = ( self.winning_ratio * self.average_win + self.losing_ratio * self.average_lose ) / np.abs(self.average_lose)
-        msg = 'Expectancy: {0:.2f} '.format(self.expectancy)
+        msg = 'Expectancy (Earnings per dollar risked): {0:.2f} '.format(self.expectancy)
         print(msg)
         
     def calculate_consecutive_win_loss(self):
@@ -772,20 +775,33 @@ class backtest_base(object):
         msg += '\nConsecutive Loss: {} '.format(self.consecutive_loss)
         print(msg)
        
+    def write_all_data(self):
+        
+        now = datetime.datetime.now()
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}_data.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
 
+        # Create a Pandas Excel writer using XlsxWriter as the engine.
+        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+        
+        # Convert the dataframe to an XlsxWriter Excel object.
+        self.data.to_excel(writer, sheet_name='Sheet1')
+        
+        # Close the Pandas Excel writer and output the Excel file.
+        writer.save()
+    
     def write_all_trades_to_excel(self):
         
         for eTrade in self.listofClosedTrades:
                 
-            self.df_trades.loc[eTrade.ID,'symbol'] = eTrade.symbol
-            self.df_trades.loc[eTrade.ID,'units'] = eTrade.units
-            self.df_trades.loc[eTrade.ID,'longshort'] = eTrade.longshort
-            self.df_trades.loc[eTrade.ID,'entrydate'] = eTrade.entrydate
-            self.df_trades.loc[eTrade.ID,'entryprice'] = eTrade.entryprice
-            self.df_trades.loc[eTrade.ID,'realizedprofitloss'] = eTrade.realizedprofitloss
-            self.df_trades.loc[eTrade.ID,'maxFavorableExcursion'] = eTrade.maxFavorableExcursion
-            self.df_trades.loc[eTrade.ID,'maxAdverseExcursion'] = eTrade.maxAdverseExcursion
-            self.df_trades.loc[eTrade.ID,'marginpercent'] = eTrade.marginpercent
+            self.df_trades.loc[eTrade.ID,'Symbol'] = eTrade.symbol
+            self.df_trades.loc[eTrade.ID,'EntryUnit'] = eTrade.entry_unit
+            self.df_trades.loc[eTrade.ID,'longShort'] = eTrade.longshort
+            self.df_trades.loc[eTrade.ID,'EntryDate'] = eTrade.entrydate
+            self.df_trades.loc[eTrade.ID,'EntryPrice'] = eTrade.entryprice
+            self.df_trades.loc[eTrade.ID,'RealizedProfitloss'] = eTrade.realizedprofitloss
+            self.df_trades.loc[eTrade.ID,'MaxFavorableExcursion'] = eTrade.maxFavorableExcursion
+            self.df_trades.loc[eTrade.ID,'MaxAdverseExcursion'] = eTrade.maxAdverseExcursion
+            self.df_trades.loc[eTrade.ID,'MarginPercent'] = eTrade.marginpercent
                                         
             for idx, exTrade in enumerate(eTrade.exittransactions):
                 
@@ -795,7 +811,7 @@ class backtest_base(object):
                 self.df_trades.loc[eTrade.ID,'exit_{}_realized P&L'.format(idx)] = exTrade['realized P&L']                
                 
         now = datetime.datetime.now()
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\trades_{}_{}.xlsx'.format(self.symbol, now.strftime("%Y-%m-%d-%H-%M"))
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}_trades.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
 
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
@@ -821,16 +837,32 @@ class backtest_base(object):
         self.data['return_check_bid_l_over_c'] = self.data['bid_l'] / self.data['bid_c'].shift(1)
         self.data['return_check_bid_c_over_c'] = self.data['bid_c'] / self.data['bid_c'].shift(1)
         
-        self.data['outlier_ask_h_over_c'] = np.abs( self.data['return_check_ask_h_over_c'] - self.data['return_check_ask_h_over_c'].mean() ) / self.data['return_check_ask_h_over_c'].std()
-        self.data['outlier_ask_l_over_c'] = np.abs( self.data['return_check_ask_l_over_c'] - self.data['return_check_ask_l_over_c'].mean() ) / self.data['return_check_ask_l_over_c'].std()
-        self.data['outlier_ask_c_over_c'] = np.abs( self.data['return_check_ask_c_over_c'] - self.data['return_check_ask_c_over_c'].mean() ) / self.data['return_check_ask_c_over_c'].std()
+        self.data['normalized_return_ask_h_over_c'] = np.abs( self.data['return_check_ask_h_over_c'] - self.data['return_check_ask_h_over_c'].mean() ) / self.data['return_check_ask_h_over_c'].std()
+        self.data['normalized_return_ask_l_over_c'] = np.abs( self.data['return_check_ask_l_over_c'] - self.data['return_check_ask_l_over_c'].mean() ) / self.data['return_check_ask_l_over_c'].std()
+        self.data['normalized_return_ask_c_over_c'] = np.abs( self.data['return_check_ask_c_over_c'] - self.data['return_check_ask_c_over_c'].mean() ) / self.data['return_check_ask_c_over_c'].std()
 
-        self.data['outlier_bid_h_over_c'] = np.abs( self.data['return_check_bid_h_over_c'] - self.data['return_check_bid_h_over_c'].mean() ) / self.data['return_check_bid_h_over_c'].std()
-        self.data['outlier_bid_l_over_c'] = np.abs( self.data['return_check_bid_l_over_c'] - self.data['return_check_bid_l_over_c'].mean() ) / self.data['return_check_bid_l_over_c'].std()
-        self.data['outlier_bid_c_over_c'] = np.abs( self.data['return_check_bid_c_over_c'] - self.data['return_check_bid_c_over_c'].mean() ) / self.data['return_check_bid_c_over_c'].std()
+        self.data['normalized_return_bid_h_over_c'] = np.abs( self.data['return_check_bid_h_over_c'] - self.data['return_check_bid_h_over_c'].mean() ) / self.data['return_check_bid_h_over_c'].std()
+        self.data['normalized_return_bid_l_over_c'] = np.abs( self.data['return_check_bid_l_over_c'] - self.data['return_check_bid_l_over_c'].mean() ) / self.data['return_check_bid_l_over_c'].std()
+        self.data['normalized_return_bid_c_over_c'] = np.abs( self.data['return_check_bid_c_over_c'] - self.data['return_check_bid_c_over_c'].mean() ) / self.data['return_check_bid_c_over_c'].std()
 
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\datastore\\outliers_{}.xlsx'.format(self.symbol)
+        self.data['outlier_ask_h_over_c'] = np.where( abs(self.data['normalized_return_ask_h_over_c']) > 3, 1, 0)
+        self.data['outlier_ask_l_over_c'] = np.where( abs(self.data['normalized_return_ask_l_over_c']) > 3, 1, 0)
+        self.data['outlier_ask_c_over_c'] = np.where( abs(self.data['normalized_return_ask_c_over_c']) > 3, 1, 0)
 
+        self.data['outlier_bid_h_over_c'] = np.where( abs(self.data['normalized_return_bid_h_over_c']) > 3, 1, 0)
+        self.data['outlier_bid_l_over_c'] = np.where( abs(self.data['normalized_return_bid_l_over_c']) > 3, 1, 0)
+        self.data['outlier_bid_c_over_c'] = np.where( abs(self.data['normalized_return_bid_c_over_c']) > 3, 1, 0)
+        
+        self.data['outlier_any'] = self.data[['outlier_ask_h_over_c','outlier_ask_l_over_c','outlier_ask_c_over_c','outlier_bid_h_over_c','outlier_bid_l_over_c','outlier_bid_c_over_c']].any(axis='columns')
+
+        print('Data Quality:')
+        print('Total number of data set is {}'.format( len(self.data) ))
+        print('Total number of outliers (exceed 3 std) is {}'.format( len(self.data[self.data['outlier_any'] == True]) )) 
+        print('Percentage of outliers in the data set is {0:.2f}%'.format( len(self.data[self.data['outlier_any'] == True]) / len(self.data) * 100 ) ) 
+        
+        now = datetime.datetime.now()
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}_outliers.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
+        
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
         
