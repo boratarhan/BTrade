@@ -4,7 +4,7 @@ import os
 import tstables  
 import tables 
 import configparser  
-import plotly as ply
+import chart_studio.plotly as ply
 from plotly import tools
 import plotly.graph_objs as go
 
@@ -80,4 +80,4 @@ def visualize(symbol, rows, trades = [], verbose = False):
     )
    
     fig = dict(data=data, layout=layout)
-    ply.offline.plot(fig, filename='..\\..\\visualizations\\visualizationssimple_ohlc.html')
+    ply.plot(fig, filename='..\\..\\visualizations\\visualizationssimple_ohlc.html')

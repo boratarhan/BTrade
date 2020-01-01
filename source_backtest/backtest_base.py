@@ -415,13 +415,13 @@ class backtest_base(object):
         self.data.loc[date,'balance'] = self.balance                    
         self.data.loc[date,'realized cumulative P/L'] = self.realizedcumulativeprofitloss                   
         self.data.loc[date,'unrealized P/L'] = self.unrealizedprofitloss                   
-        self.data.loc[date,'required margin'] = self.required_margin                   
+        self.data.loc[date,'required margin'] = self.required_margin
         self.data.loc[date,'free margin'] = self.free_margin                   
         
     def close_out(self):
     
         self.numberoftrades = len(self.listofClosedTrades)
-        self.data['return-asset'] = self.data['ask_c'] / self.data.ix[0,'ask_c'] - 1
+        self.data['return-asset'] = self.data['ask_c'] / self.data['ask_c'].iloc[0] - 1
         self.data['cumret-strategy'] = ( self.data['equity'] / self.initial_equity - 1 )
         self.data['cumret-max'] = self.data['cumret-strategy'].cummax()
         self.data['cumret-min'] = self.data['cumret-strategy'].cummin()
@@ -441,7 +441,7 @@ class backtest_base(object):
 
     def plot(self):
 
-#        self.plot_data()
+        self.plot_data()
         self.plot_returns()
 #        self.plot_PnL_vs_Trade_Number()
         self.plot_PnL_histogram()
@@ -464,12 +464,15 @@ class backtest_base(object):
 
     def plot_PnL_histogram(self):
         
-        binwidth = 10
+        binwidth = 1
         val_pnl = []
         
         for eTrade in self.listofClosedTrades:
             val_pnl.append(eTrade.realizedprofitloss)
         
+        plt.title('PnL Histogram')
+        plt.ylabel('Number of Trades')
+        plt.xlabel('Profit/Loss')
         plt.hist(val_pnl, bins=range( np.int(np.floor(min(val_pnl))), np.int(np.ceil(max(val_pnl))) + binwidth, binwidth))
         
     def plot_drawdown(self):
@@ -480,12 +483,11 @@ class backtest_base(object):
 
     def plot_PnL_vs_Trade_Number(self):
 
-        plt.plot(self.listofrealizedprofitloss, 'ro', markersize = 4)
+        plt.autoscale(enable=True, axis='both', tight=None)
         plt.title('PnL vs. Trade Number')
+        plt.plot(self.listofrealizedprofitloss, 'ro', markersize = 4)
         plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\PnL_vs_Trade_Number.pdf')
-        plt.show()
-        plt.close()
-
+        
     def plot_MAE(self):
 
         val_ID = []
@@ -520,7 +522,7 @@ class backtest_base(object):
         plt.xlabel("MAE")
         plt.ylabel("PnL")
         plt.show()
-        plt.close()    
+        plt.close()
 
     def plot_MFE(self):
         

@@ -39,17 +39,17 @@ class backtest_strategy_SMA(backtest_base):
             
             if self.units_net > 0:
                 if self.data.loc[date,'SMA_14_bid_c'] < self.data.loc[date,'SMA_28_bid_c']:
-                    self.go_short(date=date, units=-10000)
+                    self.go_short(date=date, units=-1000)
             
             elif self.units_net < 0:
                 if self.data.loc[date,'SMA_14_bid_c'] > self.data.loc[date,'SMA_28_bid_c']:
-                    self.go_long(date=date, units=10000)
+                    self.go_long(date=date, units=1000)
 
             elif self.units_net == 0:
                 if self.data.loc[date,'SMA_14_bid_c'] > self.data.loc[date,'SMA_28_bid_c']:
-                    self.go_long(date=date, units=10000)
+                    self.go_long(date=date, units=1000)
                 elif self.data.loc[date,'SMA_14_bid_c'] < self.data.loc[date,'SMA_28_bid_c']:
-                    self.go_short(date=date, units=-10000)
+                    self.go_short(date=date, units=-1000)
 
             self.update(date)
         
@@ -77,13 +77,15 @@ if __name__ == '__main__':
      bb.run_strategy(14, 28)
      
      bb.calculate_stats()
+
      bb.plot()
+
 
 #     bb.plot_consecutive_win()
 #     bb.plot_consecutive_loss()
 #     bb.monte_carlo_simulator(2500)
-     bb.plot_equity()
-     write2excel( bb.data, 'output' )
+     #bb.plot_equity()
+     #write2excel( bb.data, 'output' )
          
 #     filename = 'xxx.xlsx'
 #     writer = pd.ExcelWriter(filename, engine='xlsxwriter')

@@ -42,7 +42,7 @@ def AddRSI(df, indicator_list, askbidmid, timeperiod=14):
     return df, indicator_list
 
 def AddStochRSI(df, indicator_list, askbidmid, timeperiod=14):
-    df['rsi_fastk'], df['rsi_fastd'] = talib.STOCHRSI(df['{}_c'.format(askbidmid)].values, timeperiod=14, fastk_period=5, fastd_period=3, fastd_matype=0)
+    df['rsi_fastk'], df['rsi_fastd'] = talib.STOCHRSI(df['{}_c'.format(askbidmid)].values, timeperiod=14, fastk_period=3, fastd_period=3, fastd_matype=1)
     indicator_list.extend(['rsi_fastk', 'rsi_fastd'])
     return df, indicator_list
    
@@ -63,15 +63,60 @@ def AddATR(df, indicator_list, askbidmid, timeperiod=14):
     return df, indicator_list
 
 def AddMinorHighLow(df, indicator_list, askbidmid):
-    df['minorhigh'] = np.where(( df['{}_h'.format(askbidmid)] > df['{}_h'.format(askbidmid)].shift(1) )     \
+    '''
+    Since the discovery of certain conditions become clear only after several bars passed, two columns are 
+    generated. One is the indicator and the other indicator-discovered. Latter represents the time when the
+    last signal was generated.
+    '''
+    
+    df['minorhighlow'] = 0
+    df['minorhighlow-discovered'] = 0
+
+    df['minorhighlow'] = np.where(( df['{}_h'.format(askbidmid)] > df['{}_h'.format(askbidmid)].shift(1) )     \
                              & ( df['{}_h'.format(askbidmid)] > df['{}_h'.format(askbidmid)].shift(-1) )    \
                              & ( df['{}_l'.format(askbidmid)] > df['{}_l'.format(askbidmid)].shift(1) )     \
-                             & ( df['{}_l'.format(askbidmid)] > df['{}_l'.format(askbidmid)].shift(-1) ), 1, 0)
-    df['minorlow'] = np.where(( df['{}_h'.format(askbidmid)] < df['{}_h'.format(askbidmid)].shift(1) )      \
+                             & ( df['{}_l'.format(askbidmid)] > df['{}_l'.format(askbidmid)].shift(-1) ), 1, 0) \
+                       + np.where(( df['{}_h'.format(askbidmid)] < df['{}_h'.format(askbidmid)].shift(1) )      \
                              & ( df['{}_h'.format(askbidmid)] < df['{}_h'.format(askbidmid)].shift(-1) )    \
                              & ( df['{}_l'.format(askbidmid)] < df['{}_l'.format(askbidmid)].shift(1) )     \
-                             & ( df['{}_l'.format(askbidmid)] < df['{}_l'.format(askbidmid)].shift(-1) ), 1, 0)
-    indicator_list.extend(['minorhigh','minorlow'])
+                             & ( df['{}_l'.format(askbidmid)] < df['{}_l'.format(askbidmid)].shift(-1) ), -1, 0)
+    
+    df['minorhighlow-discovered'] = np.abs(df['minorhighlow'].shift(1))
+
+    indicator_list.extend(['minorhighlow','minorhighlow-discovered'])
+    return df, indicator_list
+
+def AddPivotPoints(df, indicator_list, askbidmid, rightstrength, leftstrength):
+    '''
+    Since the discovery of certain conditions become clear only after several bars passed, two columns are 
+    generated. One is the indicator and the other indicator-discovered. Latter represents the time when the
+    last signal was generated.
+    '''
+
+    df['pivot'] = 0
+    df['pivot-discovered'] = 0
+
+    for index, row in df.iterrows():
+
+        loc = df.index.get_loc(index)
+            
+        if loc >= leftstrength-1 and loc <= len(df.index) - rightstrength:
+
+            temp = df[loc-leftstrength+1:loc+rightstrength+1]
+
+            if temp['{}_h'.format(askbidmid)].loc[index] == temp['{}_h'.format(askbidmid)].max():
+                
+                df.loc[index, 'pivot'] = 1
+
+            if temp['{}_l'.format(askbidmid)].loc[index] == temp['{}_l'.format(askbidmid)].min():
+                
+                df.loc[index, 'pivot'] = -1
+                  
+            if df['pivot'].loc[index] != 0:
+                
+                df['pivot-discovered'].iloc[loc+rightstrength] = 1
+        
+    indicator_list.extend(['pivot','pivot-discovered'])
     return df, indicator_list
 
 def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
@@ -81,13 +126,10 @@ def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
     df['divergencehiddensell'] = 0
     
     for index, row in df.iterrows():
-        
-        print(index)
-            
-        if df.index.get_loc(index) >= lookback:
+                    
+        if df.index.get_loc(index) >= lookback and (row['pivot'] != 0):
             
             loc = df.index.get_loc(index)
-            #print(loc)
             
             stopdivergenceregularbuy = False
             stopdivergencehiddenbuy = False
@@ -97,8 +139,8 @@ def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
             temp = df[loc-lookback:loc]
             for index2, row2 in temp[::-1].iterrows():
 
-                if( ( row2['{}_l'.format(askbidmid)] < df.ix[index]['{}_l'.format(askbidmid)] ) &
-                    ( row2['slowk'] > df.ix[index]['slowk'] ) &
+                if( ( row2['{}_l'.format(askbidmid)] > df.ix[index]['{}_l'.format(askbidmid)] ) &
+                    ( row2['slowk'] < df.ix[index]['slowk'] ) &
                     ( row2['slowk'] < 50 ) &
                     ( df.ix[index]['slowk'] < 50 ) &
                     ( np.abs( row2['{}_l'.format(askbidmid)] - df.ix[index]['{}_l'.format(askbidmid)] ) < threshold ) &
@@ -108,8 +150,8 @@ def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
                     df['divergenceregularbuy'].ix[index] = loc-loc2
                     stopdivergenceregularbuy = True
 
-                if( ( row2['{}_l'.format(askbidmid)] > df.ix[index]['{}_l'.format(askbidmid)] ) &
-                    ( row2['slowk'] < df.ix[index]['slowk'] ) &
+                if( ( row2['{}_l'.format(askbidmid)] < df.ix[index]['{}_l'.format(askbidmid)] ) &
+                    ( row2['slowk'] > df.ix[index]['slowk'] ) &
                     ( row2['slowk'] < 50 ) &
                     ( df.ix[index]['slowk'] < 50 ) &
                     ( np.abs( row['{}_l'.format(askbidmid)] - df.ix[index]['{}_l'.format(askbidmid)] ) < threshold ) &
@@ -119,10 +161,10 @@ def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
                     df['divergencehiddenbuy'].ix[index] = loc-loc2
                     stopdivergencehiddenbuy = True
                 
-                if( ( row2['{}_h'.format(askbidmid)] > df.ix[index]['{}_h'.format(askbidmid)] ) &
-                    ( row2['slowk'] < df.ix[index]['slowk'] ) &
-                    #( row['slowk'] > 50 ) &
-                    #( df.ix[index]['slowk'] > 50 ) &
+                if( ( row2['{}_h'.format(askbidmid)] < df.ix[index]['{}_h'.format(askbidmid)] ) &
+                    ( row2['slowk'] > df.ix[index]['slowk'] ) &
+                    ( row['slowk'] > 50 ) &
+                    ( df.ix[index]['slowk'] > 50 ) &
                     ( np.abs( row['{}_h'.format(askbidmid)] - df.ix[index]['{}_h'.format(askbidmid)] ) < threshold ) &
                     ( not stopdivergenceregularsell ) ):
                     
@@ -130,10 +172,10 @@ def AddDivergence(df, indicator_list, askbidmid, lookback, threshold):
                     df['divergenceregularsell'].ix[index] = loc-loc2
                     stopdivergenceregularsell = True
 
-                if( ( row2['{}_h'.format(askbidmid)] < df.ix[index]['{}_h'.format(askbidmid)] ) &
-                    ( row2['slowk'] > df.ix[index]['slowk'] ) &
-                    #( row['slowk'] > 50 ) &
-                    #( df.ix[index]['slowk'] > 50 ) &
+                if( ( row2['{}_h'.format(askbidmid)] > df.ix[index]['{}_h'.format(askbidmid)] ) &
+                    ( row2['slowk'] < df.ix[index]['slowk'] ) &
+                    ( row['slowk'] > 50 ) &
+                    ( df.ix[index]['slowk'] > 50 ) &
                     ( np.abs( row['{}_h'.format(askbidmid)] - df.ix[index]['{}_h'.format(askbidmid)] ) < threshold ) &
                     ( not stopdivergencehiddensell ) ):
                     
@@ -154,8 +196,8 @@ def AddDivergenceRegularBuyLast(df, indicator_list, askbidmid, lookback, thresho
             
             for index_lookback in range(0,lookback):
         
-                if( ( row['{}_l'.format(askbidmid)] < df.ix[index-index_lookback-1]['{}_l'.format(askbidmid)] ) &
-                    ( row['slowk'] > df.ix[index-index_lookback-1]['slowk'] ) &
+                if( ( row['{}_l'.format(askbidmid)] > df.ix[index-index_lookback-1]['{}_l'.format(askbidmid)] ) &
+                    ( row['slowk'] < df.ix[index-index_lookback-1]['slowk'] ) &
                     ( row['slowk'] < 50 ) &
                     ( df.ix[index-index_lookback-1]['slowk'] < 50 ) &
                     ( np.abs( row['{}_l'.format(askbidmid)] - df.ix[index-index_lookback-1]['{}_l'.format(askbidmid)] ) < threshold ) ):
@@ -175,8 +217,8 @@ def AddDivergenceHiddenBuyLast(df, indicator_list, askbidmid, lookback, threshol
 
             for index_lookback in range(0,lookback):
         
-                if( ( row['{}_l'.format(askbidmid)] > df.ix[index-index_lookback-1]['{}_l'.format(askbidmid)] ) &
-                    ( row['slowk'] < df.ix[index-index_lookback-1]['slowk'] ) &
+                if( ( row['{}_l'.format(askbidmid)] < df.ix[index-index_lookback-1]['{}_l'.format(askbidmid)] ) &
+                    ( row['slowk'] > df.ix[index-index_lookback-1]['slowk'] ) &
                     ( row['slowk'] < 50 ) &
                     ( df.ix[index-index_lookback-1]['slowk'] < 50 ) &
                     ( np.abs( row['{}_l'.format(askbidmid)] - df.ix[index-index_lookback-1]['{}_l'.format(askbidmid)] ) < threshold ) ):
@@ -196,10 +238,10 @@ def AddDivergenceRegularSellLast(df, indicator_list, askbidmid, lookback, thresh
 
             for index_lookback in range(0,lookback):
         
-                if( ( row['{}_h'.format(askbidmid)] > df.ix[index-index_lookback-1]['{}_h'.format(askbidmid)] ) &
-                    ( row['slowk'] < df.ix[index-index_lookback-1]['slowk'] ) &
-                    #( row['slowk'] > 50 ) &
-                    #( df.ix[index-index_lookback-1]['slowk'] > 50 ) &
+                if( ( row['{}_h'.format(askbidmid)] < df.ix[index-index_lookback-1]['{}_h'.format(askbidmid)] ) &
+                    ( row['slowk'] > df.ix[index-index_lookback-1]['slowk'] ) &
+                    ( row['slowk'] > 50 ) &
+                    ( df.ix[index-index_lookback-1]['slowk'] > 50 ) &
                     ( np.abs( row['{}_h'.format(askbidmid)] - df.ix[index-index_lookback-1]['{}_h'.format(askbidmid)] ) < threshold ) ):
                     
                     df['divergenceregularsell'].ix[index] = index_lookback+1
@@ -217,10 +259,10 @@ def AddDivergenceHiddenSellLast(df, indicator_list, askbidmid, lookback, thresho
             
             for index_lookback in range(0,lookback):
         
-                if( ( row['{}_h'.format(askbidmid)] < df.ix[index-index_lookback-1]['{}_h'.format(askbidmid)] ) &
-                    ( row['slowk'] > df.ix[index-index_lookback-1]['slowk'] ) &
-                    #( row['slowk'] > 50 ) &
-                    #( df.ix[index-index_lookback-1]['slowk'] > 50 ) &
+                if( ( row['{}_h'.format(askbidmid)] > df.ix[index-index_lookback-1]['{}_h'.format(askbidmid)] ) &
+                    ( row['slowk'] < df.ix[index-index_lookback-1]['slowk'] ) &
+                    ( row['slowk'] > 50 ) &
+                    ( df.ix[index-index_lookback-1]['slowk'] > 50 ) &
                     ( np.abs( row['{}_h'.format(askbidmid)] - df.ix[index-index_lookback-1]['{}_h'.format(askbidmid)] ) < threshold ) ):
                     
                     df['divergencehiddensell'].ix[index] = index_lookback+1
