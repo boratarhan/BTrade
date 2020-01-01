@@ -443,9 +443,9 @@ class backtest_base(object):
 
         self.plot_data()
         self.plot_returns()
-#        self.plot_PnL_vs_Trade_Number()
+        self.plot_PnL_vs_Trade_Number()
         self.plot_PnL_histogram()
-#        self.plot_drawdown()
+        self.plot_drawdown()
         self.plot_MAE()
         self.plot_MFE()
 
@@ -455,13 +455,26 @@ class backtest_base(object):
         fig1 = self.data['ask_c'].plot(figsize=(10, 6), title=self.symbol)
         fig2 = fig1.get_figure()
         fig2.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\data.pdf')
+        plt.show()
+        plt.close()
         
     def plot_returns(self):
 
-        fig1 = self.data[['cumret-strategy','cumret-max', 'return-asset']].plot(figsize=(10,6))
+        fig1 = self.data[['cumret-strategy','cumret-max', 'return-asset']].plot(figsize=(10,6), title='Returns')
         fig2 = fig1.get_figure()
         fig2.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\returns.pdf')
+        plt.show()
+        plt.close()
 
+    def plot_PnL_vs_Trade_Number(self):
+
+        #plt.autoscale(enable=True, axis='both', tight=None)
+        plt.title('PnL vs. Trade Number')
+        plt.plot(self.listofrealizedprofitloss, 'ro', markersize = 4)
+        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\PnL_vs_Trade_Number.pdf')
+        plt.show()
+        plt.close()
+        
     def plot_PnL_histogram(self):
         
         binwidth = 1
@@ -474,20 +487,18 @@ class backtest_base(object):
         plt.ylabel('Number of Trades')
         plt.xlabel('Profit/Loss')
         plt.hist(val_pnl, bins=range( np.int(np.floor(min(val_pnl))), np.int(np.ceil(max(val_pnl))) + binwidth, binwidth))
+        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\PnL_histogram.pdf')
+        plt.show()
+        plt.close()
         
     def plot_drawdown(self):
 
-        fig1 = self.data[['drawdown']].plot(figsize=(10,6))
+        fig1 = self.data[['drawdown']].plot(figsize=(10,6), title='Drawdown')
         fig2 = fig1.get_figure()
         fig2.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\drawdown.pdf')
+        plt.show()
+        plt.close()
 
-    def plot_PnL_vs_Trade_Number(self):
-
-        plt.autoscale(enable=True, axis='both', tight=None)
-        plt.title('PnL vs. Trade Number')
-        plt.plot(self.listofrealizedprofitloss, 'ro', markersize = 4)
-        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\PnL_vs_Trade_Number.pdf')
-        
     def plot_MAE(self):
 
         val_ID = []
@@ -504,6 +515,7 @@ class backtest_base(object):
         plt.title("MAE vs PnL for winning trades")
         plt.xlabel("MAE")
         plt.ylabel("PnL")
+        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\MAE_vs_PnL_for_winning_trade.pdf')
         plt.show()
         plt.close()
            
@@ -521,6 +533,7 @@ class backtest_base(object):
         plt.title("MAE vs PnL for losing trades")
         plt.xlabel("MAE")
         plt.ylabel("PnL")
+        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\MAE_vs_PnL_for_losing_trade.pdf')
         plt.show()
         plt.close()
 
@@ -540,6 +553,7 @@ class backtest_base(object):
         plt.title("MFE vs PnL for winning trades")
         plt.xlabel("MFE")
         plt.ylabel("PnL")
+        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\MFE_vs_PnL_for_winning_trade.pdf')
         plt.show()
         plt.close()
            
@@ -557,6 +571,7 @@ class backtest_base(object):
         plt.title("MFE vs PnL for losing trades")
         plt.xlabel("MFE")
         plt.ylabel("PnL")
+        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\MFE_vs_PnL_for_losing_trade.pdf')
         plt.show()
         plt.close()
 
