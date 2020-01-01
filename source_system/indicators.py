@@ -51,15 +51,16 @@ def AddSlowStochastic(df, indicator_list, askbidmid, fastk_period=14, slowk_peri
     indicator_list.extend(['slowk', 'slowd'])
     return df, indicator_list
 
-def AddATR(df, indicator_list, askbidmid, timeperiod=14):
+def AddATR(df, indicator_list, askbidmid, timeperiod=14, std=0):
     df['atr'] = talib.ATR(df['{}_h'.format(askbidmid)].values, df['{}_l'.format(askbidmid)].values, df['{}_c'.format(askbidmid)].values, timeperiod=timeperiod)
-    df['atr+1'] = df['waveclose'] + 1 * df['atr']
-    df['atr+2'] = df['waveclose'] + 2 * df['atr']
-    df['atr+3'] = df['waveclose'] + 3 * df['atr']
-    df['atr-1'] = df['waveclose'] - 1 * df['atr']
-    df['atr-2'] = df['waveclose'] - 2 * df['atr']
-    df['atr-3'] = df['waveclose'] - 3 * df['atr']
-    indicator_list.extend(['atr+1','atr+2','atr+3','atr-1','atr-2','atr-3'])
+    indicator_list.extend(['atr'])
+
+    if std > 0:
+    
+        df['atr+{}'.format(std)] = df['waveclose'] + std * df['atr']
+        df['atr-{}'.format(std)] = df['waveclose'] - std * df['atr']
+        indicator_list.extend(['atr+{}'.format(std),'atr-{}'.format(std)])
+    
     return df, indicator_list
 
 def AddMinorHighLow(df, indicator_list, askbidmid):

@@ -21,6 +21,7 @@ import random
 import statistics
 import pickle
 from statistics import mean
+import operator
 
  # A standard lot = 100,000 units of base currency. 
  # A mini lot = 10,000 units of base currency.
@@ -49,11 +50,11 @@ class Trade(object):
         self.maxAdverseExcursion = 0.0
         self.stat_required_margin = []
         self.stat_unrealizedprofitloss = []                                   
-        self.duration = 0.0
-    
+        self.bars = 0
+        self.maxFavorableExcursionList = []
+        self.maxAdverseExcursionList = []
+            
     def update(self, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
-
-        self.duration = datetime.datetime.now() - self.entrydate
                      
         price_c = price_bid_c if self.units > 0 else price_ask_c      
         price_h = price_bid_h if self.units > 0 else price_ask_h      
@@ -64,6 +65,9 @@ class Trade(object):
 
         self.required_margin = ( self.entryprice * abs(self.units) - self.unrealizedprofitloss ) * self.marginpercent / 100
         self.stat_required_margin.append(self.required_margin)                                   
+
+        #self.bars.append(self.bars[-1] + 1)
+        self.bars = self.bars + 1
 
         tempmaxFavorableExcursion = 0.0
         tempmaxAdverseExcursion = 0.0
@@ -79,9 +83,13 @@ class Trade(object):
             self.maxFavorableExcursion = tempmaxFavorableExcursion
         if tempmaxAdverseExcursion < self.maxAdverseExcursion:
             self.maxAdverseExcursion = tempmaxAdverseExcursion
-                               
-        #print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
-                        
+
+        self.maxFavorableExcursionList.append(self.maxFavorableExcursion)
+        self.maxAdverseExcursionList.append(self.maxAdverseExcursion)
+        #self.atrList.append(self.data['atr'].iloc())
+        
+       #print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
+                      
     def close(self, units, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
         
         exitprice = price_bid_c if self.units > 0 else price_ask_c
@@ -124,7 +132,7 @@ class backtest_base(object):
     ''' Base class for event-based backtesting of trading strategies.
     '''
 
-    def __init__(self, symbol, account_type, granularity, decision_frequency, start, end, amount, marginpercent, ftc=0.0, ptc=0.0, verbose=False):
+    def __init__(self, symbol, account_type, granularity, decision_frequency, start, end, margin_duration_before_start_trading, amount, marginpercent, ftc=0.0, ptc=0.0, verbose=False):
         self.symbol = symbol
         self.account_type = account_type
         self.granularity = granularity
@@ -132,10 +140,14 @@ class backtest_base(object):
         self.file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(self.account_type,self.symbol,self.granularity)
         self.start = start
         self.end = end
+        self.date_to_start_trading = self.start + margin_duration_before_start_trading
         self.indicatorlist = []
         self.listofOpenTrades = []
         self.listofClosedTrades = []
         self.stat_number_of_open_trades = []
+
+        self.df_eratio = pd.DataFrame()
+        self.maxNumberBars = 0
         
         # Notation:
         # Equity = Balance + UnrealizedP&L
@@ -180,7 +192,7 @@ class backtest_base(object):
         self.trades = 0
         self.verbose = verbose
         self.get_data()
-        
+                                 
     def get_data(self):
 
         self.h5 = tables.open_file(self.file_path, 'r')
@@ -219,6 +231,7 @@ class backtest_base(object):
         msg += '\nFixed costs %.2f | ' % self.ftc
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
+        print('=' * 55)
         
 #        self.equity = self.initial_equity
 #        self.required_margin = 0.0
@@ -228,16 +241,18 @@ class backtest_base(object):
 
         for date, _ in self.data.iterrows():
     
-            print(date)
-            ''' Get signal
-                Create buy/sell order
-                -	Calculate PL
-                -	Calculate required margin
-                Check all open orders
-                	Either add to the list
-                	Eliminate some from list, move to ListofClosedOrders
-            '''
-            self.run_core_strategy()
+            if(date >= self.date_to_start_trading):
+                
+                print(date)
+                ''' Get signal
+                    Create buy/sell order
+                    -	Calculate PL
+                    -	Calculate required margin
+                    Check all open orders
+                    	Either add to the list
+                    	Eliminate some from list, move to ListofClosedOrders
+                '''
+                self.run_core_strategy()
 
         self.close_all_trades(date)
         self.update(date)
@@ -452,6 +467,7 @@ class backtest_base(object):
         self.plot_MFE()
         self.plot_consecutive_win()
         self.plot_consecutive_loss()
+        self.plot_eratio()
         
     def plot_data(self):
         ''' Plots the (adjusted) closing prices for symbol.
@@ -599,6 +615,16 @@ class backtest_base(object):
         plt.show()
         plt.close()
 
+    def plot_eratio(self):
+        
+        ''' Plots the e-ratio over trades.
+        '''
+        fig1 = self.df_eratio['mean'].plot(figsize=(10, 6), title='e-ratio curve for {}'.format(self.symbol))
+        fig2 = fig1.get_figure()
+        fig2.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\eratio.pdf')
+        plt.show()
+        plt.close()
+        
     def plot_equity(self):
 
         if len(self.data[self.data['free margin'] < 0 ]) > 0:                
@@ -621,6 +647,7 @@ class backtest_base(object):
         self.calculate_expectancy()
         self.calculate_consecutive_win_loss()
         self.count_number_of_trading_days()
+        self.calculate_edge_ratio()
         
     def count_number_of_trading_days(self):
         
@@ -774,6 +801,63 @@ class backtest_base(object):
         msg = 'Consecutive Win: {} '.format(self.consecutive_win)
         msg += '\nConsecutive Loss: {} '.format(self.consecutive_loss)
         print(msg)
+
+    def calculate_edge_ratio(self):
+        
+        # Idea comes from buildalpha: https://www.buildalpha.com/e-ratio/
+        
+        # Add ATR as an indicator to normalize the MFE and MAE
+        self.data, self.indicatorlist = AddATR(self.data, self.indicatorlist, 'bid', timeperiod=14, std=0)
+
+        # Find the max number of bars over all the trades        
+        maxBars = max(self.listofClosedTrades, key=operator.attrgetter('bars')).bars
+                
+        bar_index = np.arange(1, maxBars+1)
+        self.df_maxFavorableExcursion = pd.DataFrame(index=bar_index)
+        self.df_maxAdverseExcursion = pd.DataFrame(index=bar_index)
+
+        for eTrade in self.listofClosedTrades:
+
+            temp = pd.DataFrame(eTrade.maxFavorableExcursionList, index=np.arange(1, eTrade.bars+1), columns=['Trade{}'.format(eTrade.ID)] )
+            self.df_maxFavorableExcursion = pd.concat([self.df_maxFavorableExcursion, temp], axis=1, ignore_index=True)
+
+            temp = -pd.DataFrame(eTrade.maxAdverseExcursionList, index=np.arange(1, eTrade.bars+1), columns=['Trade{}'.format(eTrade.ID)] )
+            self.df_maxAdverseExcursion = pd.concat([self.df_maxAdverseExcursion, temp], axis=1, ignore_index=True)
+
+        self.df_eratio = self.df_maxFavorableExcursion.div(self.df_maxAdverseExcursion)
+        
+        now = datetime.datetime.now()
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}df_maxFavorableExcursion.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
+        # Create a Pandas Excel writer using XlsxWriter as the engine.
+        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+        
+        # Convert the dataframe to an XlsxWriter Excel object.
+        self.df_maxFavorableExcursion.to_excel(writer, sheet_name='Sheet1')
+        
+        # Close the Pandas Excel writer and output the Excel file.
+        writer.save()
+
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}df_maxAdverseExcursion.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
+        # Create a Pandas Excel writer using XlsxWriter as the engine.
+        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+        
+        # Convert the dataframe to an XlsxWriter Excel object.
+        self.df_maxAdverseExcursion.to_excel(writer, sheet_name='Sheet1')
+        
+        # Close the Pandas Excel writer and output the Excel file.
+        writer.save()
+
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}df_eratio.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
+        # Create a Pandas Excel writer using XlsxWriter as the engine.
+        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+        
+        # Convert the dataframe to an XlsxWriter Excel object.
+        self.df_eratio.to_excel(writer, sheet_name='Sheet1')
+        
+        # Close the Pandas Excel writer and output the Excel file.
+        writer.save()
+      
+        self.df_eratio['mean'] = self.df_eratio.mean(axis=1)
        
     def write_all_data(self):
         
@@ -876,10 +960,16 @@ class backtest_base(object):
 
     def calculate_number_of_trades_to_simulate(self):
                 
+        # Calculate the frequency of trades in the backtest
         frequency = (self.data.index[-1] - self.data.index[0]) / self.numberoftrades
         
+        # Assume simulation duration for 1 year but given the frequency, it is more important to caclulate how many trades to simulate
         return int( pd.Timedelta(value='365D') / frequency )
 
+
+         
+            
+    
 
     def durbin_watson_test(self, data):
         '''
@@ -1050,10 +1140,11 @@ if __name__ == '__main__':
      decision_frequency = '1H'
      start_datetime = datetime.datetime(2017,1,1,0,0,0)
      end_datetime = datetime.datetime(2017,8,1,0,0,0)
+     margin_duration_before_start_trading = pd.Timedelta(value='30D')
      marginpercent = 10
      verbose = False
        
-     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, 10000, marginpercent, verbose)
+     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, margin_duration_before_start_trading, 10000, marginpercent, verbose)
      bb.check_data_quality()
 
      viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)
