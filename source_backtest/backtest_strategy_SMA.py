@@ -94,6 +94,6 @@ if __name__ == '__main__':
      
      bb.write_all_simulation_data_to_excel()
  
-     visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+     viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
 
      
