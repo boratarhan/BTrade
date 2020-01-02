@@ -90,13 +90,10 @@ if __name__ == '__main__':
      
      bb.write_all_trades_to_excel()
 
+     bb.monte_carlo_simulator(250)
+     
+     bb.write_all_simulation_data_to_excel()
+ 
+     visualize(bb.symbol, bb.data, bb.listofClosedTrades)
 
-#     bb.monte_carlo_simulator(2500)
-     #bb.plot_equity()         
-#     filename = 'xxx.xlsx'
-#     writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-#     bb.simulations_df.to_excel(writer, sheet_name='Sheet1')
-#     writer.save()
-    
-#     visualize(bb.symbol, bb.data, bb.listofClosedTrades)
-
+     

@@ -66,7 +66,6 @@ class Trade(object):
         self.required_margin = ( self.entryprice * abs(self.units) - self.unrealizedprofitloss ) * self.marginpercent / 100
         self.stat_required_margin.append(self.required_margin)                                   
 
-        #self.bars.append(self.bars[-1] + 1)
         self.bars = self.bars + 1
 
         tempmaxFavorableExcursion = 0.0
@@ -958,19 +957,6 @@ class backtest_base(object):
 
         self.data.drop( ['return_check_ask_h_over_c', 'return_check_ask_l_over_c', 'return_check_ask_c_over_c', 'return_check_bid_h_over_c', 'return_check_bid_l_over_c', 'return_check_bid_c_over_c', 'outlier_ask_h_over_c', 'outlier_ask_l_over_c', 'outlier_ask_c_over_c', 'outlier_bid_h_over_c', 'outlier_bid_l_over_c', 'outlier_bid_c_over_c'], axis=1, inplace=True )
 
-    def calculate_number_of_trades_to_simulate(self):
-                
-        # Calculate the frequency of trades in the backtest
-        frequency = (self.data.index[-1] - self.data.index[0]) / self.numberoftrades
-        
-        # Assume simulation duration for 1 year but given the frequency, it is more important to caclulate how many trades to simulate
-        return int( pd.Timedelta(value='365D') / frequency )
-
-
-         
-            
-    
-
     def durbin_watson_test(self, data):
         '''
         The null hypothesis of the test is that there is no serial correlation. The Durbin-Watson test statistics is defined as:
@@ -992,8 +978,16 @@ class backtest_base(object):
         msg += '\nThe closer to 4, the more evidence for negative serial correlation.'
         msg += '\nDW Statistic: %.4f ' % durbin_watson(ols_res.resid)
         print(msg)
+
+    def calculate_number_of_trades_to_simulate(self):
                 
-    def monte_carlo_simulator(self, cols=2500):
+        # Calculate the frequency of trades in the backtest
+        frequency = (self.data.index[-1] - self.data.index[0]) / self.numberoftrades
+        
+        # Assume simulation duration for 1 year but given the frequency, it is more important to caclulate how many trades to simulate
+        return int( pd.Timedelta(value='365D') / frequency )
+
+    def monte_carlo_simulator(self, cols=250):
         '''
         Function to simulate trades for a given number of times.
     
@@ -1045,22 +1039,19 @@ class backtest_base(object):
             self.simulations_df['cumret-strategy_{}'.format(eSim)] = ( self.simulations_df[eSim] / self.initial_equity - 1 )
             self.simulations_df['cumret-max_{}'.format(eSim)] = self.simulations_df['cumret-strategy_{}'.format(eSim)].cummax()
             self.simulations_df['cumret-min_{}'.format(eSim)] = self.simulations_df['cumret-strategy_{}'.format(eSim)].cummin()
-            self.simulations_df['drawdown_pct_{}'.format(eSim)] = ( self.simulations_df['cumret-max_{}'.format(eSim)] - self.simulations_df['cumret-strategy_{}'.format(eSim)] ) / self.simulations_df['cumret-max_{}'.format(eSim)]
-            #self.simulations_df['drawdown_pct_{}'.format(eSim)][self.simulations_df['drawdown_pct_{}'.format(eSim)] == np.inf] = 0
+            self.simulations_df['drawdown_pct_{}'.format(eSim)] = ( (1+self.simulations_df['cumret-max_{}'.format(eSim)]) - (1+self.simulations_df['cumret-strategy_{}'.format(eSim)]) ) / (1+self.simulations_df['cumret-max_{}'.format(eSim)])
             self.simulations_df.loc[self.simulations_df['drawdown_pct_{}'.format(eSim)] == np.inf, 'drawdown_pct_{}'.format(eSim)] = 0
             
             self.simulations_maxdrawdown_pct.append( self.simulations_df['drawdown_pct_{}'.format(eSim)].max() )
             self.simulations_profit_pct.append( self.simulations_df['cumret-strategy_{}'.format(eSim)].iloc[-1] )
-
+            
             del self.simulations_df['cumret-strategy_{}'.format(eSim)]
             del self.simulations_df['cumret-max_{}'.format(eSim)]
             del self.simulations_df['cumret-min_{}'.format(eSim)]
             del self.simulations_df['drawdown_pct_{}'.format(eSim)]
             
         self.simulations_df['mean'] = self.simulations_df.mean(axis=1)
-        
-        self.simulations_df['mean'].plot()
-        
+                
         self.simulations_mean_maxdrawdown_pct = np.mean( self.simulations_maxdrawdown_pct )
         self.simulations_median_maxdrawdown_pct = statistics.median( self.simulations_maxdrawdown_pct )
        
@@ -1071,11 +1062,31 @@ class backtest_base(object):
 
         print('=' * 55)
         msg = 'Monte Carlo Simulation Results:  '
-        msg += '\nMean Max Drawdown Percent:   %.2f ' % self.simulations_mean_maxdrawdown_pct
-        msg += '\nMedian Max Drawdown Percent: %.2f ' % self.simulations_median_maxdrawdown_pct
+        msg += '\nMean Max Drawdown Percent:   %.2f ' % (self.simulations_mean_maxdrawdown_pct*100)
+        msg += '\nMedian Max Drawdown Percent: %.2f ' % (self.simulations_median_maxdrawdown_pct*100)
         msg += '\nCalmar Ratio                 %.4f ' % self.calmar_ratio
         print(msg)
-    
+
+        self.simulations_df['mean'].plot(title='Mean Equity vs Trades')
+
+    def write_all_simulation_data_to_excel(self):
+
+        now = datetime.datetime.now()
+        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}_simulation_results.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
+
+        # Create a Pandas Excel writer using XlsxWriter as the engine.
+        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
+        
+        # Convert the dataframe to an XlsxWriter Excel object.
+        self.simulations_df.to_excel(writer, sheet_name='Sheet1')
+        
+        # Close the Pandas Excel writer and output the Excel file.
+        writer.save()
+        
+        
+        
+        
+        
     def analyze_trades(self):
         
         # Purpose is to collect stats from closed trades. This one collects all trades P/L for each
