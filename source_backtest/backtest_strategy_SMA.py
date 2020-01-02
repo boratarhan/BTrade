@@ -77,6 +77,7 @@ if __name__ == '__main__':
      # A micro lot = 1,000 units of base currency.
 
      bb = backtest_strategy_SMA(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, margin_duration_before_start_trading, 10000, marginpercent)
+
      bb.verbose = True
      bb.check_data_quality()
      
@@ -95,5 +96,3 @@ if __name__ == '__main__':
      bb.write_all_simulation_data_to_excel()
  
      viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
-
-     

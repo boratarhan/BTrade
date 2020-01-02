@@ -1,15 +1,12 @@
 import sys
 from sys import exit
-#import os
-#import math
+import os
 import numpy as np
 import pandas as pd
-#from pandas_datareader import data as web
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import datetime
 import tables 
-#import tstables  
 plt.style.use('seaborn')
 
 sys.path.append('..\\source_system')
@@ -83,12 +80,14 @@ class Trade(object):
         if tempmaxAdverseExcursion < self.maxAdverseExcursion:
             self.maxAdverseExcursion = tempmaxAdverseExcursion
 
+       #print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
+
+#    def collect_data_for_edge_ratio(self, atr):
+        
         self.maxFavorableExcursionList.append(self.maxFavorableExcursion)
         self.maxAdverseExcursionList.append(self.maxAdverseExcursion)
-        #self.atrList.append(self.data['atr'].iloc())
-        
-       #print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
-                      
+#        self.atrList.append(atr)
+                              
     def close(self, units, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
         
         exitprice = price_bid_c if self.units > 0 else price_ask_c
@@ -145,6 +144,10 @@ class backtest_base(object):
         self.listofClosedTrades = []
         self.stat_number_of_open_trades = []
 
+        self.backtest_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
+        self.backtest_folder = self.file_path_ohlc = '..\\..\\backtests\\{}'.format(self.backtest_name)
+        if( not os.path.exists(self.backtest_folder)): os.mkdir(self.backtest_folder) 
+                    
         self.df_eratio = pd.DataFrame()
         self.maxNumberBars = 0
         
@@ -473,7 +476,7 @@ class backtest_base(object):
         '''
         fig1 = self.data['ask_c'].plot(figsize=(10, 6), title=self.symbol)
         fig2 = fig1.get_figure()
-        fig2.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\data.pdf')
+        fig2.savefig('{}\\data.pdf'.format(self.backtest_folder))
         plt.show()
         plt.close()
         
@@ -481,7 +484,7 @@ class backtest_base(object):
 
         fig1 = self.data[['cumret-strategy','cumret-max', 'return-asset']].plot(figsize=(10,6), title='Returns')
         fig2 = fig1.get_figure()
-        fig2.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\returns.pdf')
+        fig2.savefig('{}\\returns.pdf'.format(self.backtest_folder))
         plt.show()
         plt.close()
 
@@ -490,7 +493,7 @@ class backtest_base(object):
         #plt.autoscale(enable=True, axis='both', tight=None)
         plt.title('PnL vs. Trade Number')
         plt.plot(self.listofrealizedprofitloss, 'ro', markersize = 4)
-        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\PnL_vs_Trade_Number.pdf')
+        plt.savefig('{}\\PnL_vs_Trade_Number.pdf'.format(self.backtest_folder))
         plt.show()
         plt.close()
         
@@ -506,7 +509,7 @@ class backtest_base(object):
         plt.ylabel('Number of Trades')
         plt.xlabel('Profit/Loss')
         plt.hist(val_pnl, bins=range( np.int(np.floor(min(val_pnl))), np.int(np.ceil(max(val_pnl))) + binwidth, binwidth))
-        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\PnL_histogram.pdf')
+        plt.savefig('{}\\PnL_histogram.pdf'.format(self.backtest_folder))
         plt.show()
         plt.close()
         
@@ -514,7 +517,7 @@ class backtest_base(object):
 
         fig1 = self.data[['drawdown']].plot(figsize=(10,6), title='Drawdown')
         fig2 = fig1.get_figure()
-        fig2.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\drawdown.pdf')
+        fig2.savefig('{}\\drawdown.pdf'.format(self.backtest_folder))
         plt.show()
         plt.close()
 
@@ -534,7 +537,7 @@ class backtest_base(object):
         plt.title("MAE vs PnL for winning trades")
         plt.xlabel("MAE")
         plt.ylabel("PnL")
-        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\MAE_vs_PnL_for_winning_trade.pdf')
+        plt.savefig('{}\\MAE_vs_PnL_for_winning_trade.pdf'.format(self.backtest_folder))
         plt.show()
         plt.close()
            
@@ -552,7 +555,7 @@ class backtest_base(object):
         plt.title("MAE vs PnL for losing trades")
         plt.xlabel("MAE")
         plt.ylabel("PnL")
-        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\MAE_vs_PnL_for_losing_trade.pdf')
+        plt.savefig('{}\\MAE_vs_PnL_for_losing_trade.pdf'.format(self.backtest_folder))
         plt.show()
         plt.close()
 
@@ -572,7 +575,7 @@ class backtest_base(object):
         plt.title("MFE vs PnL for winning trades")
         plt.xlabel("MFE")
         plt.ylabel("PnL")
-        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\MFE_vs_PnL_for_winning_trade.pdf')
+        plt.savefig('{}\\MFE_vs_PnL_for_winning_trade.pdf'.format(self.backtest_folder))
         plt.show()
         plt.close()
            
@@ -590,7 +593,7 @@ class backtest_base(object):
         plt.title("MFE vs PnL for losing trades")
         plt.xlabel("MFE")
         plt.ylabel("PnL")
-        plt.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\MFE_vs_PnL_for_losing_trade.pdf')
+        plt.savefig('{}\\MFE_vs_PnL_for_losing_trade.pdf'.format(self.backtest_folder))
         plt.show()
         plt.close()
 
@@ -620,7 +623,7 @@ class backtest_base(object):
         '''
         fig1 = self.df_eratio['mean'].plot(figsize=(10, 6), title='e-ratio curve for {}'.format(self.symbol))
         fig2 = fig1.get_figure()
-        fig2.savefig('C:\\Users\\bora\\Documents\\GitHub\\visualizations\\eratio.pdf')
+        fig2.savefig('{}\\eratio.pdf'.format(self.backtest_folder))
         plt.show()
         plt.close()
         
@@ -804,9 +807,10 @@ class backtest_base(object):
     def calculate_edge_ratio(self):
         
         # Idea comes from buildalpha: https://www.buildalpha.com/e-ratio/
-        
+        # It is called e-ratio or edge ratio
         # Add ATR as an indicator to normalize the MFE and MAE
-        self.data, self.indicatorlist = AddATR(self.data, self.indicatorlist, 'bid', timeperiod=14, std=0)
+        #self.data, self.indicatorlist = AddATR(self.data, self.indicatorlist, 'bid', timeperiod=14, std=0)
+        # For now, exclude normalizing using ATR
 
         # Find the max number of bars over all the trades        
         maxBars = max(self.listofClosedTrades, key=operator.attrgetter('bars')).bars
@@ -825,8 +829,8 @@ class backtest_base(object):
 
         self.df_eratio = self.df_maxFavorableExcursion.div(self.df_maxAdverseExcursion)
         
-        now = datetime.datetime.now()
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}df_maxFavorableExcursion.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
+        
+        filename = '{}\\{}_df_maxFavorableExcursion.xlsx'.format(self.backtest_folder,self.symbol)
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
         
@@ -836,7 +840,7 @@ class backtest_base(object):
         # Close the Pandas Excel writer and output the Excel file.
         writer.save()
 
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}df_maxAdverseExcursion.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
+        filename = '{}\\{}_df_maxAdverseExcursion.xlsx'.format(self.backtest_folder,self.symbol)
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
         
@@ -846,7 +850,7 @@ class backtest_base(object):
         # Close the Pandas Excel writer and output the Excel file.
         writer.save()
 
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}df_eratio.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
+        filename = '{}\\{}_df_eratio.xlsx'.format(self.backtest_folder,self.symbol)
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
         
@@ -861,7 +865,7 @@ class backtest_base(object):
     def write_all_data(self):
         
         now = datetime.datetime.now()
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}_data.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
+        filename = '{}\\{}_data.xlsx'.format(self.backtest_folder,self.symbol)
 
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
@@ -894,7 +898,7 @@ class backtest_base(object):
                 self.df_trades.loc[eTrade.ID,'exit_{}_realized P&L'.format(idx)] = exTrade['realized P&L']                
                 
         now = datetime.datetime.now()
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}_trades.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
+        filename = '{}\\{}_trades.xlsx'.format(self.backtest_folder,self.symbol)
 
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
@@ -944,7 +948,7 @@ class backtest_base(object):
         print('Percentage of outliers in the data set is {0:.2f}%'.format( len(self.data[self.data['outlier_any'] == True]) / len(self.data) * 100 ) ) 
         
         now = datetime.datetime.now()
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}_outliers.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
+        filename = '{}\\{}_outliers.xlsx'.format(self.backtest_folder,self.symbol)
         
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
@@ -955,7 +959,9 @@ class backtest_base(object):
         # Close the Pandas Excel writer and output the Excel file.
         writer.save()
 
-        self.data.drop( ['return_check_ask_h_over_c', 'return_check_ask_l_over_c', 'return_check_ask_c_over_c', 'return_check_bid_h_over_c', 'return_check_bid_l_over_c', 'return_check_bid_c_over_c', 'outlier_ask_h_over_c', 'outlier_ask_l_over_c', 'outlier_ask_c_over_c', 'outlier_bid_h_over_c', 'outlier_bid_l_over_c', 'outlier_bid_c_over_c'], axis=1, inplace=True )
+        self.data.drop( ['return_check_ask_h_over_c', 'return_check_ask_l_over_c', 'return_check_ask_c_over_c', 'return_check_bid_h_over_c', 'return_check_bid_l_over_c', 'return_check_bid_c_over_c',
+                         #'outlier_ask_h_over_c', 'outlier_ask_l_over_c', 'outlier_ask_c_over_c', 'outlier_bid_h_over_c', 'outlier_bid_l_over_c', 'outlier_bid_c_over_c',
+                         'normalized_return_ask_h_over_c', 'normalized_return_ask_l_over_c', 'normalized_return_ask_c_over_c', 'normalized_return_bid_h_over_c', 'normalized_return_bid_l_over_c', 'normalized_return_bid_c_over_c'], axis=1, inplace=True )
 
     def durbin_watson_test(self, data):
         '''
@@ -1072,7 +1078,7 @@ class backtest_base(object):
     def write_all_simulation_data_to_excel(self):
 
         now = datetime.datetime.now()
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\visualizations\\{}_{}_simulation_results.xlsx'.format(now.strftime("%Y-%m-%d-%H-%M"),self.symbol)
+        filename = '{}\\{}_simulation_results.xlsx'.format(self.backtest_folder,self.symbol)
 
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
@@ -1100,7 +1106,7 @@ class backtest_base(object):
                 self.trade_performance_over_time.loc[eTrade.ID, i] = eTrade.stat_unrealizedprofitloss[i-1]
         
         now = datetime.datetime.now()
-        filename = 'C:\\Users\\bora\\Documents\\GitHub\\datastore\\trades_performance_over_time_{}_{}.xlsx'.format(self.symbol, now.strftime("%Y-%m-%d-%H-%M"))
+        filename = '{}\\{}_trades_performance_over_time.xlsx'.format(self.backtest_folder,self.symbol)
 
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
@@ -1151,7 +1157,7 @@ if __name__ == '__main__':
      decision_frequency = '1H'
      start_datetime = datetime.datetime(2017,1,1,0,0,0)
      end_datetime = datetime.datetime(2017,8,1,0,0,0)
-     margin_duration_before_start_trading = pd.Timedelta(value='30D')
+     margin_duration_before_start_trading = pd.Timedelta(value='0D') #pd.Timedelta(value='30D')
      marginpercent = 10
      verbose = False
        
