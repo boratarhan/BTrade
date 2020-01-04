@@ -63,6 +63,12 @@ def AddATR(df, indicator_list, askbidmid, timeperiod=14, std=0):
     
     return df, indicator_list
 
+def AddADX(df, indicator_list, askbidmid, timeperiod=14):
+    df['adx'] = talib.ADX(df['{}_h'.format(askbidmid)].values, df['{}_l'.format(askbidmid)].values, df['{}_c'.format(askbidmid)].values, timeperiod=timeperiod)
+    indicator_list.extend(['adx'])
+
+    return df, indicator_list
+
 def AddMinorHighLow(df, indicator_list, askbidmid):
     '''
     Since the discovery of certain conditions become clear only after several bars passed, two columns are 

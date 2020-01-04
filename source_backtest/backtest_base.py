@@ -193,8 +193,24 @@ class backtest_base(object):
         self.ptc = ptc # Variable transaction cost
         self.trades = 0
         self.verbose = verbose
-        self.get_data()
+        self.data = pd.DataFrame()        
+        self.read_hdf_file()
+        self.data.loc[:,'units_to_buy'] = 0
+        self.data.loc[:,'units_to_sell'] = 0
+        self.data.loc[:,'units_net'] = 0
                                  
+    def read_hdf_file(self):
+    
+
+        filename = '{}_{}.hdf'.format(self.symbol, self.granularity)
+        filepath = os.path.join('..', '..', 'backtests', filename)
+        if os.path.exists( filepath ):
+            self.data = pd.read_hdf(filepath)
+        self.data = self.data[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c', 'volume']]
+        return self.data
+
+    '''
+    This is no longer used since I started using hdf file created by the file _create_research_data.py
     def get_data(self):
 
         self.h5 = tables.open_file(self.file_path, 'r')
@@ -218,10 +234,9 @@ class backtest_base(object):
         
             self.data = raw_aggregate.dropna()
             
-            self.data.loc[:,'units_to_buy'] = 0
-            self.data.loc[:,'units_to_sell'] = 0
-            self.data.loc[:,'units_net'] = 0
-        
+
+    '''
+    
     def add_indicators(self):
         
         pass
@@ -399,11 +414,12 @@ class backtest_base(object):
         ''' Closing out all long or short positions.
         '''
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
+        
         if self.units_net < 0:
             self.data.loc[date,'units_to_buy'] = self.data.loc[date,'units_to_buy'] - self.units_net
         elif self.units_net > 0:
             self.data.loc[date,'units_to_sell'] = self.data.loc[date,'units_to_sell'] + self.units_net
-
+        
         if self.verbose:
             print('%s | closing all trades' %date)
         
@@ -414,7 +430,7 @@ class backtest_base(object):
             etrade.close(-etrade.units, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
             self.listofOpenTrades.remove(etrade)
             self.listofClosedTrades.append(etrade)
-    
+        
     def update(self, date):
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
@@ -435,7 +451,8 @@ class backtest_base(object):
         self.data.loc[date,'realized cumulative P/L'] = self.realizedcumulativeprofitloss                   
         self.data.loc[date,'unrealized P/L'] = self.unrealizedprofitloss                   
         self.data.loc[date,'required margin'] = self.required_margin
-        self.data.loc[date,'free margin'] = self.free_margin                   
+        self.data.loc[date,'free margin'] = self.free_margin             
+        print('Equity: ', self.equity )
         
     def close_out(self):
     
@@ -673,6 +690,7 @@ class backtest_base(object):
         
     def calculate_sharpe_ratio(self):
 
+        print('Note that the risk-free rate is assumed to be zero!')
         pnl = self.listofrealizedprofitloss.mean()
         std = self.listofrealizedprofitloss.std()
         self.sharpe_ratio = pnl / std
