@@ -11,6 +11,7 @@ plt.style.use('seaborn')
 
 sys.path.append('..\\source_system')
 from indicators import *
+from indicators_patterns import *
 import visualizer as viz
 from utility_functions import *
 sys.path.remove('..\\source_system')

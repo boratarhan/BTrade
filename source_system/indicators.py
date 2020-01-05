@@ -71,6 +71,21 @@ def AddADX(df, indicator_list, askbidmid, timeperiod=14):
 
     return df, indicator_list
 
+def AddROC(df, indicator_list, askbidmid, timeperiod=14):
+    df['roc'] = talib.ROC(df['{}_c'.format(askbidmid)].values, timeperiod=timeperiod)
+    indicator_list.extend(['roc'])
+
+    return df, indicator_list
+
+def AddNormalizedROC(df, indicator_list, askbidmid, timeperiod=14, window=25):
+    df['roc'] = talib.ROC(df['{}_c'.format(askbidmid)].values, timeperiod=timeperiod)
+    df['norm_roc'] = ( df['roc'] - df['roc'].rolling(window).min() ) / ( df['roc'].rolling(window).max()-df['roc'].rolling(window).min() )
+
+    indicator_list.extend(['norm_roc'])
+
+    return df, indicator_list
+    
+    
 def AddMinorHighLow(df, indicator_list, askbidmid):
     '''
     Since the discovery of certain conditions become clear only after several bars passed, two columns are 
