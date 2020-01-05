@@ -9,6 +9,12 @@ class backtest_strategy_volatility(backtest_base):
         self.data.loc[:,'net-move'] = np.abs(self.data['bid_c'] - self.data['bid_c'].shift(WindowLenght))
         self.data.loc[:,'ratio-move'] = self.data.loc[:,'net-move'] / self.data.loc[:,'cum-move']
 
+        self.data.loc[:,'max-range'] = self.data['bid_c'].rolling(WindowLenght+1).max()
+        self.data.loc[:,'min-range'] = self.data['bid_c'].rolling(WindowLenght+1).min()
+        self.data.loc[:,'mid-range'] = ( self.data.loc[:,'max-range'] + self.data.loc[:,'min-range'] ) / 2
+        
+        self.data, self.indicatorlist = AddWave( self.data, self.indicatorlist, 'bid', 34)
+        self.data, self.indicatorlist = AddATR( self.data, self.indicatorlist, 'bid', 14, 3)
         self.data, self.indicatorlist = AddADX( self.data, self.indicatorlist, 'bid', 14 )
         self.data = self.data.dropna()
 
@@ -38,7 +44,17 @@ class backtest_strategy_volatility(backtest_base):
                 '''
                 
                 if self.units_net != 0:
-                
+
+                    '''
+                    if self.data.loc[date,'bid_c'] < self.data.loc[date,'atr-2']:
+                        
+                        self.close_all_trades(date)
+
+                    elif self.data.loc[date,'bid_c'] > self.data.loc[date,'atr+2']:
+                        
+                        self.close_all_trades(date)
+                    '''
+                    
                     for etrade in self.listofOpenTrades:
                         
                         if(etrade.unrealizedprofitloss) > 1:
@@ -48,23 +64,57 @@ class backtest_strategy_volatility(backtest_base):
                         if(etrade.unrealizedprofitloss) <= -10:
 
                             self.close_all_trades(date)
+                    '''
+                    for etrade in self.listofOpenTrades:
+                    
+                        if etrade.units > 0:
                             
+                            if self.data.loc[date,'bid_c'] > self.data.loc[date,'atr+3']:
+                                
+                                self.close_all_trades(date)
+                    
+                            elif self.data.loc[date,'bid_c'] < self.data.loc[date,'atr-3']:
+                                
+                                self.close_all_trades(date)
+                                
+                        elif etrade.units < 0:
+
+                            if self.data.loc[date,'bid_c'] > self.data.loc[date,'atr+3']:
+
+                                self.close_all_trades(date)
+
+                            elif self.data.loc[date,'bid_c'] < self.data.loc[date,'atr-3']:
+
+                                self.close_all_trades(date)
+                        
+                        else:
+                            
+                            pass
+                    '''
+                    
                 elif self.units_net == 0:
                      
+                    #if self.data.loc[date,'adx'] <= 25:
                     if self.data.loc[date,'net-move'] < 0.001 and self.data.loc[date,'cum-move'] > 0.02:
                     #if self.data.loc[date,'ratio-move'] < 0.11:
-                        
+
+                        '''    
+                        if self.data.loc[date,'bid_c'] < self.data.loc[date,'mid-range']:
+                            self.open_long_trade(1000, date)
+                        else:
+                            self.open_short_trade(-1000, date)
+                        '''
+
                         if np.random.random() >= 0.5:  
                             self.open_long_trade(1000, date)
                         else:
                             self.open_short_trade(-1000, date)
-                                               
+
             self.update(date)
 
         self.close_all_trades(date)
         self.update(date)
         self.close_out()
-
 
 if __name__ == '__main__':
 
@@ -85,16 +135,16 @@ if __name__ == '__main__':
 
      bb = backtest_strategy_volatility(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, margin_duration_before_start_trading, 10000, marginpercent)
     
-     #bb.data = bb.data[:10000]
+     #bb.data = bb.data[:1000]
      bb.verbose = True
      #bb.check_data_quality()
      #bb.data = bb.data[:1000]
      
      bb.run_strategy(WindowLenght)
-     
-     '''     
+      
      bb.calculate_stats()
 
+     '''    
      bb.plot()
      '''
      bb.write_all_data()

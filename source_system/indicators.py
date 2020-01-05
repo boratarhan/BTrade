@@ -56,11 +56,13 @@ def AddATR(df, indicator_list, askbidmid, timeperiod=14, std=0):
     indicator_list.extend(['atr'])
 
     if std > 0:
-    
-        df['atr+{}'.format(std)] = df['waveclose'] + std * df['atr']
-        df['atr-{}'.format(std)] = df['waveclose'] - std * df['atr']
-        indicator_list.extend(['atr+{}'.format(std),'atr-{}'.format(std)])
-    
+            
+        for std in np.arange(1, std+1):
+                        
+            df['atr+{}'.format(std)] = df['waveclose'] + std * df['atr']
+            df['atr-{}'.format(std)] = df['waveclose'] - std * df['atr']
+            indicator_list.extend(['atr+{}'.format(std),'atr-{}'.format(std)])
+        
     return df, indicator_list
 
 def AddADX(df, indicator_list, askbidmid, timeperiod=14):

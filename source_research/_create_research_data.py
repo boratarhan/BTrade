@@ -46,6 +46,7 @@ def create_research_data(account_type, symbol, granularity, read_start_dt, read_
     df_1H = df_1H.reset_index()
     df_1H = df_1H.rename(columns={'index': 'date'})
     df_1H = df_1H.set_index('date')
+    df_1H = df_1H.loc[~ ( (df_1H['bid_o'] == df_1H['bid_h']) & (df_1H['bid_o'] == df_1H['bid_l']) & (df_1H['bid_o'] == df_1H['bid_c']) ) ]
 
     granularity = '1H'
     filename = '{}_{}.hdf'.format(symbol, granularity)
@@ -56,6 +57,7 @@ def create_research_data(account_type, symbol, granularity, read_start_dt, read_
     df_4H = df_4H.reset_index()
     df_4H = df_4H.rename(columns={'index': 'date'})
     df_4H = df_4H.set_index('date')
+    df_4H = df_4H[~ ( (df_4H['bid_o'] == df_4H['bid_h']) & (df_4H['bid_o'] == df_4H['bid_l']) & (df_4H['bid_o'] == df_4H['bid_c']) ) ]
 
     granularity = '4H'
     filename = '{}_{}.hdf'.format(symbol, granularity)
@@ -66,6 +68,7 @@ def create_research_data(account_type, symbol, granularity, read_start_dt, read_
     df_8H = df_8H.reset_index()
     df_8H = df_8H.rename(columns={'index': 'date'})
     df_8H = df_8H.set_index('date')
+    df_8H = df_8H[~ ( (df_8H['bid_o'] == df_8H['bid_h']) & (df_8H['bid_o'] == df_8H['bid_l']) & (df_8H['bid_o'] == df_8H['bid_c']) ) ]
 
     granularity = '8H'
     filename = '{}_{}.hdf'.format(symbol, granularity)
@@ -76,6 +79,7 @@ def create_research_data(account_type, symbol, granularity, read_start_dt, read_
     df_1D = df_1D.reset_index()
     df_1D = df_1D.rename(columns={'index': 'date'})
     df_1D = df_1D.set_index('date')
+    df_1D = df_1D[~ ( (df_1D['bid_o'] == df_1D['bid_h']) & (df_1D['bid_o'] == df_1D['bid_l']) & (df_1D['bid_o'] == df_1D['bid_c']) ) ]
 
     granularity = '1D'
     filename = '{}_{}.hdf'.format(symbol, granularity)
@@ -105,9 +109,7 @@ if __name__ == '__main__':
     read_end_dt = datetime.datetime(2020,1,1,0,0,0)
     create_research_data(account_type, symbol, granularity, read_start_dt, read_end_dt)
     
-    symbol = 'EUR_USD'
-    granularity = '1D'
-    filename = '{}_{}.hdf'.format(symbol, granularity)
-    df_1D = read_hdf_file(filename)    
     df_1D['bid_c'].plot()
     print(df_1D.tail())
+    
+    
