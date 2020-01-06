@@ -41,6 +41,19 @@ def create_research_data(account_type, symbol, granularity, read_start_dt, read_
     filename = '{}_{}.hdf'.format(symbol, granularity)
     write_hdf_file(df_5S, filename)
 
+    #-------------------------------------------------------------------------------------------------------------
+    df_1M = df_5S.resample('1T', closed='left', label='left').apply(ohlc_dict).dropna()
+    #df_1H = df_1H[['bid_o','bid_h','bid_l','bid_c','volume']]
+    df_1M = df_1M.reset_index()
+    df_1M = df_1M.rename(columns={'index': 'date'})
+    df_1M = df_1M.set_index('date')
+    df_1M = df_1M.loc[~ ( (df_1M['bid_o'] == df_1M['bid_h']) & (df_1M['bid_o'] == df_1M['bid_l']) & (df_1M['bid_o'] == df_1M['bid_c']) ) ]
+
+    granularity = '1M'
+    filename = '{}_{}.hdf'.format(symbol, granularity)
+    write_hdf_file(df_1M, filename)
+
+    #-------------------------------------------------------------------------------------------------------------
     df_1H = df_5S.resample('1H', closed='left', label='left').apply(ohlc_dict).dropna()
     #df_1H = df_1H[['bid_o','bid_h','bid_l','bid_c','volume']]
     df_1H = df_1H.reset_index()
@@ -52,6 +65,7 @@ def create_research_data(account_type, symbol, granularity, read_start_dt, read_
     filename = '{}_{}.hdf'.format(symbol, granularity)
     write_hdf_file(df_1H, filename)
 
+    #-------------------------------------------------------------------------------------------------------------
     df_4H = df_5S.resample('4H', closed='left', label='left').apply(ohlc_dict).dropna()
     #df_4H = df_4H[['bid_o','bid_h','bid_l','bid_c','volume']]
     df_4H = df_4H.reset_index()
@@ -63,6 +77,7 @@ def create_research_data(account_type, symbol, granularity, read_start_dt, read_
     filename = '{}_{}.hdf'.format(symbol, granularity)
     write_hdf_file(df_4H, filename)
 
+    #-------------------------------------------------------------------------------------------------------------
     df_8H = df_5S.resample('8H', closed='left', label='left').apply(ohlc_dict).dropna()
     #df_8H = df_8H[['bid_o','bid_h','bid_l','bid_c','volume']]
     df_8H = df_8H.reset_index()
@@ -74,6 +89,7 @@ def create_research_data(account_type, symbol, granularity, read_start_dt, read_
     filename = '{}_{}.hdf'.format(symbol, granularity)
     write_hdf_file(df_8H, filename)
 
+    #-------------------------------------------------------------------------------------------------------------
     df_1D = df_5S.resample('1D', closed='left', label='left').apply(ohlc_dict).dropna()
     #df_1D = df_1D[['bid_o','bid_h','bid_l','bid_c','volume']]
     df_1D = df_1D.reset_index()
@@ -84,7 +100,7 @@ def create_research_data(account_type, symbol, granularity, read_start_dt, read_
     granularity = '1D'
     filename = '{}_{}.hdf'.format(symbol, granularity)
     write_hdf_file(df_1D, filename)
-
+    
 def split_train_test_data(symbol, granularity, split_ratio):
 
     filename = '{}_{}.hdf'.format(symbol, granularity)
@@ -109,7 +125,7 @@ if __name__ == '__main__':
     read_end_dt = datetime.datetime(2020,1,1,0,0,0)
     create_research_data(account_type, symbol, granularity, read_start_dt, read_end_dt)
     
-    df_1D['bid_c'].plot()
-    print(df_1D.tail())
+    #df_1D['bid_c'].plot()
+    #print(df_1D.tail())
     
     

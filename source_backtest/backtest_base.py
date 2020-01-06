@@ -26,6 +26,14 @@ import operator
  # A micro lot = 1,000 units of base currency.
  # A nano lot = 100 units of base currency.
 
+# In order to calculate pip, multiply the rate with this factor based on quote currency
+pip_factor = {}
+pip_factor['USD'] = 10000
+pip_factor['JPY'] = 100
+pip_factor['CHF'] = 10000
+pip_factor['CAD'] = 10000
+pip_factor['GBP'] = 10000
+
 class Trade(object):
 
     trade_counter = 1
@@ -34,6 +42,8 @@ class Trade(object):
         self.ID = Trade.trade_counter
         Trade.trade_counter += 1
         self.symbol = symbol
+        self.base_currency = self.symbol[:3]
+        self.quote_currency = self.symbol[-3:]          
         self.units = units #number of units of base currency
         self.entry_unit = units #number of units of base currency
         self.longshort = 'long' if self.units > 0 else 'short'
@@ -42,15 +52,18 @@ class Trade(object):
         self.marginpercent = marginpercent
         self.exittransactions = [] 
         self.IsOpen = True
+        self.unrealizedpips = 0.0
+        self.realizedpips = 0.0
         self.unrealizedprofitloss = 0.0
         self.realizedprofitloss = 0.0
         self.maxFavorableExcursion = 0.0
         self.maxAdverseExcursion = 0.0
         self.stat_required_margin = []
         self.stat_unrealizedprofitloss = []                                   
-        self.bars = 0
+        self.stat_unrealizedpips = []                                   
         self.maxFavorableExcursionList = []
         self.maxAdverseExcursionList = []
+        self.bars = 0
             
     def update(self, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
                      
@@ -58,37 +71,55 @@ class Trade(object):
         price_h = price_bid_h if self.units > 0 else price_ask_h      
         price_l = price_bid_l if self.units > 0 else price_ask_l      
 
-        self.unrealizedprofitloss = self.units * ( price_c - self.entryprice )
-        self.stat_unrealizedprofitloss.append(self.unrealizedprofitloss)
-
-        self.required_margin = ( self.entryprice * abs(self.units) - self.unrealizedprofitloss ) * self.marginpercent / 100
-        self.stat_required_margin.append(self.required_margin)                                   
-
-        self.bars = self.bars + 1
-
         tempmaxFavorableExcursion = 0.0
         tempmaxAdverseExcursion = 0.0
 
         if self.units > 0:
-            tempmaxFavorableExcursion = self.units * ( price_h - self.entryprice )
+            tempmaxFavorableExcursion = self.units * ( price_h - self.entryprice ) 
             tempmaxAdverseExcursion = self.units * ( price_l - self.entryprice )
         if self.units < 0:
             tempmaxFavorableExcursion = self.units * ( price_l - self.entryprice )
             tempmaxAdverseExcursion = self.units * ( price_h - self.entryprice )
 
-        if tempmaxFavorableExcursion > self.maxFavorableExcursion:
-            self.maxFavorableExcursion = tempmaxFavorableExcursion
-        if tempmaxAdverseExcursion < self.maxAdverseExcursion:
-            self.maxAdverseExcursion = tempmaxAdverseExcursion
+        if self.quote_currency == 'USD':
 
-       #print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
+            self.unrealizedprofitloss = self.units * ( price_c - self.entryprice )
+            self.stat_unrealizedprofitloss.append(self.unrealizedprofitloss)
 
-#    def collect_data_for_edge_ratio(self, atr):
-        
+            self.unrealizedpips = np.sign(self.units) * ( price_c - self.entryprice ) * pip_factor[self.quote_currency]
+            self.stat_unrealizedpips.append(self.unrealizedpips)
+
+            self.required_margin = ( self.entryprice * abs(self.units) - self.unrealizedprofitloss ) * self.marginpercent / 100
+            self.stat_required_margin.append(self.required_margin)                                   
+    
+            if tempmaxFavorableExcursion > self.maxFavorableExcursion:
+                self.maxFavorableExcursion = tempmaxFavorableExcursion
+            if tempmaxAdverseExcursion < self.maxAdverseExcursion:
+                self.maxAdverseExcursion = tempmaxAdverseExcursion
+
+        else:
+
+            self.unrealizedprofitloss = self.units * ( price_c - self.entryprice ) / price_c
+            self.stat_unrealizedprofitloss.append(self.unrealizedprofitloss)
+
+            self.unrealizedpips = np.sign(self.units) * ( price_c - self.entryprice ) * pip_factor[self.quote_currency] 
+            self.stat_unrealizedpips.append(self.unrealizedpips)
+
+            self.required_margin = ( self.entryprice * abs(self.units) - self.unrealizedprofitloss ) / price_c * self.marginpercent / 100
+            self.stat_required_margin.append(self.required_margin)                                   
+
+            if tempmaxFavorableExcursion > self.maxFavorableExcursion:
+                self.maxFavorableExcursion = tempmaxFavorableExcursion / price_c 
+            if tempmaxAdverseExcursion < self.maxAdverseExcursion:
+                self.maxAdverseExcursion = tempmaxAdverseExcursion / price_c 
+
         self.maxFavorableExcursionList.append(self.maxFavorableExcursion)
         self.maxAdverseExcursionList.append(self.maxAdverseExcursion)
-#        self.atrList.append(atr)
-                              
+
+        self.bars = self.bars + 1
+        
+       #print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
+                                      
     def close(self, units, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
         
         exitprice = price_bid_c if self.units > 0 else price_ask_c
@@ -96,29 +127,34 @@ class Trade(object):
         # if i am selling, i get bid price
         # if i am buying, i get ask price
         
-        if abs(self.units) > abs(units):
+        self.realizedpips = self.realizedpips - np.sign(units) * ( exitprice - self.entryprice ) * pip_factor[self.quote_currency]             
+
+        if self.quote_currency == 'USD':
 
             self.realizedprofitloss = self.realizedprofitloss - units * ( exitprice - self.entryprice )            
             self.transaction = { 'date' : exitdate, 'units' : units, 'price' : exitprice, 'realized P&L': self.realizedprofitloss }
             self.exittransactions.append(self.transaction)
+                    
+        else:
+
+            self.realizedprofitloss = self.realizedprofitloss - units * ( exitprice - self.entryprice ) / price_c            
+            self.transaction = { 'date' : exitdate, 'units' : units, 'price' : exitprice, 'realized P&L': self.realizedprofitloss }
+            self.exittransactions.append(self.transaction)
+                    
+        if abs(self.units) > abs(units):
+
             self.units = self.units - units
             unclosedunits = 0
             self.IsOpen = True
         
         elif abs(self.units) == abs(units):
             
-            self.realizedprofitloss = self.realizedprofitloss - units * ( exitprice - self.entryprice )            
-            self.transaction = { 'date' : exitdate, 'units' : units, 'price' : exitprice, 'realized P&L': self.realizedprofitloss }
-            self.exittransactions.append(self.transaction)
             self.units = self.units + units
             unclosedunits = 0
             self.IsOpen = False
         
         elif abs(self.units) < abs(units):
 
-            self.realizedprofitloss = self.realizedprofitloss - units * ( exitprice - self.entryprice )
-            self.transaction = { 'date' : exitdate, 'units' : self.units, 'price' : exitprice, 'realized P&L': self.realizedprofitloss }
-            self.exittransactions.append(self.transaction)
             self.units = 0
             unclosedunits = self.units + units 
             self.IsOpen = False
@@ -132,7 +168,7 @@ class backtest_base(object):
     '''
 
     def __init__(self, symbol, account_type, granularity, decision_frequency, start, end, margin_duration_before_start_trading, amount, marginpercent, ftc=0.0, ptc=0.0, verbose=False):
-        self.symbol = symbol
+        self.symbol = symbol      
         self.account_type = account_type
         self.granularity = granularity
         self.decision_frequency = decision_frequency
@@ -182,14 +218,14 @@ class backtest_base(object):
         self.balance = self.equity
         self.unrealizedprofitloss = 0.0
         self.realizedcumulativeprofitloss = 0.0
+        self.unrealizedpips = 0.0
+        self.realizedcumulativepips = 0.0
         self.listofrealizedprofitloss = np.array([])
         self.sharpe_ratio = 0.0 
         self.df_trades = pd.DataFrame()
-            
         self.units_to_buy = 0
         self.units_to_sell = 0
         self.units_net = 0
-
         self.ftc = ftc # Fixed transaction cost
         self.ptc = ptc # Variable transaction cost
         self.trades = 0
@@ -201,14 +237,12 @@ class backtest_base(object):
         self.data.loc[:,'units_net'] = 0
                                  
     def read_hdf_file(self):
-    
 
         filename = '{}_{}.hdf'.format(self.symbol, self.granularity)
         filepath = os.path.join('..', '..', 'backtests', filename)
         if os.path.exists( filepath ):
             self.data = pd.read_hdf(filepath)
         self.data = self.data[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c', 'volume']]
-        return self.data
 
     '''
     This is no longer used since I started using hdf file created by the file _create_research_data.py
@@ -393,8 +427,7 @@ class backtest_base(object):
                 else:
                 
                     break
-        
-            
+           
     def close_short_trades(self, date):
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
@@ -440,6 +473,10 @@ class backtest_base(object):
         
         self.realizedcumulativeprofitloss = sum( etrade.realizedprofitloss for etrade in self.listofClosedTrades )
         self.unrealizedprofitloss = sum( etrade.unrealizedprofitloss for etrade in self.listofOpenTrades )
+        
+        self.realizedcumulativepips = sum( etrade.realizedpips for etrade in self.listofClosedTrades )
+        self.unrealizedpips = sum( etrade.unrealizedpips for etrade in self.listofOpenTrades )
+        
         self.balance = self.initial_equity + self.realizedcumulativeprofitloss
         self.equity = self.balance + self.unrealizedprofitloss
         self.required_margin = sum( etrade.required_margin for etrade in self.listofOpenTrades )
@@ -450,10 +487,12 @@ class backtest_base(object):
         self.data.loc[date,'equity'] = self.equity                    
         self.data.loc[date,'balance'] = self.balance                    
         self.data.loc[date,'realized cumulative P/L'] = self.realizedcumulativeprofitloss                   
-        self.data.loc[date,'unrealized P/L'] = self.unrealizedprofitloss                   
+        self.data.loc[date,'unrealized P/L'] = self.unrealizedprofitloss   
+        self.data.loc[date,'realized cumulative pips'] = self.realizedcumulativepips                   
+        self.data.loc[date,'unrealized pips'] = self.unrealizedpips   
         self.data.loc[date,'required margin'] = self.required_margin
         self.data.loc[date,'free margin'] = self.free_margin             
-        print('Equity: ', self.equity )
+        print('Equity: ', self.equity, self.realizedcumulativepips )
         
     def close_out(self):
     
@@ -657,17 +696,23 @@ class backtest_base(object):
             self.data['balance'].plot(title="Balance")
         
     def calculate_stats(self):
-        
-        self.calculate_PnL()
-        self.calculate_winning_losing_ratio()
-        self.calculate_sharpe_ratio()
-        self.calculate_sortino_ratio(0)
-        self.calculate_average_win()
-        self.calculate_average_lose()
-        self.calculate_expectancy()
-        self.calculate_consecutive_win_loss()
-        self.count_number_of_trading_days()
-        self.calculate_edge_ratio()
+
+        if self.numberoftrades == 0:
+            
+            print('No trading available')
+    
+        else:
+            
+            self.calculate_PnL()
+            self.calculate_winning_losing_ratio()
+            self.calculate_sharpe_ratio()
+            self.calculate_sortino_ratio(0)
+            self.calculate_average_win()
+            self.calculate_average_lose()
+            self.calculate_expectancy()
+            self.calculate_consecutive_win_loss()
+            self.count_number_of_trading_days()
+            self.calculate_edge_ratio()
         
     def count_number_of_trading_days(self):
         
@@ -716,7 +761,7 @@ class backtest_base(object):
         self.average_lose = self.listofrealizedprofitloss[self.listofrealizedprofitloss < 0].mean()
 
     def calculate_winning_losing_ratio(self):
-        
+                
         self.winning_ratio = np.count_nonzero(self.listofrealizedprofitloss[self.listofrealizedprofitloss>=0]) / self.numberoftrades
         self.losing_ratio = 1 - self.winning_ratio
         
@@ -1172,17 +1217,17 @@ if __name__ == '__main__':
 
      symbol = 'EUR_USD'
      account_type = 'practice'
-     granularity = 'S5'
+     granularity = '1H'
      decision_frequency = '1H'
-     start_datetime = datetime.datetime(2017,1,1,0,0,0)
-     end_datetime = datetime.datetime(2017,8,1,0,0,0)
-     margin_duration_before_start_trading = pd.Timedelta(value='0D') #pd.Timedelta(value='30D')
-     marginpercent = 10
-     verbose = False
-       
-     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, margin_duration_before_start_trading, 10000, marginpercent, verbose)
+     start_datetime = datetime.datetime(2010,1,1,0,0,0)
+     end_datetime = datetime.datetime.now()
+     margin_duration_before_start_trading = pd.Timedelta(value='0D')     
+     marginpercent = 100
+     WindowLenght = 12
+    
+     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, margin_duration_before_start_trading, 10000, marginpercent)
      bb.check_data_quality()
 
-     viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)
+     #viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)
      
     

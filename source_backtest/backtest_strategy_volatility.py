@@ -62,11 +62,11 @@ class backtest_strategy_volatility(backtest_base):
                     
                     for etrade in self.listofOpenTrades:
                         
-                        if(etrade.unrealizedprofitloss) > 1:
+                        if(etrade.unrealizedprofitloss) > .5:
                             
                             self.close_all_trades(date)
 
-                        if(etrade.unrealizedprofitloss) <= -10:
+                        if(etrade.unrealizedprofitloss) <= -100:
 
                             self.close_all_trades(date)
                     '''
@@ -99,22 +99,22 @@ class backtest_strategy_volatility(backtest_base):
                     
                 elif self.units_net == 0:
                      
-                    #if self.data.loc[date,'adx'] <= 25:
-                    if self.data.loc[date,'net-move'] < 0.001 and self.data.loc[date,'cum-move'] > 0.02:
+                    if self.data.loc[date,'adx'] <= 25:
+                    #if self.data.loc[date,'net-move'] < 0.001 and self.data.loc[date,'cum-move'] > 0.02:
                     #if self.data.loc[date,'ratio-move'] < 0.11:
-
-                        '''    
-                        if self.data.loc[date,'bid_c'] < self.data.loc[date,'mid-range']:
+   
+                        if self.data.loc[date,'bid_c'] > self.data.loc[date,'mid-range']:
                             self.open_long_trade(1000, date)
                         else:
                             self.open_short_trade(-1000, date)
-                        '''
 
+                        '''
                         if np.random.random() >= 0.5:  
                             self.open_long_trade(1000, date)
                         else:
                             self.open_short_trade(-1000, date)
-
+                        '''
+                        
             self.update(date)
 
         self.close_all_trades(date)
@@ -125,41 +125,32 @@ if __name__ == '__main__':
 
      symbol = 'EUR_USD'
      account_type = 'practice'
-     granularity = '1H'
-     decision_frequency = '1H'
-#     decision_frequency = '1T'
+     granularity = '1M'
+     decision_frequency = '1H' # For 1 minute use '1T'
      start_datetime = datetime.datetime(2010,1,1,0,0,0)
      end_datetime = datetime.datetime.now()
      margin_duration_before_start_trading = pd.Timedelta(value='0D')     
      marginpercent = 100
      WindowLenght = 12
      
-     # A standard lot = 100,000 units of base currency. 
-     # A mini lot = 10,000 units of base currency.
-     # A micro lot = 1,000 units of base currency.
-
      bb = backtest_strategy_volatility(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, margin_duration_before_start_trading, 10000, marginpercent)
     
-     bb.add_indicators(12)
-     '''
-     #bb.data = bb.data[:1000]
      bb.verbose = True
      #bb.check_data_quality()
-     #bb.data = bb.data[:1000]
+     #bb.data = bb.data[:10000]
      
      bb.run_strategy(WindowLenght)
       
      bb.calculate_stats()
-     '''
      
      '''    
      bb.plot()
      '''
-     '''
+
      bb.write_all_data()
      
      bb.write_all_trades_to_excel()
-     '''
+
      '''
      bb.monte_carlo_simulator(250)
      
