@@ -492,7 +492,7 @@ class backtest_base(object):
         self.data.loc[date,'unrealized pips'] = self.unrealizedpips   
         self.data.loc[date,'required margin'] = self.required_margin
         self.data.loc[date,'free margin'] = self.free_margin             
-        print('Equity: ', self.equity, self.realizedcumulativepips )
+        print('Date: {0}, Equity: {1:.2f}, Cumulative Pips: {2:.2f}'.format( date,  self.equity, self.realizedcumulativepips ) )
         
     def close_out(self):
     
