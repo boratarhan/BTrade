@@ -62,11 +62,11 @@ class backtest_strategy_volatility(backtest_base):
                     
                     for etrade in self.listofOpenTrades:
                         
-                        if(etrade.unrealizedprofitloss) > .5 or (etrade.bars > 360):
+                        if(etrade.unrealizedprofitloss) > .5: #or (etrade.bars > 360):
                             
                             self.close_all_trades(date)
 
-                        if(etrade.unrealizedprofitloss) <= -10 or (etrade.bars > 360):
+                        if(etrade.unrealizedprofitloss) <= -5: # or (etrade.bars > 360):
 
                             self.close_all_trades(date)
                     '''
@@ -103,7 +103,7 @@ class backtest_strategy_volatility(backtest_base):
                     #if self.data.loc[date,'net-move'] < 0.001 and self.data.loc[date,'cum-move'] > 0.02:
                     #if self.data.loc[date,'ratio-move'] < 0.11:
    
-                        if self.data.loc[date,'bid_c'] < self.data.loc[date,'mid-range']:
+                        if self.data.loc[date,'bid_c'] > self.data.loc[date,'mid-range']:
                             self.open_long_trade(1000, date)
                         else:
                             self.open_short_trade(-1000, date)
