@@ -62,11 +62,11 @@ class backtest_strategy_volatility(backtest_base):
                     
                     for etrade in self.listofOpenTrades:
                         
-                        if(etrade.unrealizedprofitloss) > .5:
+                        if(etrade.unrealizedprofitloss) > .5 or (etrade.bars > 360):
                             
                             self.close_all_trades(date)
 
-                        if(etrade.unrealizedprofitloss) <= -10:
+                        if(etrade.unrealizedprofitloss) <= -10 or (etrade.bars > 360):
 
                             self.close_all_trades(date)
                     '''
@@ -135,6 +135,8 @@ if __name__ == '__main__':
      
      bb = backtest_strategy_volatility(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, margin_duration_before_start_trading, 10000, marginpercent)
     
+     bb.data = bb.data[bb.data.index > datetime.datetime(2019,7,1,0,0,0)]
+        
      bb.verbose = True
      #bb.check_data_quality()
      #bb.data = bb.data[:10000]

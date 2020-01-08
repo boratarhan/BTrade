@@ -1043,10 +1043,11 @@ class backtest_base(object):
 
         print('=' * 55)
         msg = 'Durbin Watson Test:  '
+        msg += '\nStatistic: %.4f ' % durbin_watson(ols_res.resid)
+        msg += '\nNote:'
         msg += '\nNo serial correlation, the test statistic equals 2.'
         msg += '\nThe closer to 0 the statistic, the more evidence for positive serial correlation.' 
         msg += '\nThe closer to 4, the more evidence for negative serial correlation.'
-        msg += '\nDW Statistic: %.4f ' % durbin_watson(ols_res.resid)
         print(msg)
 
     def calculate_number_of_trades_to_simulate(self):
@@ -1152,10 +1153,6 @@ class backtest_base(object):
         
         # Close the Pandas Excel writer and output the Excel file.
         writer.save()
-        
-        
-        
-        
         
     def analyze_trades(self):
         
