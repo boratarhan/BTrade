@@ -950,6 +950,7 @@ class backtest_base(object):
             self.df_trades.loc[eTrade.ID,'EntryDate'] = eTrade.entrydate
             self.df_trades.loc[eTrade.ID,'EntryPrice'] = eTrade.entryprice
             self.df_trades.loc[eTrade.ID,'RealizedProfitloss'] = eTrade.realizedprofitloss
+            self.df_trades.loc[eTrade.ID,'RealizedPips'] = eTrade.realizedpips
             self.df_trades.loc[eTrade.ID,'MaxFavorableExcursion'] = eTrade.maxFavorableExcursion
             self.df_trades.loc[eTrade.ID,'MaxAdverseExcursion'] = eTrade.maxAdverseExcursion
             self.df_trades.loc[eTrade.ID,'MarginPercent'] = eTrade.marginpercent
@@ -972,7 +973,34 @@ class backtest_base(object):
         
         # Close the Pandas Excel writer and output the Excel file.
         writer.save()
-       
+    
+    def check_equity_curve_trading(self, WindowLenghtList):
+        
+        # This is for checking how the performance might change if trading stopped 
+        # or continued based on equity curve
+                
+        self.df_temp = pd.DataFrame()
+        self.df_temp = self.df_trades.copy()
+
+        for WindowLenght in WindowLenghtList:
+
+            self.df_temp['WindowLength_{}_Accept'.format(WindowLenght)] = 0
+
+            self.df_temp.loc[:,'CumRealizedPips'] = self.df_temp['RealizedPips'].cumsum()
+            self.df_temp.loc[:,'AvgCumRealizedPips'] = self.df_temp['CumRealizedPips'].rolling(WindowLenght).mean()
+            self.df_temp = self.df_temp.dropna()
+
+            for index, row in self.df_temp[:-1].iterrows():
+
+                if self.df_temp.loc[index, 'CumRealizedPips'] >= self.df_temp.loc[index,'AvgCumRealizedPips']:
+                    
+                    self.df_temp.loc[index+1, 'WindowLength_{}_Accept'.format(WindowLenght)] = 1
+
+            self.df_temp['FilteredRealizedPips_{}_Accept'.format(WindowLenght)] = self.df_temp['RealizedPips'] * self.df_temp['WindowLength_{}_Accept'.format(WindowLenght)]
+            self.df_temp['FilteredCumRealizedPips_{}_Accept'.format(WindowLenght)] =self.df_temp['FilteredRealizedPips_{}_Accept'.format(WindowLenght)].cumsum()
+            
+            print('For window length of {}, cumulative pips based on filtered trades is {}'.format( WindowLenght, self.df_temp['FilteredCumRealizedPips_{}_Accept'.format(WindowLenght)].iloc[-1]) )
+        
     def check_data_quality(self):
         
         '''

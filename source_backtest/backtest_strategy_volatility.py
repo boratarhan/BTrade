@@ -20,7 +20,11 @@ class backtest_strategy_volatility(backtest_base):
         self.data, self.indicatorlist = AddNormalizedROC( self.data, self.indicatorlist, 'bid', 14, 25)
         
         self.data, self.indicatorlist = Add_CDLDOJISTAR( self.data, self.indicatorlist, 'bid')
+
+        #self.data, self.indicatorlist = AddPivotPoints(self.data, self.indicatorlist, 'bid', rightstrength=1, leftstrength=10)
         
+        self.data, self.indicatorlist = AddRSI(self.data, self.indicatorlist, 'bid', timeperiod=14)
+            
         self.data = self.data.dropna()
 
     def run_strategy(self, WindowLenght):
@@ -62,11 +66,11 @@ class backtest_strategy_volatility(backtest_base):
                     
                     for etrade in self.listofOpenTrades:
                         
-                        if(etrade.unrealizedprofitloss) > .5: #or (etrade.bars > 360):
+                        if(etrade.unrealizedprofitloss) > .5:
                             
                             self.close_all_trades(date)
 
-                        if(etrade.unrealizedprofitloss) <= -5: # or (etrade.bars > 360):
+                        if(etrade.unrealizedprofitloss) <= -5: # or (etrade.bars >= 360):
 
                             self.close_all_trades(date)
                     '''
@@ -99,15 +103,23 @@ class backtest_strategy_volatility(backtest_base):
                     
                 elif self.units_net == 0:
                      
-                    if self.data.loc[date,'adx'] <= 25:
+                    #if self.data.loc[date,'adx'] <= 30:
                     #if self.data.loc[date,'net-move'] < 0.001 and self.data.loc[date,'cum-move'] > 0.02:
                     #if self.data.loc[date,'ratio-move'] < 0.11:
    
+                        if self.data.loc[date,'rsi'] > 70:
+                            self.open_short_trade(-1000, date)                        
+                        elif self.data.loc[date,'rsi'] < 30:
+                            self.open_long_trade(1000, date)
+                        else:
+                            pass                            
+                            
+                        '''
                         if self.data.loc[date,'bid_c'] > self.data.loc[date,'mid-range']:
                             self.open_long_trade(1000, date)
                         else:
                             self.open_short_trade(-1000, date)
-
+                        '''
                         '''
                         if np.random.random() >= 0.5:  
                             self.open_long_trade(1000, date)
@@ -120,6 +132,7 @@ class backtest_strategy_volatility(backtest_base):
         self.close_all_trades(date)
         self.update(date)
         self.close_out()
+
 
 if __name__ == '__main__':
 
@@ -135,7 +148,8 @@ if __name__ == '__main__':
      
      bb = backtest_strategy_volatility(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, margin_duration_before_start_trading, 10000, marginpercent)
     
-     bb.data = bb.data[bb.data.index > datetime.datetime(2019,7,1,0,0,0)]
+     bb.data = bb.data[bb.data.index > datetime.datetime(2019,1,1,0,0,0)]
+     bb.data = bb.data[:20000]
         
      bb.verbose = True
      #bb.check_data_quality()
@@ -152,6 +166,10 @@ if __name__ == '__main__':
      bb.write_all_data()
      
      bb.write_all_trades_to_excel()
+     
+     bb.analyze_trades()
+     
+     bb.check_equity_curve_trading( [5,10,15,20] )
 
      '''
      bb.monte_carlo_simulator(250)
