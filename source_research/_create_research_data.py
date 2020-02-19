@@ -3,36 +3,12 @@ import tables
 import tstables  
 import os
 import pandas as pd
+from _utility import *
 
 ohlc_dict = { 'ask_o':'first', 'ask_h':'max', 'ask_l':'min', 'ask_c': 'last',                                                                                                    
               'bid_o':'first', 'bid_h':'max', 'bid_l':'min', 'bid_c': 'last',
               'volume': 'sum'                                                                                                        
             }
-
-def read_database(account_type, symbol, granularity, read_start_dt, read_end_dt):
-    
-    # Reading ts file
-    file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(account_type,symbol,granularity)
-
-    f = tables.open_file(file_path,'r')
-    ts = f.root.data._f_get_timeseries()
-
-    rows = ts.read_range(read_start_dt,read_end_dt)
-    
-    f.close()
-
-    return rows
-
-def read_hdf_file(filename):
-    df_temp = pd.DataFrame()
-    filepath = os.path.join('..', '..', 'backtests', filename)
-    if os.path.exists( filepath ):
-        df_temp = pd.read_hdf(filepath)
-    return df_temp
-
-def write_hdf_file(df, filename):
-    filepath = os.path.join('..', '..', 'backtests', filename)
-    df.to_hdf(filepath, 'time', mode='w')
 
 def create_research_data(account_type, symbol, granularity, read_start_dt, read_end_dt):
     
@@ -101,21 +77,6 @@ def create_research_data(account_type, symbol, granularity, read_start_dt, read_
     filename = '{}_{}.hdf'.format(symbol, granularity)
     write_hdf_file(df_1D, filename)
     
-def split_train_test_data(symbol, granularity, split_ratio):
-
-    filename = '{}_{}.hdf'.format(symbol, granularity)
-    rows = read_hdf_file(filename)
-    
-    train_size = int(len(rows.values) * split_ratio)
-    
-    rows_train, rows_test = rows[0:train_size], rows[train_size:len(rows)]
-    
-    print('Observations: %d' % (len(rows)))
-    print('Training Observations: %d' % (len(rows_train)))
-    print('Testing Observations: %d' % (len(rows_test)))
-    
-    return rows_train, rows_test
-
 if __name__ == '__main__':
 
     account_type = 'live'
@@ -123,7 +84,7 @@ if __name__ == '__main__':
     granularity = 'S5'
     read_start_dt = datetime.datetime(2010,1,1,0,0,0)
     read_end_dt = datetime.datetime(2020,1,1,0,0,0)
-    create_research_data(account_type, symbol, granularity, read_start_dt, read_end_dt)
+    #create_research_data(account_type, symbol, granularity, read_start_dt, read_end_dt)
     
     #df_1D['bid_c'].plot()
     #print(df_1D.tail())
