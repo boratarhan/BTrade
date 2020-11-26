@@ -1,0 +1,7 @@
+name: py375
+channels:
+  - conda-forge
+  - anaconda-fusion
+  - defaults
+prefix: C:\Users\bora\Anaconda3\envs\py375
+
