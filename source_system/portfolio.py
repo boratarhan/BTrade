@@ -14,6 +14,7 @@ import time
 import utility_functions as uf
 import threading
 import os
+import sys
 
 class portfolio(object):
     
@@ -160,8 +161,8 @@ if __name__ == '__main__':
     except:
         print( 'Error in reading configuration file' )
 
-    account_type = 'practice'
-    socket_number = 5554
+    account_type = sys.argv[1]
+    socket_number = int(sys.argv[2])
        
     p1 = portfolio(config,account_type,socket_number)
 

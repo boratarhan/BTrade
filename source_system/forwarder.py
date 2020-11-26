@@ -11,6 +11,8 @@ class forwarder(object):
         self.context = zmq.Context(1)
         self.frontend_socket_number = socket_number
         self.backend_socket_number = socket_number+1
+
+        print('Forwarder is ready')
         
         # Socket facing clients
         frontend = self.context.socket(zmq.SUB)
@@ -25,7 +27,7 @@ class forwarder(object):
         zmq.device(zmq.FORWARDER, frontend, backend)
         
         time.sleep(5) # Since binding takes time, sleep for a few seconds before running
-
+        
 if __name__ == "__main__":
     
     try:

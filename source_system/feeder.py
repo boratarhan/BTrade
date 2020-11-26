@@ -15,6 +15,7 @@ import utility_functions as uf
 import threading
 import os
 import json
+import sys
 
 '''
 import logging
@@ -110,7 +111,7 @@ class feeder(object):
         else:
             
             print('Error in account type, it should be either live, practice, or backtest') 
-           
+                   
         self.open_database()
 
         self.download_missing_data()
@@ -130,9 +131,18 @@ class feeder(object):
         
     def connect_broker_live(self):
 
-        self.accountID = self.config['oanda_v20']['account_number_live']
-        self.access_token = self.config['oanda_v20']['access_token_live']
-        self.api = oandapyV20.API(access_token=self.access_token, environment="live")
+        try: 
+   
+            self.accountID = self.config['oanda_v20']['account_number_live']
+            print(self.accountID)
+            
+            self.access_token = self.config['oanda_v20']['access_token_live']
+            print(self.access_token)
+            
+            self.api = oandapyV20.API(access_token=self.access_token, environment="live")
+    
+        except V20Error as err:
+            print("V20Error occurred: {}".format(err))
 
     def connect_broker_practice(self):
 
@@ -481,7 +491,7 @@ def ContinueLooping(config,symbol,granularity,account_type,socket_number,downloa
             ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,retries)
     
 if __name__ == '__main__':
-        
+   
     try:
         config = configparser.ConfigParser()
         config.read('..\..\configinfo.cfg')
@@ -489,15 +499,28 @@ if __name__ == '__main__':
     except:
         print( 'Error in reading configuration file' )
 
+    symbol = sys.argv[1]
+    granularity = sys.argv[2]
+    account_type = sys.argv[3]
+    socket_number = int(sys.argv[4])
+    download_frequency = datetime.timedelta(seconds=60)
+    update_signal_frequency = datetime.timedelta(seconds=60)
+
+    print("symbol:", symbol)
+    print("granularity:", granularity)
+    print("account_type:", account_type)
+    print("socket_number:", socket_number)
+        
+    '''
     symbol = 'EUR_USD'
-#    account_type = 'practice'
     account_type = 'live'
     socket_number = 5555    
     granularity = 'S5'
     download_frequency = datetime.timedelta(seconds=60)
     update_signal_frequency = datetime.timedelta(seconds=60)
-
+    '''
+    
     ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,retries=0)
     #f1 = feeder(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency)
     #f1.start()  
-            
+    

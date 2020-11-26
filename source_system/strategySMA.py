@@ -1,5 +1,6 @@
 import zmq
 import os
+import sys
 import tables  
 import tstables  
 import pandas as pd
@@ -104,14 +105,19 @@ if __name__ == '__main__':
     except:
         print( 'Error in reading configuration file' )
 
-#    symbol = 'USD_JPY'
-#    account_type = 'live'
-    symbol = 'EUR_USD'
-    account_type = 'practice'
-    granularity = 'S5'
+    symbol = sys.argv[1]
+    granularity = sys.argv[2]
+    account_type = sys.argv[3]
+    socket_number = int(sys.argv[4])
+    daily_lookback = int(sys.argv[5])
+    download_frequency = datetime.timedelta(seconds=60)
+    update_signal_frequency = datetime.timedelta(seconds=60)
 
-    daily_lookback = 10
-    socket_number = 5556
-
+    print("symbol:", symbol)
+    print("granularity:", granularity)
+    print("account_type:", account_type)
+    print("socket_number:", socket_number)
+    print("daily_lookback:", daily_lookback)
+        
     # execute only if run as the entry point into the program
     s1 = SMA_Crossover(symbol,account_type,daily_lookback,granularity,socket_number)
