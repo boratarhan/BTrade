@@ -16,7 +16,7 @@ file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(account_type,symbol,gr
 f = tables.open_file(file_path,'r')
 ts = f.root.data._f_get_timeseries()
 
-read_start_dt = datetime.datetime(2019,1,1,0,0,0)
+read_start_dt = datetime.datetime(2020,1,1,0,0,0)
 read_end_dt = datetime.datetime.utcnow()
 
 rows = ts.read_range(read_start_dt,read_end_dt)

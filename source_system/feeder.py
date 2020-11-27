@@ -134,11 +134,7 @@ class feeder(object):
         try: 
    
             self.accountID = self.config['oanda_v20']['account_number_live']
-            print(self.accountID)
-            
             self.access_token = self.config['oanda_v20']['access_token_live']
-            print(self.access_token)
-            
             self.api = oandapyV20.API(access_token=self.access_token, environment="live")
     
         except V20Error as err:
@@ -151,7 +147,7 @@ class feeder(object):
         self.api = oandapyV20.API(access_token=self.access_token, environment="practice")
 
     def open_database(self):
-
+                
         ''' 
         Open an existing h5 file or create a new file and table 
         '''
@@ -188,7 +184,7 @@ class feeder(object):
                     read_start_dt = read_start_dt - datetime.timedelta(days=1)
                                      
         else:
-
+            
             self.create_database()
                 
     def create_database(self):
@@ -200,8 +196,8 @@ class feeder(object):
         self.h5 = tables.open_file(self.file_path_ohlc, 'w')
         self.ts = self.h5.create_ts('/', 'data', desc)
         
-        self.current_timestamp = pd.datetime(2019,12,27,0,0,0,0,datetime.timezone.utc)  #datetime.datetime 
-
+        self.current_timestamp = pd.datetime(2020,11,1,0,0,0,0,datetime.timezone.utc)  #datetime.datetime 
+        
     def download_missing_data(self):
        
         if ( pd.datetime.now(datetime.timezone.utc) - self.current_timestamp > datetime.timedelta(hours=1) ):
@@ -510,7 +506,7 @@ if __name__ == '__main__':
     print("granularity:", granularity)
     print("account_type:", account_type)
     print("socket_number:", socket_number)
-        
+
     '''
     symbol = 'EUR_USD'
     account_type = 'live'
