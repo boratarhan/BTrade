@@ -3,6 +3,7 @@ from sys import exit
 import os
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import datetime
@@ -1173,10 +1174,10 @@ class backtest_base(object):
 
         self.simulations_df['mean'].plot(title='Mean Equity vs Trades')
 
-    def write_all_simulation_data_to_excel(self):
+    def write_monte_carlo_simulation_results_to_excel(self):
 
         now = datetime.datetime.now()
-        filename = '{}\\{}_simulation_results.xlsx'.format(self.backtest_folder,self.symbol)
+        filename = '{}\\{}_monte_carlo_simulation_results.xlsx'.format(self.backtest_folder,self.symbol)
 
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
@@ -1259,6 +1260,6 @@ if __name__ == '__main__':
      bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent)
      bb.check_data_quality()
 
-     #viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)
+     viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)
      
     

@@ -84,14 +84,14 @@ if __name__ == '__main__':
      
      bb.calculate_stats()
      
-     #bb.plot()
+     bb.plot()
      
      bb.write_all_data()
      
      bb.write_all_trades_to_excel()
 
-     #bb.monte_carlo_simulator(250)
+     bb.monte_carlo_simulator(250)
      
-     #bb.write_all_simulation_data_to_excel()
+     bb.write_monte_carlo_simulation_results_to_excel()
  
-     #viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+     viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
