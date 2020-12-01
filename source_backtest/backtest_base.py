@@ -11,10 +11,11 @@ plt.style.use('seaborn')
 
 sys.path.append('..\\source_system')
 from indicators import *
-from indicators_patterns import *
+#from indicators_patterns import *
 import visualizer as viz
 from utility_functions import *
 sys.path.remove('..\\source_system')
+
 import random
 import statistics
 import pickle
@@ -43,7 +44,7 @@ class Trade(object):
         Trade.trade_counter += 1
         self.symbol = symbol
         self.base_currency = self.symbol[:3]
-        self.quote_currency = self.symbol[-3:]          
+        self.quote_currency = self.symbol[-3:]
         self.units = units #number of units of base currency
         self.entry_unit = units #number of units of base currency
         self.longshort = 'long' if self.units > 0 else 'short'
@@ -65,7 +66,7 @@ class Trade(object):
         self.maxAdverseExcursionList = []
         self.bars = 0
             
-    def update(self, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
+    def update(self, price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
                      
         price_c = price_bid_c if self.units > 0 else price_ask_c      
         price_h = price_bid_h if self.units > 0 else price_ask_h      
@@ -102,7 +103,7 @@ class Trade(object):
             self.unrealizedprofitloss = self.units * ( price_c - self.entryprice ) / price_c
             self.stat_unrealizedprofitloss.append(self.unrealizedprofitloss)
 
-            self.unrealizedpips = np.sign(self.units) * ( price_c - self.entryprice ) * pip_factor[self.quote_currency] 
+            self.unrealizedpips = ( price_c - self.entryprice ) * pip_factor[self.quote_currency]
             self.stat_unrealizedpips.append(self.unrealizedpips)
 
             self.required_margin = ( self.entryprice * abs(self.units) - self.unrealizedprofitloss ) / price_c * self.marginpercent / 100
@@ -120,62 +121,67 @@ class Trade(object):
         
        #print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
                                       
-    def close(self, units, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
+    def close(self, untransactedunits, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
         
         exitprice = price_bid_c if self.units > 0 else price_ask_c
-        # ask price > bid pricez
-        # if i am selling, i get bid price
-        # if i am buying, i get ask price
-        
-        self.realizedpips = self.realizedpips - np.sign(units) * ( exitprice - self.entryprice ) * pip_factor[self.quote_currency]             
+        # ask price > bid price
+        # if I am selling, I get bid price
+        # if I am buying, I get ask price
 
+        transactedunits = 0
+                
+        if abs(self.units) > abs(untransactedunits):
+
+            transactedunits = untransactedunits
+            self.units = self.units + untransactedunits
+            untransactedunits = 0
+            self.IsOpen = True
+            
+        elif abs(self.units) == abs(untransactedunits):
+            
+            transactedunits = untransactedunits
+            self.units = self.units + untransactedunits
+            untransactedunits = 0
+            self.IsOpen = False
+        
+        elif abs(self.units) < abs(untransactedunits):
+
+            transactedunits = -self.units
+            untransactedunits = self.units + untransactedunits 
+            self.units = 0
+            self.IsOpen = False
+                
+        self.realizedpips = self.realizedpips - np.sign(transactedunits) * ( exitprice - self.entryprice ) * pip_factor[self.quote_currency]
+        
         if self.quote_currency == 'USD':
 
-            self.realizedprofitloss = self.realizedprofitloss - units * ( exitprice - self.entryprice )            
-            self.transaction = { 'date' : exitdate, 'units' : units, 'price' : exitprice, 'realized P&L': self.realizedprofitloss }
+            self.realizedprofitloss = self.realizedprofitloss - transactedunits * ( exitprice - self.entryprice )            
+            self.transaction = { 'date' : exitdate, 'units' : transactedunits, 'price' : exitprice, 'realized P&L': self.realizedprofitloss }
             self.exittransactions.append(self.transaction)
                     
         else:
 
             self.realizedprofitloss = self.realizedprofitloss - units * ( exitprice - self.entryprice ) / price_c            
-            self.transaction = { 'date' : exitdate, 'units' : units, 'price' : exitprice, 'realized P&L': self.realizedprofitloss }
+            self.transaction = { 'date' : exitdate, 'units' : transactedunits, 'price' : exitprice, 'realized P&L': self.realizedprofitloss }
             self.exittransactions.append(self.transaction)
-                    
-        if abs(self.units) > abs(units):
 
-            self.units = self.units - units
-            unclosedunits = 0
-            self.IsOpen = True
-        
-        elif abs(self.units) == abs(units):
+        self.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l)
             
-            self.units = self.units + units
-            unclosedunits = 0
-            self.IsOpen = False
-        
-        elif abs(self.units) < abs(units):
-
-            self.units = 0
-            unclosedunits = self.units + units 
-            self.IsOpen = False
-            
-        self.update(price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l)
-
-        return self.IsOpen, unclosedunits
+        return self.IsOpen, abs(untransactedunits)
         
 class backtest_base(object):
-    ''' Base class for event-based backtesting of trading strategies.
+    ''' 
+    Base class for event-based backtesting of trading strategies.
     '''
 
-    def __init__(self, symbol, account_type, granularity, decision_frequency, start, end, margin_duration_before_start_trading, amount, marginpercent, ftc=0.0, ptc=0.0, verbose=False):
+    def __init__(self, symbol, account_type, granularity, decision_frequency, start, end, idle_duration_before_start_trading, initial_equity, marginpercent, ftc=0.0, ptc=0.0, verbose=False):
         self.symbol = symbol      
         self.account_type = account_type
         self.granularity = granularity
         self.decision_frequency = decision_frequency
-        self.file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(self.account_type,self.symbol,self.granularity)
         self.start = start
         self.end = end
-        self.date_to_start_trading = self.start + margin_duration_before_start_trading
+        self.date_to_start_trading = self.start + idle_duration_before_start_trading
         self.indicatorlist = []
         self.listofOpenTrades = []
         self.listofClosedTrades = []
@@ -183,16 +189,17 @@ class backtest_base(object):
 
         self.backtest_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
         self.backtest_folder = self.file_path_ohlc = '..\\..\\backtests\\{}'.format(self.backtest_name)
-        if( not os.path.exists(self.backtest_folder)): os.mkdir(self.backtest_folder) 
+        if( not os.path.exists(self.backtest_folder)):
+            os.mkdir(self.backtest_folder) 
                     
-        self.df_eratio = pd.DataFrame()
+        self.df_edge_ratio = pd.DataFrame()
         self.maxNumberBars = 0
         
         # Notation:
         # Equity = Balance + UnrealizedP&L
         # Equity = Required margin	+ Free margin
         
-        self.initial_equity = amount
+        self.initial_equity = initial_equity
         self.equity = self.initial_equity
 
         self.marginpercent = marginpercent 
@@ -231,6 +238,7 @@ class backtest_base(object):
         self.trades = 0
         self.verbose = verbose
         self.data = pd.DataFrame()        
+
         self.read_hdf_file()
         self.data.loc[:,'units_to_buy'] = 0
         self.data.loc[:,'units_to_sell'] = 0
@@ -238,39 +246,16 @@ class backtest_base(object):
                                  
     def read_hdf_file(self):
 
-        filename = '{}_{}.hdf'.format(self.symbol, self.granularity)
-        filepath = os.path.join('..', '..', 'backtests', filename)
+        '''
+        This input data file is generated offline by the file source_research > _create_research_data.py
+        This is higher granularity data, i.e. at least as granular as the decision frequency. It can be identical to decision frequency.
+        Advantage of using higher granularity data compared to decision frequency is to capture trade statisctics in a more refined way.
+        '''
+        
+        filepath = '..\\..\\datastore\\_{0}\\{1}\\{2}.hdf'.format(self.account_type,self.symbol,self.granularity)
         if os.path.exists( filepath ):
             self.data = pd.read_hdf(filepath)
         self.data = self.data[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c', 'volume']]
-
-    '''
-    This is no longer used since I started using hdf file created by the file _create_research_data.py
-    def get_data(self):
-
-        self.h5 = tables.open_file(self.file_path, 'r')
-        self.ts = self.h5.root.data._f_get_timeseries()
-        raw = self.ts.read_range(self.start,self.end)
-        raw = pd.DataFrame(raw)
-                
-        # Aggregate the high frequency data to the decision frequency
-        ohlc_dict = {   'ask_o':'first', 'ask_h':'max', 'ask_l':'min', 'ask_c': 'last',                                                                                                    
-                        'bid_o':'first', 'bid_h':'max', 'bid_l':'min', 'bid_c': 'last',                                                                                                    
-                        'volume': 'sum' }
-
-        raw_aggregate = raw.resample(self.decision_frequency, closed='left', label='left').apply(ohlc_dict).dropna()
-
-        if len(raw_aggregate) == 0:
-            
-            print('There is no data available.')
-            exit(0)
-        
-        else:            
-        
-            self.data = raw_aggregate.dropna()
-            
-
-    '''
     
     def add_indicators(self):
         
@@ -278,33 +263,29 @@ class backtest_base(object):
 
     def run_strategy(self):
 
-        print('=' * 55)
+        self.add_indicators()
+
+        self.data = self.data.iloc[(self.data.index.date >= self.date_to_start_trading) and (self.data.index.date <=self.end),:]
+        
+        print('-' * 55)
         msg = '\n\nRunning strategy '
         msg += '\nFixed costs %.2f | ' % self.ftc
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
-        print('=' * 55)
-        
-#        self.equity = self.initial_equity
-#        self.required_margin = 0.0
-#        self.free_margin = self.equity
-#        self.balance = self.equity
-        self.profit_loss = 0.0
-
-        for date, _ in self.data.iterrows():
-    
-            if(date >= self.date_to_start_trading):
+        print('-' * 55)
                 
-                print(date)
-                ''' Get signal
-                    Create buy/sell order
-                    -	Calculate PL
-                    -	Calculate required margin
-                    Check all open orders
-                    	Either add to the list
-                    	Eliminate some from list, move to ListofClosedOrders
-                '''
-                self.run_core_strategy()
+        for date, _ in self.data.iterrows():
+                    
+            ''' 
+            Get signal
+            Create buy/sell order
+            -	Calculate PL
+            -	Calculate required margin
+            Check all open orders
+            - 	Either add to the list
+            -	Or eliminate some from list, move to ListofClosedOrders
+            '''
+            self.run_core_strategy()
 
         self.close_all_trades(date)
         self.update(date)
@@ -328,43 +309,43 @@ class backtest_base(object):
             
         return price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l
 
-    def open_long_trade(self, units, date):
+    def open_long_trade(self, units_to_buy, date):
 
-        self.data.loc[date,'units_to_buy'] = self.data.loc[date,'units_to_buy'] + units
-                     
+        self.data.loc[date,'units_to_buy'] = self.data.loc[date,'units_to_buy'] + units_to_buy
+
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
 
-        if self.verbose:
-            print('%s | buying  %4d units at ask %7.5f' %(date, units, price_ask_c))
+        self.units_net = self.units_net + units_to_buy
         
+        if self.verbose:
+
+            print('%s | buying  %4d units at ask %7.5f' %(date, units_to_buy, price_ask_c))
+
         while True:
 
             self.listofOpenShortTrades = [ etrade for etrade in self.listofOpenTrades if etrade.units < 0 ]
         
             if len(self.listofOpenShortTrades) == 0:
-               
-                etrade = Trade(self.symbol, units, date, price_bid_c, price_ask_c, self.marginpercent )
-                self.units_net = self.units_net + units
+                
+                etrade = Trade(self.symbol, units_to_buy, date, price_bid_c, price_ask_c, self.marginpercent )
+                etrade.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
                 self.listofOpenTrades.append(etrade)
-                                
+                self.longshort = 'long'                                
                 break
             
             else:
-
+               
                 etrade = self.listofOpenShortTrades[-1]
 
-                IsOpen, unclosedunits = etrade.close(-units, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
-
-                self.units_net = self.units_net + units
-
+                IsOpen, units_to_buy = etrade.close(units_to_buy, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
+                
                 if not IsOpen:
                     self.listofOpenTrades.remove(etrade)
                     self.listofClosedTrades.append(etrade)
 
-                if unclosedunits != 0:
-                    
+                if units_to_buy > 0:
+                                        
                     continue
-                    units = unclosedunits
                     
                 else:
                 
@@ -377,6 +358,7 @@ class backtest_base(object):
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
 
         if self.verbose:
+
             print('%s | closing long trades' %date)
 
         self.listofOpenLongTrades = [ etrade for etrade in self.listofOpenTrades if etrade.units > 0 ]
@@ -387,13 +369,17 @@ class backtest_base(object):
             self.listofOpenTrades.remove(etrade)
             self.listofClosedTrades.append(etrade)
     
-    def open_short_trade(self, units, date):
-        
-        price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
-        self.data.loc[date,'units_to_sell'] = self.data.loc[date,'units_to_sell'] - units
+    def open_short_trade(self, units_to_sell, date):
+                
+        self.data.loc[date,'units_to_sell'] = self.data.loc[date,'units_to_sell'] - units_to_sell
 
+        price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
+    
+        self.units_net = self.units_net - units_to_sell
+        
         if self.verbose:
-            print('%s | shorting %4d units at ask %7.5f' %(date, units, price_bid_c))
+
+            print('%s | shorting %4d units at ask %7.5f' %(date, units_to_sell, price_bid_c))
         
         while True:
 
@@ -401,8 +387,8 @@ class backtest_base(object):
         
             if len(self.listofOpenLongTrades) == 0:
                
-                etrade = Trade(self.symbol, units, date, price_bid_c, price_ask_c, self.marginpercent )
-                self.units_net = self.units_net + units
+                etrade = Trade(self.symbol, -units_to_sell, date, price_bid_c, price_ask_c, self.marginpercent )
+                etrade.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
                 self.listofOpenTrades.append(etrade)
                 self.longshort = 'short'
                                 
@@ -412,28 +398,27 @@ class backtest_base(object):
 
                 etrade = self.listofOpenLongTrades[-1]
 
-                IsOpen, unclosedunits = etrade.close(units, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
-                self.units_net = self.units_net + units - unclosedunits
+                IsOpen, units_to_sell = etrade.close(-units_to_sell, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
 
                 if not IsOpen:
                     self.listofOpenTrades.remove(etrade)
                     self.listofClosedTrades.append(etrade)
 
-                if unclosedunits != 0:
+                if units_to_sell > 0:
                     
                     continue
-                    units = unclosedunits
                     
                 else:
                 
                     break
-           
+            
     def close_short_trades(self, date):
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
         self.data.loc[date,'units_to_buy'] = -self.units_net
 
         if self.verbose:
+
             print('%s | closing short trades' %date)
 
         self.listofOpenShortTrades = [ etrade for etrade in self.listofOpenTrades if etrade.units < 0 ]
@@ -445,7 +430,8 @@ class backtest_base(object):
             self.listofClosedTrades.append(etrade)
     
     def close_all_trades(self, date):
-        ''' Closing out all long or short positions.
+        ''' 
+        Closing out all long or short positions.
         '''
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
         
@@ -468,9 +454,10 @@ class backtest_base(object):
     def update(self, date):
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
+
         for etrade in self.listofOpenTrades:
-            etrade.update( price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
-        
+            etrade.update( price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
+            
         self.realizedcumulativeprofitloss = sum( etrade.realizedprofitloss for etrade in self.listofClosedTrades )
         self.unrealizedprofitloss = sum( etrade.unrealizedprofitloss for etrade in self.listofOpenTrades )
         
@@ -492,7 +479,7 @@ class backtest_base(object):
         self.data.loc[date,'unrealized pips'] = self.unrealizedpips   
         self.data.loc[date,'required margin'] = self.required_margin
         self.data.loc[date,'free margin'] = self.free_margin             
-        print('Date: {0}, Equity: {1:.2f}, Cumulative Pips: {2:.2f}'.format( date,  self.equity, self.realizedcumulativepips ) )
+        print('Date: {0}, Equity: {1:.2f}, Realized Cumulative P/L: {2:.2f}, Unrealized P/L: {3:.2f}, Realized Cumulative pips: {4:.2f}, Unrealized pips: {5:.2f}'.format( date, self.equity, self.realizedcumulativeprofitloss, self.unrealizedprofitloss, self.realizedcumulativepips, self.unrealizedpips ) )
         
     def close_out(self):
     
@@ -505,7 +492,7 @@ class backtest_base(object):
     
         self.maxdrawdown = self.data['drawdown'].max()
         
-        print('=' * 55)
+        print('-' * 55)
         print('Initial equity   [$] {0:.2f}'.format(self.initial_equity))
         print('Final equity   [$] {0:.2f}'.format(self.equity))
         print('Net Performance [%] {0:.2f}'.format(self.data['cumret-strategy'][-1] * 100) )
@@ -526,7 +513,7 @@ class backtest_base(object):
         self.plot_MFE()
         self.plot_consecutive_win()
         self.plot_consecutive_loss()
-        self.plot_eratio()
+        self.plot_edge_ratio()
         
     def plot_data(self):
         ''' Plots the (adjusted) closing prices for symbol.
@@ -674,13 +661,13 @@ class backtest_base(object):
         plt.show()
         plt.close()
 
-    def plot_eratio(self):
+    def plot_edge_ratio(self):
         
         ''' Plots the e-ratio over trades.
         '''
-        fig1 = self.df_eratio['mean'].plot(figsize=(10, 6), title='e-ratio curve for {}'.format(self.symbol))
+        fig1 = self.df_edge_ratio['mean'].plot(figsize=(10, 6), title='e-ratio curve for {}'.format(self.symbol))
         fig2 = fig1.get_figure()
-        fig2.savefig('{}\\eratio.pdf'.format(self.backtest_folder))
+        fig2.savefig('{}\\edge_ratio.pdf'.format(self.backtest_folder))
         plt.show()
         plt.close()
         
@@ -891,7 +878,7 @@ class backtest_base(object):
             temp = -pd.DataFrame(eTrade.maxAdverseExcursionList, index=np.arange(1, eTrade.bars+1), columns=['Trade{}'.format(eTrade.ID)] )
             self.df_maxAdverseExcursion = pd.concat([self.df_maxAdverseExcursion, temp], axis=1, ignore_index=True)
 
-        self.df_eratio = self.df_maxFavorableExcursion.div(self.df_maxAdverseExcursion)
+        self.df_edge_ratio = self.df_maxFavorableExcursion.div(self.df_maxAdverseExcursion)
         
         
         filename = '{}\\{}_df_maxFavorableExcursion.xlsx'.format(self.backtest_folder,self.symbol)
@@ -914,17 +901,17 @@ class backtest_base(object):
         # Close the Pandas Excel writer and output the Excel file.
         writer.save()
 
-        filename = '{}\\{}_df_eratio.xlsx'.format(self.backtest_folder,self.symbol)
+        filename = '{}\\{}_df_edge_ratio.xlsx'.format(self.backtest_folder,self.symbol)
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
         
         # Convert the dataframe to an XlsxWriter Excel object.
-        self.df_eratio.to_excel(writer, sheet_name='Sheet1')
+        self.df_edge_ratio.to_excel(writer, sheet_name='Sheet1')
         
         # Close the Pandas Excel writer and output the Excel file.
         writer.save()
       
-        self.df_eratio['mean'] = self.df_eratio.mean(axis=1)
+        self.df_edge_ratio['mean'] = self.df_edge_ratio.mean(axis=1)
        
     def write_all_data(self):
         
@@ -1069,7 +1056,7 @@ class backtest_base(object):
 
         ols_res = OLS(data, np.ones(len(data))).fit()
 
-        print('=' * 55)
+        print('-' * 55)
         msg = 'Durbin Watson Test:  '
         msg += '\nStatistic: %.4f ' % durbin_watson(ols_res.resid)
         msg += '\nNote:'
@@ -1083,7 +1070,7 @@ class backtest_base(object):
         # Calculate the frequency of trades in the backtest
         frequency = (self.data.index[-1] - self.data.index[0]) / self.numberoftrades
         
-        # Assume simulation duration for 1 year but given the frequency, it is more important to caclulate how many trades to simulate
+        # Assume simulation duration for 1 year but given the frequency, it is more important to calculate how many trades to simulate
         return int( pd.Timedelta(value='365D') / frequency )
 
     def monte_carlo_simulator(self, cols=250):
@@ -1159,7 +1146,7 @@ class backtest_base(object):
 
         self.calmar_ratio = self.simulations_median_profit_pct / self.simulations_median_maxdrawdown_pct
 
-        print('=' * 55)
+        print('-' * 55)
         msg = 'Monte Carlo Simulation Results:  '
         msg += '\nMean Max Drawdown Percent:   %.2f ' % (self.simulations_mean_maxdrawdown_pct*100)
         msg += '\nMedian Max Drawdown Percent: %.2f ' % (self.simulations_median_maxdrawdown_pct*100)
@@ -1241,16 +1228,17 @@ class backtest_base(object):
 if __name__ == '__main__':
 
      symbol = 'EUR_USD'
-     account_type = 'practice'
+     account_type = 'backtest'
      granularity = '1H'
      decision_frequency = '1H'
-     start_datetime = datetime.datetime(2010,1,1,0,0,0)
+     start_datetime = datetime.datetime(2019,1,1,0,0,0)
      end_datetime = datetime.datetime.now()
-     margin_duration_before_start_trading = pd.Timedelta(value='0D')     
+     idle_duration_before_start_trading = pd.Timedelta(value='0D')     
+     initial_equity = 10000
      marginpercent = 100
-     WindowLenght = 12
+     #WindowLenght = 12
     
-     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, margin_duration_before_start_trading, 10000, marginpercent)
+     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent)
      bb.check_data_quality()
 
      #viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)

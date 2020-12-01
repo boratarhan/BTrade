@@ -7,14 +7,12 @@ from requests.exceptions import ConnectionError
 import zmq
 import pandas as pd
 import tables 
-import tstables  
 import configparser
 import datetime
 import time
 import utility_functions as uf
 import threading
 import os
-import json
 import sys
 
 '''
@@ -71,7 +69,6 @@ class feeder(object):
         self.download_frequency = download_frequency
         self.update_signal_frequency = update_signal_frequency
         
-
         self.askbidmid = 'AB'
         self.ticks = 0
         self.number_of_bars = 0
@@ -100,52 +97,31 @@ class feeder(object):
         global isAlive
         isAlive = True
                    
-        if( self.account_type == 'live'):
-            
-            self.connect_broker_live()
-            
-        elif( self.account_type == 'practice'):
-
-            self.connect_broker_practice()
-            
-        else:
-            
-            print('Error in account type, it should be either live, practice, or backtest') 
-                   
+        self.connect_broker()
+                           
         self.open_database()
 
         self.download_missing_data()
 
         print('Feeder Ready to go')
 
-        # Running two threads for receiving real-time data and candle data seems                    
-        # to cause problems - running only candles
-#        t1 = threading.Thread( target=self.receive_realtime_tick_data )
-        t2 = threading.Thread( target=self.receive_realtime_bar_data, args=(self.granularity, self.askbidmid, ) )
-
-#        t1.start()
-        t2.start()
-
-#        t1.join()
-        t2.join()
+        self.download_new_data()
         
-    def connect_broker_live(self):
+    def connect_broker(self):
 
+        ''' 
+        Connect to OANDA through account ID and access token based on account type.
+        '''    
+        
         try: 
    
-            self.accountID = self.config['oanda_v20']['account_number_live']
-            self.access_token = self.config['oanda_v20']['access_token_live']
-            self.api = oandapyV20.API(access_token=self.access_token, environment="live")
+            self.accountID = self.config['oanda_v20']['account_number_{}'.format(self.account_type)]
+            self.access_token = self.config['oanda_v20']['access_token_{}'.format(self.account_type)]
+            self.api = oandapyV20.API(access_token=self.access_token, environment="{}".format(self.account_type))
     
         except V20Error as err:
             print("V20Error occurred: {}".format(err))
-
-    def connect_broker_practice(self):
-
-        self.accountID = self.config['oanda_v20']['account_number_practice']
-        self.access_token = self.config['oanda_v20']['access_token_practice']
-        self.api = oandapyV20.API(access_token=self.access_token, environment="practice")
-
+             
     def open_database(self):
                 
         ''' 
@@ -153,6 +129,7 @@ class feeder(object):
         '''
         
         if( os.path.exists(self.file_path_ohlc) ):
+
             ''' If a file exists, then start with current time and go back to find the
                 last data point stored in the database.
                 Otherwise create a new database.
@@ -180,7 +157,9 @@ class feeder(object):
                     self.current_timestamp = self.current_timestamp.to_pydatetime()     #datetime.datetime 
                     
                     break
+
                 else:
+
                     read_start_dt = read_start_dt - datetime.timedelta(days=1)
                                      
         else:
@@ -196,7 +175,7 @@ class feeder(object):
         self.h5 = tables.open_file(self.file_path_ohlc, 'w')
         self.ts = self.h5.create_ts('/', 'data', desc)
         
-        self.current_timestamp = pd.datetime(2020,11,1,0,0,0,0,datetime.timezone.utc)  #datetime.datetime 
+        self.current_timestamp = pd.datetime(2015,1,1,0,0,0,0,datetime.timezone.utc)  #datetime.datetime 
         
     def download_missing_data(self):
        
@@ -281,10 +260,24 @@ class feeder(object):
             data = data[data.index > self.current_timestamp]
     
         return data
+
+    def download_new_data(self):
+        
+        # Running two threads for receiving real-time data and bar data 
+        # However, it seems like running both causes problems, therefore I am running only bar data
+        
+#        t1 = threading.Thread( target=self.receive_realtime_tick_data )
+        t2 = threading.Thread( target=self.receive_realtime_bar_data, args=(self.granularity, self.askbidmid, ) )
+
+#        t1.start()
+        t2.start()
+
+#        t1.join()
+        t2.join()
                 
     def receive_realtime_bar_data(self,granularity,askbidmid):
         ''' 
-        Constantly check the current time evey 5 seconds, download 5S bar
+        Constantly check the current time and download S5 granularity bar data
         '''
         
         global isAlive
@@ -306,6 +299,7 @@ class feeder(object):
                 toTime = timestamp_bar_end
                 
                 print('fromTime:', fromTime, ' toTime:', toTime)
+
                 try:
 
                     data = self.download_ohlc_data(fromTime, toTime, granularity, askbidmid)
@@ -335,7 +329,8 @@ class feeder(object):
                 break
 
     def append_bar_data_to_in_memory_bar_ohlc_df(self,temp):
-        ''' Take each received data signal as input and append to an in-memory dataframe
+        ''' 
+        Take each received data signal as input and append to an in-memory dataframe
         '''
         
         if temp.index.size >= 1:
@@ -355,8 +350,9 @@ class feeder(object):
         self.current_timestamp = pd.datetime(year,month,day,hour,minute,second, tzinfo=datetime.timezone.utc)
         
     def append_in_memory_bar_ohlc_df_to_database(self):
-        ''' Append dataframe which keeps in-memory data to h5 file on disk
-            Remove the contents of in-memory dataframe
+        ''' 
+        Append dataframe which keeps in-memory data to h5 file on disk
+        Then remove the contents of in-memory dataframe
         '''
 
         if self.in_memory_bar_ohlc_df.index.size >= 1:
@@ -456,6 +452,7 @@ class feeder(object):
 
             except ConnectionError as e:
                 print("ConnectionError Error: {}".format(e))
+                break
 
             except StreamTerminated as e:
                 print("Error: {}".format(e))
@@ -491,32 +488,28 @@ if __name__ == '__main__':
     try:
         config = configparser.ConfigParser()
         config.read('..\..\configinfo.cfg')
-       
+
+        symbol = sys.argv[1]
+        granularity = sys.argv[2]
+        account_type = sys.argv[3]
+        socket_number = int(sys.argv[4])
+        download_frequency = datetime.timedelta(seconds=60)
+        update_signal_frequency = datetime.timedelta(seconds=60)
+    
+        print("--- FEEDER ---")
+        print("symbol:", symbol)
+        print("granularity:", granularity)
+        print("account_type:", account_type)
+        print("socket_number:", socket_number)
+        print("--------------")
+        
+        if account_type not in ['live', 'practice', 'backtest']:
+            print('Error in account type, it should be either live, practice, or backtest')
+            time.sleep(30)
+            exit()
+     
+        ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,retries=0)
+        
     except:
         print( 'Error in reading configuration file' )
-
-    symbol = sys.argv[1]
-    granularity = sys.argv[2]
-    account_type = sys.argv[3]
-    socket_number = int(sys.argv[4])
-    download_frequency = datetime.timedelta(seconds=60)
-    update_signal_frequency = datetime.timedelta(seconds=60)
-
-    print("symbol:", symbol)
-    print("granularity:", granularity)
-    print("account_type:", account_type)
-    print("socket_number:", socket_number)
-
-    '''
-    symbol = 'EUR_USD'
-    account_type = 'live'
-    socket_number = 5555    
-    granularity = 'S5'
-    download_frequency = datetime.timedelta(seconds=60)
-    update_signal_frequency = datetime.timedelta(seconds=60)
-    '''
-    
-    ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,retries=0)
-    #f1 = feeder(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency)
-    #f1.start()  
     

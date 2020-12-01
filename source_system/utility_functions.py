@@ -4,7 +4,71 @@ import datetime
 import pandas as pd
 import os
 import tables 
-import tstables 
+
+class desc(tables.IsDescription):
+    ''' Description of TsTables table structure.
+    '''
+    timestamp = tables.Int64Col(pos=0)  
+    ask_c = tables.Float64Col(pos=1)  
+    ask_h = tables.Float64Col(pos=2)  
+    ask_l = tables.Float64Col(pos=3)  
+    ask_o = tables.Float64Col(pos=4)  
+
+    bid_c = tables.Float64Col(pos=5)  
+    bid_h = tables.Float64Col(pos=6)  
+    bid_l = tables.Float64Col(pos=7)  
+    bid_o = tables.Float64Col(pos=8)  
+
+    volume = tables.Int64Col(pos=9)
+
+def read_database(symbol, granularity, account_type):
+
+    file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(account_type,symbol,granularity)
+    
+    f = tables.open_file(file_path,'r')
+    ts = f.root.data._f_get_timeseries()
+    
+    read_start_dt = datetime.datetime(2020,1,1,0,0,0)
+    read_end_dt = datetime.datetime.utcnow()
+    
+    rows = ts.read_range(read_start_dt,read_end_dt)
+    
+    f.close()
+    
+    print(rows.tail)
+
+def combine_databases(symbol, granularity, account_type):
+        
+    file_path_1 = '..\\..\\datastore\\_{}\\{}\\{}_2016.h5'.format(account_type,symbol,granularity)
+    
+    f = tables.open_file(file_path_1,'r')
+    ts = f.root.data._f_get_timeseries()
+    read_start_dt = datetime.datetime(2016,1,1,00,00)
+    read_end_dt = datetime.datetime.utcnow()
+    
+    rows1 = ts.read_range(read_start_dt,read_end_dt)
+    
+    f.close()
+    
+    file_path_2 = '..\\..\\datastore\\_{}\\{}\\{}_2017.h5'.format(account_type,symbol,granularity)
+    
+    f = tables.open_file(file_path_2,'r')
+    ts = f.root.data._f_get_timeseries()
+    read_start_dt = datetime.datetime(2017,1,1,00,00)
+    read_end_dt = datetime.datetime.utcnow()
+    
+    rows2 = ts.read_range(read_start_dt,read_end_dt)
+    
+    f.close()
+    
+    rows = rows1.append(rows2)
+    
+    file_path = '..\\..\\datastore\\_{}\\{}\\{}.h5'.format(account_type,symbol,granularity)
+    
+    f = tables.open_file(file_path, 'w')
+    ts = f.create_ts('/', 'data', desc)
+    ts.append(rows)
+    f.close()
 
 def download_historical_tick_data_from_Dukascopy(instrument,start_date,end_date):
     ''' Download tick data for the instrument for each day
@@ -136,7 +200,7 @@ def write2excel( df, filename ):
     
     try:
         
-        filepath = os.path.join('..', '..', 'datastore', filename) + '.xlsx'
+        filepath = os.path.join('..', '..', 'datastore_results', filename) + '.xlsx'
         writer = pd.ExcelWriter(filepath, engine='xlsxwriter')
         df.to_excel(writer )
         writer.save()

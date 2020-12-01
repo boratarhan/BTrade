@@ -10,11 +10,15 @@ import numpy as np
 import time
 import utility_functions as uf
 from indicators import *
+import time
+import oandapyV20.endpoints.instruments as instruments
+import oandapyV20.endpoints.forexlabs as labs
 
 class strategy(object):
 
     def __init__(self,symbol,account_type,daily_lookback,granularity,socket_number):
 
+        self.config = config
         self.symbol = symbol
         self.account_type = account_type
         self.daily_lookback = daily_lookback
@@ -28,13 +32,13 @@ class strategy(object):
         self.socket_sub.setsockopt_string(zmq.SUBSCRIBE, "")
         self.socket_sub.connect("tcp://127.0.0.1:{}".format(self.socket_sub_socket_number))
 
-        self.socket_pub_socket_number = socket_number + 1
-        self.context_pub = zmq.Context()
-        self.socket_pub = self.context_pub.socket(zmq.PUB)
-        self.socket_pub.set_hwm(0)
-        self.socket_pub.connect("tcp://127.0.0.1:{}".format(self.socket_pub_socket_number))
+        self.socket_pub_forwarder_socket_number = socket_number + 1
+        self.context_pub_forwarder = zmq.Context()
+        self.socket_pub_forwarder = self.context_pub_forwarder.socket(zmq.PUB)
+        self.socket_pub_forwarder.set_hwm(0)
+        self.socket_pub_forwarder.connect("tcp://127.0.0.1:{}".format(self.socket_pub_forwarder_socket_number))
 
-        self.socket_pub_porfolio_socket_number = 5554
+        self.socket_pub_porfolio_socket_number = 5554   # THIS NEEDS TO BE MADE DYNAMIC WHEN MULTIPLE STRATEGIES ARE RUNNING
         self.context_pub_porfolio = zmq.Context()
         self.socket_pub_porfolio = self.context_pub_porfolio.socket(zmq.PUB)
         self.socket_pub_porfolio.set_hwm(0)
@@ -48,6 +52,21 @@ class strategy(object):
         self.df_status['signal'] = 0
 
         self.indicatorlist = []
+
+    def connect_broker(self):
+
+        ''' 
+        Connect to OANDA through account ID and access token based on account type.
+        '''    
+        
+        try: 
+   
+            self.accountID = self.config['oanda_v20']['account_number_{}'.format(self.account_type)]
+            self.access_token = self.config['oanda_v20']['access_token_{}'.format(self.account_type)]
+            self.api = oandapyV20.API(access_token=self.access_token, environment="{}".format(self.account_type))
+    
+        except V20Error as err:
+            print("V20Error occurred: {}".format(err))
                                      
     def start(self):
 
@@ -56,13 +75,13 @@ class strategy(object):
         while True:
 
             msg = self.socket_sub.recv_string()
-            print("Strategy Received message: {}".format(msg))
+            print("Received message: {}".format(msg))
         
             self.read_data()
 
             self.core_strategy()
     
-            msg = 'Resampler completed...'
+            msg = 'Strategy step completed...'
             print("Sending message: {0}".format(msg))
             self.socket_pub.send_string(msg)
 
@@ -74,17 +93,35 @@ class strategy(object):
         
         pass
 
-    def create_order(self):
-        ''' Send order signal to Portfolio object
+    def add_calendar_data(self):
+        
+        params = {"instrument": list(self.symbol), "period": 217728000 } #period seems to capture the length of future in seconds, default was 86400
+        r = labs.Calendar(params=params)
+        self.df_calendar = pd.DataFrame(self.api.request(r))
+
+    def add_orderbook_data(self):
+        
+        r = instruments.InstrumentsOrderBook(instrument=self.symbol)
+        self.df_orederbook = pd.DataFrame(self.api.request(r))
+
+    def add_positionbook_data(self):
+        
+        r = instruments.InstrumentsPositionBook(instrument=self.symbol)
+        self.df_positionbook = pd.DataFrame(self.api.request(r))
+
+    def create_order_signal(self):
+        ''' 
+        Send order signal to Portfolio object
         '''
         pass
     
     def read_data(self):
-        ''' Open an existing h5 file or throw an error 
+        ''' 
+        Open an existing h5 file or throw an error 
         '''
         
-        if( os.path.exists(self.file_path) ):
-
+        try: 
+    
             self.h5 = tables.open_file(self.file_path, 'r')
             self.ts = self.h5.root.data._f_get_timeseries()
             
@@ -94,9 +131,12 @@ class strategy(object):
             self.df = self.ts.read_range(read_start_dt,read_end_dt)
             self.h5.close()
 
-        else:
+        except: 
 
             print('Database does not exist')
+            print('Expected location: {}'.format(os.path.exists(self.file_path)))
+            time.sleep(30)
+            exit()
     
     def resample_data(self,aggregate_frequency):
         

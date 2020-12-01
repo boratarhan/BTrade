@@ -9,11 +9,9 @@ class backtest_strategy_SMA(backtest_base):
         self.data = self.data.dropna()
 
     def go_long(self, date, units):
-        self.close_short_trades(date=date)
         self.open_long_trade(units, date=date)
             
     def go_short(self, date, units):
-        self.close_long_trades(date=date)
         self.open_short_trade(units, date=date)
 
     def run_strategy(self, SMA1, SMA2):
@@ -41,23 +39,23 @@ class backtest_strategy_SMA(backtest_base):
             -	Or eliminate some from list, move to ListofClosedOrders
             '''
             #self.run_core_strategy()
-
-            if self.units_net > 0:
-                if self.data.loc[date,'SMA_14_bid_c'] < self.data.loc[date,'SMA_28_bid_c']:
-                    self.go_short(date=date, units=-1000)
-            
-            elif self.units_net < 0:
-                if self.data.loc[date,'SMA_14_bid_c'] > self.data.loc[date,'SMA_28_bid_c']:
-                    self.go_long(date=date, units=1000)
         
-            elif self.units_net == 0:
+            if self.units_net == 0:
                 if self.data.loc[date,'SMA_14_bid_c'] > self.data.loc[date,'SMA_28_bid_c']:
                     self.go_long(date=date, units=1000)
                 elif self.data.loc[date,'SMA_14_bid_c'] < self.data.loc[date,'SMA_28_bid_c']:
-                    self.go_short(date=date, units=-1000)
+                    self.go_short(date=date, units=1000)
+
+            elif self.units_net > 0:
+                if self.data.loc[date,'SMA_14_bid_c'] < self.data.loc[date,'SMA_28_bid_c']:
+                    self.go_short(date=date, units=2000)
             
+            elif self.units_net < 0:
+                if self.data.loc[date,'SMA_14_bid_c'] > self.data.loc[date,'SMA_28_bid_c']:
+                    self.go_long(date=date, units=2000)
+                                
             self.update(date)
-        
+                
         self.close_all_trades(date)
         self.update(date)
         self.close_out()
@@ -79,22 +77,21 @@ if __name__ == '__main__':
      # A micro lot = 1,000 units of base currency.
 
      bb = backtest_strategy_SMA(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, True)
-
+     bb.verbose = True
      #bb.check_data_quality()
 
      bb.run_strategy(14, 28)
      
      bb.calculate_stats()
-     '''
-     bb.plot()
      
-     bb.write_all_data()
+     #bb.plot()
+     
+     #bb.write_all_data()
      
      bb.write_all_trades_to_excel()
 
-     bb.monte_carlo_simulator(250)
+     #bb.monte_carlo_simulator(250)
      
-     bb.write_all_simulation_data_to_excel()
+     #bb.write_all_simulation_data_to_excel()
  
-     viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
-     '''
+     #viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)

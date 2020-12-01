@@ -4,6 +4,7 @@ import oandapyV20.endpoints.pricing as pricing
 import oandapyV20.endpoints.accounts as accounts
 import oandapyV20.endpoints.orders as orders
 from oandapyV20.exceptions import V20Error
+import oandapyV20.endpoints.forexlabs as labs
 import zmq
 import pandas as pd
 import tables 
@@ -53,87 +54,12 @@ class portfolio(object):
         except V20Error as err:
             print("V20Error occurred: {}".format(err))
 
-    def create_order(self, order_type, symbol, units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill):
-        ''' 
-        Places orders with Oanda. 
-        if units < 0 means short
-        if units > 0 means long
-        '''
-        
-        orderinfo = {}
-        
-        if order_type == "MARKET":
-
-            orderinfo = { "order": {"type": "MARKET",
-                                    "instrument": symbol,
-                                    "units": units,
-                                    "timeInForce": "FOK",
-                                    "positionFill": "DEFAULT" }
-                                }
-            
-            if priceBound != 0.0:
-                orderinfo = { "order": {"priceBound": priceBound} }
-            if takeProfitOnFill != 0.0:
-                orderinfo = { "order": {"takeProfitOnFill": takeProfitOnFill} }                
-            if stopLossOnFill != 0.0:
-                orderinfo = { "order": {"stopLossOnFill": stopLossOnFill} }
-                
-        if order_type == "LIMIT":
-
-            orderinfo = { "order": {"type": "LIMIT",
-                                    "instrument": symbol,
-                                    "units": units,
-                                    "price": limit_price,
-                                    "timeInForce": "GTC",
-                                    "positionFill": "DEFAULT" }
-                               }
-    
-            if takeProfitOnFill != 0.0:
-                orderinfo = { "order": {"takeProfitOnFill": takeProfitOnFill} }                
-            if stopLossOnFill != 0.0:
-                orderinfo = { "order": {"stopLossOnFill": stopLossOnFill} }            
-                            
-        r = orders.OrderCreate(self.accountID, data=orderinfo)
-        self.api.request(r)
-        
-        if units < 0:
-            
-            print('{} Sell {} order is sent'.format(order_type, units) )
-
-        elif units > 0:
-            
-            print('{} Buy {} order is sent'.format(order_type, units) )
-        
-        else:
-            
-            print('Error in create order function - units is zero')
-
-        print(r.response['orderCreateTransaction'])
-        
-    def wait_order_signals(self):
-
-        while True:
-       
-            msg = self.socket_sub.recv_string()
-            print("Received message: {0}".format(msg))
-            order_type, longshort, symbol, units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill = msg.split()
-            
-            if longshort == 'Short':
-
-                self.create_order(order_type, symbol,-units)
-                
-            if longshort == 'Long':
-                
-                self.create_order(symbol,units)
-
-            self.get_positions_for_all_instruments()
-                                     
     def get_instrument_list(self):
 
         r = accounts.AccountInstruments(accountID=self.accountID)
         self.api.request(r)
         self.instruments = pd.DataFrame(r.response['instruments'])['name'].values
-                                                          
+                                      
     def get_positions_for_all_instruments(self):
 
         r = accounts.AccountDetails(accountID=self.accountID)
@@ -144,14 +70,12 @@ class portfolio(object):
             self.position[symbol] = 0.0
 
         print('Positions:') 
-
         for e_position in df['account']['positions']:
             
             self.position[e_position['instrument']] = int(e_position['long']['units'])+int(e_position['short']['units'])
 
             if self.position[e_position['instrument']] != 0:
                 print('{}: {}'.format(e_position['instrument'], self.position[e_position['instrument']]) ) 
-
         print("--------------------------------------")
         
     def get_account_value(self):
@@ -177,21 +101,7 @@ class portfolio(object):
         resettablePL
         '''      
         print("--------------------------------------")
-            
-    def start(self):
-        
-        self.connect_broker()
 
-        self.get_instrument_list()
-
-        self.get_positions_for_all_instruments()
-        
-        self.get_account_value()
-
-        print('Portfolio Ready to go')
-           
-        self.wait_order_signals()
-        
 if __name__ == '__main__':
         
     try:
@@ -201,21 +111,53 @@ if __name__ == '__main__':
 
     except:
         print( 'Error in reading configuration file' )
+        exit()
 
     try:
         
-        account_type = sys.argv[1]
-        socket_number = int(sys.argv[2])
-        
+        account_type = 'live'
+        socket_number = 5554
+    
         print("---- PORTFOLIO -----------------------")
         print("account_type:", account_type)
         print("socket_number:", socket_number)
         print("--------------------------------------")
             
         p1 = portfolio(config,account_type,socket_number)
-        p1.start()
+        
+        p1.connect_broker()
+    
+        #p1.get_instrument_list()
+        #r = accounts.AccountInstruments(accountID=p1.accountID)
+        #r = accounts.AccountDetails(accountID=p1.accountID)
+        #df = pd.DataFrame(p1.api.request(r))
+        p1.get_instrument_list()
+        #p1.get_positions_for_all_instruments()
+        #p1.get_account_value()
 
+
+        params = {"instrument": "EUR_USD", "period": 217728000 }
+
+        r = labs.Calendar(params=params)
+        #r = labs.CommitmentOfTraders(params=params)
+        #r = instruments.InstrumentsOrderBook(instrument="EUR_USD")
+        df = pd.DataFrame(p1.api.request(r))
+        
+        #p1.api.request(r)
+        #print(r.response)
+       
     except:
         print( 'Error in starting portfolio object' )
-        time.sleep(30)
-        exit()
+        
+        
+        '''
+        df = pd.DataFrame(r.response['instruments'])
+    
+        filepath = 'C:\\Users\\boratarhan\\Google Drive\\_Github\\datastore_results\\api1.xlsx'
+        writer = pd.ExcelWriter(filepath, engine='xlsxwriter')
+        df.to_excel(writer)
+        writer.save()
+        '''
+                
+        
+

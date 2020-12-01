@@ -85,7 +85,6 @@ def AddNormalizedROC(df, indicator_list, askbidmid, timeperiod=14, window=25):
 
     return df, indicator_list
     
-    
 def AddMinorHighLow(df, indicator_list, askbidmid):
     '''
     Since the discovery of certain conditions become clear only after several bars passed, two columns are 
@@ -323,61 +322,3 @@ def VolumeWeightedPrice(df, indicator_list, askbidmid, lookback):
   
     indicator_list.extend(['vwap'])
     return df, indicator_list
-
-
-                
-#def AddDivergenceMACDDMI(df):
-#    
-#    df['DivergenceMACDDMI'] = 0
-#    
-#    for index, row in df[1:].iterrows():
-#      
-#        if( ( row['macd'] > df.ix[index-1]['macd'] ) &
-#            ( row['dmi_plus'] < df.ix[index-1]['dmi_plus'] ) ):
-#            
-#            df['DivergenceMACDDMI'].ix[index] = -1
-#
-#        if( ( row['macd'] < df.ix[index-1]['macd'] ) &
-#            ( row['dmi_minus'] < df.ix[index-1]['dmi_minus'] ) ):
-#
-#            df['DivergenceMACDDMI'].ix[index] = 1
-#             
-#    return df
-#
-#def AddLT_Long_Short_Sideways(df):
-#    
-#    df['LT_Long_Short_Sideways'] = 0
-#    
-#    for index, row in df[1:].iterrows():
-#      
-#        if( ( row['WaveAngle'] > 0 ) &
-#            ( row['macdhist'] > df.ix[index-1]['macdhist'] ) ):
-#            
-#            df['LT_Long_Short_Sideways'].ix[index] = 1
-#
-#        elif( ( row['WaveAngle'] < 0 ) &
-#                 ( row['macdhist'] < df.ix[index-1]['macdhist'] ) ):
-#            
-#            df['LT_Long_Short_Sideways'].ix[index] = -1
-#
-#        else:
-#
-#            df['LT_Long_Short_Sideways'].ix[index] = 0
-#            
-#    return df
-#
-#def AddHodrickPrescott(df, smoothingparameter=50000):
-#
-#    df['HP-Cycle'], df['HP-Trend'] = sm.tsa.filters.hpfilter(df['Close'], smoothingparameter)
-#
-#    return df
-
-#def HeikinAshi(df):
-#    df_temp = pd.DataFrame()
-#    df_temp['HA_Close'] = (df['closeAskhigh'] + df['closeAsklow'] + df['closeAskopen'] + df['closeAskclose'])/4
-#    df_temp['HA_Open'] = (df['closeAskopen'].shift() + df['closeAskclose'].shift())/2
-#    df_temp['HA_High'] = df[['closeAskhigh','closeAskopen','closeAskclose']].max(axis=1)
-#    df_temp['HA_Low'] = df[['closeAsklow','closeAskopen','closeAskclose']].min(axis=1)
-#    df = df.join(df_temp)
-#    return df
-

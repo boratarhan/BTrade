@@ -3,7 +3,8 @@ import time
 import sys
 
 class forwarder(object):
-    ''' Forwarder object acts as a stable point between objects
+    ''' 
+    Forwarder object acts as a stable point between objects
     '''
 
     def __init__(self,socket_number):
@@ -14,7 +15,7 @@ class forwarder(object):
 
         print('Forwarder is ready')
         
-        # Socket facing clients
+        # Socket facing clients 
         frontend = self.context.socket(zmq.SUB)
         frontend.bind("tcp://127.0.0.1:{}".format(self.frontend_socket_number))
                 
