@@ -275,15 +275,27 @@ class backtest_base(object):
         print('-' * 55)
                 
         for date, _ in self.data.iterrows():
+            
+            '''
+            In case we need to update P/L using more refined data (e.g. hourly) and make decisions more 
+            aggregate time period (e.g. daily), assume transaction is done at a certain hour of the day, 
+            e.g. CST or UTC time. Below, I assume 9:00 PM UTC, 4 PM EST, 3 PM CST.
+            '''
+            if date.hour == 9:
                     
-            ''' 
-            Get signal
-            Create buy/sell order
+                ''' 
+                Get signal
+                Create buy/sell order
+
+                Check all open orders
+                - 	Either add to the list
+                -	Or eliminate some from list, move to ListofClosedOrders
+                '''
+
+            '''
+            At every time step
             -	Calculate PL
             -	Calculate required margin
-            Check all open orders
-            - 	Either add to the list
-            -	Or eliminate some from list, move to ListofClosedOrders
             '''
             self.run_core_strategy()
 
@@ -496,6 +508,7 @@ class backtest_base(object):
         print('Initial equity   [$] {0:.2f}'.format(self.initial_equity))
         print('Final equity   [$] {0:.2f}'.format(self.equity))
         print('Net Performance [%] {0:.2f}'.format(self.data['cumret-strategy'][-1] * 100) )
+        print('Asset Performance [%] {0:.2f}'.format(self.data['return-asset'][-1] * 100) )
         print('Number of transactions: {}'.format(self.numberoftrades ))
         print('Maximum drawdown: [%] {0:.2f}'.format(self.maxdrawdown * 100) )
 
@@ -684,6 +697,9 @@ class backtest_base(object):
         
     def calculate_stats(self):
 
+        print('-' * 55)
+        print('Statistics:')
+        
         if self.numberoftrades == 0:
             
             print('No trading available')
@@ -700,6 +716,8 @@ class backtest_base(object):
             self.calculate_consecutive_win_loss()
             self.count_number_of_trading_days()
             self.calculate_edge_ratio()
+
+        print('-' * 55)
         
     def count_number_of_trading_days(self):
         
