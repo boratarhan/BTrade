@@ -18,7 +18,7 @@ class backtest_strategy_SMA(backtest_base):
     
         self.add_indicators(SMA1, SMA2)
 
-        self.data = self.data.loc[(self.data.index >= self.date_to_start_trading) & (self.data.index <= self.end),:]
+        self.data = self.data.loc[(self.data.index >= self.date_to_start_trading) & (self.data.index <= self.end_date),:]
 
         print('-' * 55)
         msg = '\n\nRunning SMA strategy | SMA1 = %d & SMA2 = %d' % (SMA1, SMA2)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
      
      bb.write_all_trades_to_excel()
 
-     bb.monte_carlo_simulator(250)
+     bb.monte_carlo_simulator(2500)
      
      bb.write_monte_carlo_simulation_results_to_excel()
  

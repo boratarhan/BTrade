@@ -12,7 +12,6 @@ plt.style.use('seaborn')
 
 sys.path.append('..\\source_system')
 from indicators import *
-#from indicators_patterns import *
 import visualizer as viz
 from utility_functions import *
 sys.path.remove('..\\source_system')
@@ -28,7 +27,7 @@ import operator
  # A micro lot = 1,000 units of base currency.
  # A nano lot = 100 units of base currency.
 
-# In order to calculate pip, multiply the rate with this factor based on quote currency
+# In order to calculate pips per one lot, multiply the rate with this factor based on quote currency
 pip_factor = {}
 pip_factor['USD'] = 10000
 pip_factor['JPY'] = 100
@@ -38,12 +37,16 @@ pip_factor['GBP'] = 10000
 
 class Trade(object):
 
+    '''
+    Trade class is for nodeling individual trades 
+    '''
+    
     trade_counter = 1
         
-    def __init__(self, symbol, units, entrydate, entrypricebid, entrypriceask, marginpercent ):
+    def __init__(self, symbol, units, entrydate, entrypricebid, entrypriceask, marginpercent, verbose ):
         self.ID = Trade.trade_counter
         Trade.trade_counter += 1
-        self.symbol = symbol
+        self.symbol = symbol # Symbol for currency, e.g. EUR_USD
         self.base_currency = self.symbol[:3]
         self.quote_currency = self.symbol[-3:]
         self.units = units #number of units of base currency
@@ -51,9 +54,12 @@ class Trade(object):
         self.longshort = 'long' if self.units > 0 else 'short'
         self.entrydate = entrydate
         self.entryprice = entrypriceask if self.units > 0 else entrypricebid
-        self.marginpercent = marginpercent
+        # Always rememeber: ask price > bid price
+        # When entering a long trade we pay ask price
+        # When entering a short trade we pay bid price
+        self.marginpercent = marginpercent # Margin percent between 0-100
         self.exittransactions = [] 
-        self.IsOpen = True
+        self.IsOpen = True # Trade is open or close; initially set to open
         self.unrealizedpips = 0.0
         self.realizedpips = 0.0
         self.unrealizedprofitloss = 0.0
@@ -66,9 +72,19 @@ class Trade(object):
         self.maxFavorableExcursionList = []
         self.maxAdverseExcursionList = []
         self.bars = 0
+        self.verbose = verbose # Set to True to get detailed output during execution for debugging
+        self.trade_size = abs(self.units) * self.entryprice * self.marginpercent / 100
+        self.share_within_equity = [] # In practice we do not want the trade size exceed 1-2% of the equity. We willkeep an eye on this.
             
     def update(self, price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
-                     
+
+        '''
+        Update trade statistics based on new price data, close, high, low, bid/ask
+        '''                     
+        
+        # Since when we enter a long trade we pay ask price
+        # We use bid price for evaluating long trades, as if we are exiting the trade
+        # Similarly we use ask price for evaluating short trades, as if we are exiting the trade
         price_c = price_bid_c if self.units > 0 else price_ask_c      
         price_h = price_bid_h if self.units > 0 else price_ask_h      
         price_l = price_bid_l if self.units > 0 else price_ask_l      
@@ -101,6 +117,12 @@ class Trade(object):
 
         else:
 
+            '''
+            Note that if quote currency is different than USD, then we need to divide by the price_c 
+            to get in units of base currency. For non-USD cross rates, the output is in base currency.
+            Note that this should still be ok as long as we are evaluating everything in the same units.
+            '''
+            
             self.unrealizedprofitloss = self.units * ( price_c - self.entryprice ) / price_c
             self.stat_unrealizedprofitloss.append(self.unrealizedprofitloss)
 
@@ -119,18 +141,31 @@ class Trade(object):
         self.maxAdverseExcursionList.append(self.maxAdverseExcursion)
 
         self.bars = self.bars + 1
-        
-       #print('units:', self.units, 'p/l:', self.unrealizedprofitloss, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
+
+        if self.verbose == True:
+            
+            print('ID:', self.ID, 'units:', self.units, 'p/l:', self.unrealizedprofitloss, 'pips',  self.unrealizedpips, 'margin:', self.required_margin, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
                                       
     def close(self, untransactedunits, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
-        
-        exitprice = price_bid_c if self.units > 0 else price_ask_c
-        # ask price > bid price
-        # if I am selling, I get bid price
-        # if I am buying, I get ask price
 
+        '''
+        Since when we enter a long trade we pay ask price, we use bid price for closing long trade
+        Since when we enter a short trade we pay bid price, we use ask price for closing short trade
+        Remember that ask price > bid price
+        '''
+        exitprice = price_bid_c if self.units > 0 else price_ask_c
+        
         transactedunits = 0
-                
+        
+        '''
+        Trade object may receive a close request with a certain units, i.e. untransactedunits.
+        Depending on the units of the current trade and the units requested to close (i.e. untransactedunits), current trade may close partially or completely.
+        If the current trade closes completely then self.IsOpen is set to False and otherwise set to True.
+        Transacted units are the units that are allocated for closing the order .
+        If the requested size of the trade is greater than the size of the current trade, any size of the untransactedunits is returned back.
+        Returned amount will be served by another trade or opened a new trade.
+        '''        
+        
         if abs(self.units) > abs(untransactedunits):
 
             transactedunits = untransactedunits
@@ -151,38 +186,47 @@ class Trade(object):
             untransactedunits = self.units + untransactedunits 
             self.units = 0
             self.IsOpen = False
-                
+
+
+        '''
+        Calculate realized profit&loss
+        If trade is closed in several steps, keep track of exit transactions        
+        '''                
         self.realizedpips = self.realizedpips - np.sign(transactedunits) * ( exitprice - self.entryprice ) * pip_factor[self.quote_currency]
         
         if self.quote_currency == 'USD':
 
             self.realizedprofitloss = self.realizedprofitloss - transactedunits * ( exitprice - self.entryprice )            
-            self.transaction = { 'date' : exitdate, 'units' : transactedunits, 'price' : exitprice, 'realized P&L': self.realizedprofitloss }
-            self.exittransactions.append(self.transaction)
                     
         else:
 
             self.realizedprofitloss = self.realizedprofitloss - units * ( exitprice - self.entryprice ) / price_c            
-            self.transaction = { 'date' : exitdate, 'units' : transactedunits, 'price' : exitprice, 'realized P&L': self.realizedprofitloss }
-            self.exittransactions.append(self.transaction)
 
+        self.transaction = { 'date' : exitdate, 'units' : transactedunits, 'price' : exitprice, 'realized P&L': self.realizedprofitloss }
+        self.exittransactions.append(self.transaction)
+
+        '''
+        Calculate trade statistics at the close
+        '''
+        
         self.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l)
             
         return self.IsOpen, abs(untransactedunits)
         
 class backtest_base(object):
+    
     ''' 
     Base class for event-based backtesting of trading strategies.
     '''
 
-    def __init__(self, symbol, account_type, granularity, decision_frequency, start, end, idle_duration_before_start_trading, initial_equity, marginpercent, ftc=0.0, ptc=0.0, verbose=False):
-        self.symbol = symbol      
-        self.account_type = account_type
-        self.granularity = granularity
-        self.decision_frequency = decision_frequency
-        self.start = start
-        self.end = end
-        self.date_to_start_trading = self.start + idle_duration_before_start_trading
+    def __init__(self, symbol, account_type, granularity, decision_frequency, start_date, end_date, idle_duration_before_start_trading, initial_equity, marginpercent, ftc=0.0, ptc=0.0, verbose=False):
+        self.symbol = symbol # Same as trade symbol
+        self.account_type = account_type # should be set to backtest, eventually used for file/folder name specification
+        self.granularity = granularity # Data granularity
+        self.decision_frequency = decision_frequency # Decision frequency can be less granular (e.g. 1H) than data granularity (e.g. S5)
+        self.start_date = start_date # Start date
+        self.end_date = end_date # End date
+        self.date_to_start_trading = self.start_date + idle_duration_before_start_trading
         self.indicatorlist = []
         self.listofOpenTrades = []
         self.listofClosedTrades = []
@@ -192,34 +236,41 @@ class backtest_base(object):
         self.backtest_folder = self.file_path_ohlc = '..\\..\\backtests\\{}'.format(self.backtest_name)
         if( not os.path.exists(self.backtest_folder)):
             os.mkdir(self.backtest_folder) 
-                    
+
         self.df_edge_ratio = pd.DataFrame()
         self.maxNumberBars = 0
         
-        # Notation:
-        # Equity = Balance + UnrealizedP&L
-        # Equity = Required margin	+ Free margin
+        '''
+        Notation:
+        Equity = Balance + UnrealizedP&L
+        Equity = Required margin + Free margin
+        '''
         
         self.initial_equity = initial_equity
         self.equity = self.initial_equity
 
-        self.marginpercent = marginpercent 
-        # leverage = 100 / marginpercent
-        # Leverage is conventionally displayed as a ratio, such as 20:1 or 50:1. However, here 
-        # we use only the number on the left since the number on the right is always 1.
+        self.marginpercent = marginpercent # Margin percent between 0-100
         
-        # It is important to understand the relation between:
-        # - Leverage
-        # - Free Margin
-        # - Trade size
-        # - Risk
-        # Leverage -> Free Margin -> Trade Size -> Risk (Arrow shows what affects what)
-        # In simple case our trade size is fixed so leverage only affects free margin
-        # Unless the required margin exceed current equity (definition above), algorithm works.
-        # People associate leverage with risk because, typical investor uses high leverage
-        # which leads to high free margin, which allows trader to take large trade size
-        # It is the large trade size that ruins the trader.
-        # Trade size should not exceed 1-2% of equity.
+        '''
+        leverage = 100 / marginpercent
+        Leverage is conventionally displayed as a ratio, such as 20:1 or 50:1. However, here 
+        we use only the number on the left since the number on the right is always 1.
+        
+        It is important to understand the relation between:
+        - Leverage
+        - Free Margin
+        - Trade size
+        - Risk
+        Leverage -> Free Margin -> Trade Size -> Risk (Arrow shows what affects what)
+        
+        In the simplest case, our trade size is fixed so leverage only affects free margin.
+        Unless the required margin exceed current equity (defined above), algorithm works.
+        
+        People associate leverage with risk because, typical investor uses high leverage
+        which leads to high free margin (low required margin), which allows trader to take larger trade size.
+        It is this large trade size that ruins the trader.
+        As a rule of thumb, trade size should not exceed 1-2% of equity.
+        '''
         
         self.required_margin = 0.0
         self.free_margin = self.equity
@@ -246,7 +297,6 @@ class backtest_base(object):
         self.data.loc[:,'units_net'] = 0
                                  
     def read_hdf_file(self):
-
         '''
         This input data file is generated offline by the file source_research > _create_research_data.py
         This is higher granularity data, i.e. at least as granular as the decision frequency. It can be identical to decision frequency.
@@ -259,7 +309,9 @@ class backtest_base(object):
         self.data = self.data[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c', 'volume']]
     
     def add_indicators(self):
-        
+        '''
+        This should be overwritten within derived classes from this base class.
+        '''
         pass
 
     def run_strategy(self):
@@ -305,10 +357,14 @@ class backtest_base(object):
         self.close_out()
     
     def run_core_strategy(self):
+        '''
+        This should be overwritten within derived classes from this base class.
+        '''
         pass
         
     def get_price(self, date):
-        ''' Return price for a date.
+        ''' 
+        Return price for a given date.
         '''
 
         price_ask_c = self.data.loc[date,'ask_c']
@@ -323,7 +379,9 @@ class backtest_base(object):
         return price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l
 
     def open_long_trade(self, units_to_buy, date):
-
+        ''' 
+        Enter into long trade on a given date
+        '''
         self.data.loc[date,'units_to_buy'] = self.data.loc[date,'units_to_buy'] + units_to_buy
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
@@ -336,26 +394,45 @@ class backtest_base(object):
 
         while True:
 
+            '''
+            First check if there are existing short trades.            
+            '''
             self.listofOpenShortTrades = [ etrade for etrade in self.listofOpenTrades if etrade.units < 0 ]
         
             if len(self.listofOpenShortTrades) == 0:
                 
-                etrade = Trade(self.symbol, units_to_buy, date, price_bid_c, price_ask_c, self.marginpercent )
-                etrade.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
+                '''
+                If there is no short trade then open a long trade
+                Note that units_to_buy > 0
+                '''
+                etrade = Trade(self.symbol, units_to_buy, date, price_bid_c, price_ask_c, self.marginpercent, self.verbose )
+                #etrade.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
                 self.listofOpenTrades.append(etrade)
                 self.longshort = 'long'                                
                 break
             
             else:
                
+                '''
+                If there exists some short trades then we need to close those trades before opening a long trade.
+                If there are multiple short trades, then close the last trade first.
+                '''
                 etrade = self.listofOpenShortTrades[-1]
 
                 IsOpen, units_to_buy = etrade.close(units_to_buy, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
-                
+                '''
+                If IsOpen is False that means that the existing short trade is closed.
+                If units_to_buy (returned parameter) is zero that means that units_to_buy (input parameter) is greater than the size of the existing short trade. 
+                If units_to_buy (returned parameter) is non-zero that means that the existing short trade size was not enough to cover the long trade.Therefore, we still have some more units to sell.
+                If IsOpen is True that means that the existing short trade is not closed; units_to_buy (input parameter) is less than the size of the existing short trade.
+                '''    
                 if not IsOpen:
                     self.listofOpenTrades.remove(etrade)
                     self.listofClosedTrades.append(etrade)
 
+                '''
+                It there is still some non-zero units to buy, check if there is more short trades to close or open a new long trade.
+                '''
                 if units_to_buy > 0:
                                         
                     continue
@@ -365,7 +442,10 @@ class backtest_base(object):
                     break
                 
     def close_long_trades(self, date):
-
+        '''
+        Close all long trades.
+        '''
+        
         self.data.loc[date,'units_to_sell'] = self.units_net
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
@@ -383,7 +463,9 @@ class backtest_base(object):
             self.listofClosedTrades.append(etrade)
     
     def open_short_trade(self, units_to_sell, date):
-                
+        ''' 
+        Enter into short trade on a given date
+        '''                
         self.data.loc[date,'units_to_sell'] = self.data.loc[date,'units_to_sell'] - units_to_sell
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
@@ -396,12 +478,19 @@ class backtest_base(object):
         
         while True:
 
+            '''
+            First check if there are existing long trades.            
+            '''
             self.listofOpenLongTrades = [ etrade for etrade in self.listofOpenTrades if etrade.units > 0 ]
         
             if len(self.listofOpenLongTrades) == 0:
-               
-                etrade = Trade(self.symbol, -units_to_sell, date, price_bid_c, price_ask_c, self.marginpercent )
-                etrade.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
+
+                '''
+                If there is no long trade then open a short trade
+                Note that units_to_sell > 0
+                '''                
+                etrade = Trade(self.symbol, -units_to_sell, date, price_bid_c, price_ask_c, self.marginpercent, self.verbose )
+                #etrade.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l)
                 self.listofOpenTrades.append(etrade)
                 self.longshort = 'short'
                                 
@@ -409,14 +498,26 @@ class backtest_base(object):
             
             else:
 
+                '''
+                If there exists any long trade then we need to close those trades before opening a short trade.
+                If there are multiple long trades, then close the last trade first.
+                '''
                 etrade = self.listofOpenLongTrades[-1]
 
                 IsOpen, units_to_sell = etrade.close(-units_to_sell, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
-
+                '''
+                If IsOpen is False that means that the existing long trade is closed.
+                If units_to_sell (returned parameter) is zero that means that units_to_sell (input parameter) is greater than the size of the existing long trade. 
+                If units_to_sell (returned parameter) is non-zero that means that the existing long trade size was not enough to cover the short trade. Therefore, we still have some more units to sell.
+                If IsOpen is True that means that the existing long trade is not closed; units_to_sell (input parameter) is less than the size of the existing long trade.
+                '''    
                 if not IsOpen:
                     self.listofOpenTrades.remove(etrade)
                     self.listofClosedTrades.append(etrade)
 
+                '''
+                It there is still some non-zero units to sell, check if there is more long trades to close or open a new short trade.
+                '''
                 if units_to_sell > 0:
                     
                     continue
@@ -426,7 +527,9 @@ class backtest_base(object):
                     break
             
     def close_short_trades(self, date):
-
+        '''
+        Close all short trades.
+        '''
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
         self.data.loc[date,'units_to_buy'] = -self.units_net
 
@@ -465,6 +568,9 @@ class backtest_base(object):
             self.listofClosedTrades.append(etrade)
         
     def update(self, date):
+        '''
+        Update each trade based on new data        
+        '''
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
 
@@ -482,6 +588,9 @@ class backtest_base(object):
         self.required_margin = sum( etrade.required_margin for etrade in self.listofOpenTrades )
         self.free_margin = self.equity - self.required_margin
 
+        for etrade in self.listofOpenTrades:
+            etrade.share_within_equity.append( etrade.trade_size / self.equity )
+
         self.stat_number_of_open_trades.append(len(self.listofOpenTrades))
         self.data.loc[date,'units_net'] = self.units_net
         self.data.loc[date,'equity'] = self.equity                    
@@ -492,6 +601,7 @@ class backtest_base(object):
         self.data.loc[date,'unrealized pips'] = self.unrealizedpips   
         self.data.loc[date,'required margin'] = self.required_margin
         self.data.loc[date,'free margin'] = self.free_margin             
+        
         print('Date: {0}, Equity: {1:.2f}, Realized Cumulative P/L: {2:.2f}, Unrealized P/L: {3:.2f}, Realized Cumulative pips: {4:.2f}, Unrealized pips: {5:.2f}'.format( date, self.equity, self.realizedcumulativeprofitloss, self.unrealizedprofitloss, self.realizedcumulativepips, self.unrealizedpips ) )
         
     def close_out(self):
@@ -677,9 +787,10 @@ class backtest_base(object):
 
     def plot_edge_ratio(self):
         
-        ''' Plots the e-ratio over trades.
+        ''' 
+        Plots the edge-ratio over trades.
         '''
-        fig1 = self.df_edge_ratio['mean'].plot(figsize=(10, 6), title='e-ratio curve for {}'.format(self.symbol))
+        fig1 = self.df_edge_ratio['mean'].plot(figsize=(10, 6), title='edge-ratio curve for {}'.format(self.symbol))
         fig2 = fig1.get_figure()
         fig2.savefig('{}\\edge_ratio.pdf'.format(self.backtest_folder))
         plt.show()
@@ -755,6 +866,7 @@ class backtest_base(object):
         pnl = self.listofrealizedprofitloss.mean()
         std = self.listofrealizedprofitloss[self.listofrealizedprofitloss<threshold].std()
         self.sortino_ratio = pnl / std
+
         msg = 'Sortino Ratio for threshold of {0:.2f}: {1:.3f}'.format(threshold, round(self.sortino_ratio,3))
         print(msg)
 
@@ -777,14 +889,16 @@ class backtest_base(object):
 
     def calculate_expectancy(self):
         
-#        (AW × PW + AL × PL) ⁄ |AL|
-#        AW = average winning trade (excluding maximum win) 
-#        PW = probability of winning (PW = <wins> ⁄ NST where <wins> is total wins excluding maximum win) 
-#        AL = average losing trade (negative, excluding scratch losses) 
-#        |AL| = absolute value of AL 
-#        It is important to have the |AL| in the denominator of expectancy because this converts the expectancy to "risk units" — earnings per dollar risked.   
-#        PL = probability of losing (PL = <non-scratch losses> ⁄ NST)
-
+        '''
+        (AW × PW + AL × PL) ⁄ |AL|
+        AW = average winning trade (excluding maximum win) 
+        PW = probability of winning (PW = <wins> ⁄ numberoftrades where <wins> is total wins) 
+        AL = average losing trade (negative, excluding scratch losses) 
+        |AL| = absolute value of AL 
+        It is important to have the |AL| in the denominator of expectancy because this converts the expectancy to "risk units" — earnings per dollar risked.   
+        PL = probability of losing (PL = <losses> ⁄ numberoftrades)
+        '''
+        
         self.expectancy = ( self.winning_ratio * self.average_win + self.losing_ratio * self.average_lose ) / np.abs(self.average_lose)
         msg = 'Expectancy (Earnings per dollar risked): {0:.2f} '.format(self.expectancy)
         print(msg)
