@@ -95,3 +95,9 @@ if __name__ == '__main__':
      bb.write_monte_carlo_simulation_results_to_excel()
  
      viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+     
+     bb.analyze_trades()
+     
+     bb.calculate_average_number_of_bars_before_profitability()
+     
+     

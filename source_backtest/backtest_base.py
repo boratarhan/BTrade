@@ -1304,8 +1304,10 @@ class backtest_base(object):
         
     def analyze_trades(self):
         
-        # Purpose is to collect stats from closed trades. This one collects all trades P/L for each
-        # time period while they are open.
+        '''
+        Purpose is to collect stats from closed trades. This procedure collects P/L for each trade for each
+        time period .
+        '''
         self.trade_performance_over_time = pd.DataFrame()
 
         for eTrade in self.listofClosedTrades:
@@ -1314,7 +1316,6 @@ class backtest_base(object):
                 
                 self.trade_performance_over_time.loc[eTrade.ID, i] = eTrade.stat_unrealizedprofitloss[i-1]
         
-        now = datetime.datetime.now()
         filename = '{}\\{}_trades_performance_over_time.xlsx'.format(self.backtest_folder,self.symbol)
 
         # Create a Pandas Excel writer using XlsxWriter as the engine.
@@ -1327,37 +1328,51 @@ class backtest_base(object):
         writer.save()
 
     def calculate_average_number_of_bars_before_profitability(self):
-
-        # Calculate how many time periods it typically takes to become profitable
-        periods_before_profitable = {}
-        periods_before_profitable_list = []
+        '''
+        Calculate how many time periods it typically takes to become profitable
+        '''
+        self.periods_before_profitable = {}
+        self.periods_before_profitable_list = []
 
         for eTrade in self.listofClosedTrades:
         
             temp = self.trade_performance_over_time.loc[eTrade.ID, :]
             
-            periods_before_profitable[eTrade.ID] = 0
+            self.periods_before_profitable[eTrade.ID] = 0
                 
             for i in range(1,len(temp)+1):
                 
                 if temp[i] > 0:
                     
-                    periods_before_profitable[eTrade.ID] = i
+                    self.periods_before_profitable[eTrade.ID] = i
                     break
                  
-            if periods_before_profitable[eTrade.ID] == 0:
+            if self.periods_before_profitable[eTrade.ID] == 0:
                 
-                periods_before_profitable[eTrade.ID] = len(temp)
+                self.periods_before_profitable[eTrade.ID] = len(temp)
                 
-            periods_before_profitable_list.append(periods_before_profitable[eTrade.ID])
+            self.periods_before_profitable_list.append(self.periods_before_profitable[eTrade.ID])
                             
-        periods_before_profitable_list_filtered = list(filter(lambda a: a < 24, periods_before_profitable_list))
+        self.periods_before_profitable_list_filtered = list(filter(lambda a: a < 24, self.periods_before_profitable_list))
         
-        print('Mean number of periods (trade length < 24):', mean(periods_before_profitable_list_filtered))
+        print('Mean number of periods:', mean(self.periods_before_profitable_list))
         num_bins = 24 
-        plt.hist(periods_before_profitable_list_filtered, num_bins)
-        plt.show()
-
+        plt.hist(self.periods_before_profitable_list, num_bins)
+        plt.title('Number of periods before trades turn profitable')
+        plt.ylabel('Frequency')
+        plt.xlabel('Number of periods')
+        plt.savefig('{}\\Periods_before_profitable.pdf'.format(self.backtest_folder))
+        plt.close()
+        
+        print('Mean number of periods (trade length < 24):', mean(self.periods_before_profitable_list_filtered))
+        num_bins = 24 
+        plt.hist(self.periods_before_profitable_list_filtered, num_bins)
+        plt.title('Number of periods before trades turn profitable (trade length < 24)')
+        plt.ylabel('Frequency')
+        plt.xlabel('Number of periods')
+        plt.savefig('{}\\Periods_before_profitable_short.pdf'.format(self.backtest_folder))
+        plt.close()
+        
 if __name__ == '__main__':
 
      symbol = 'EUR_USD'
@@ -1371,9 +1386,9 @@ if __name__ == '__main__':
      marginpercent = 100
      #WindowLenght = 12
     
-     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent)
-     bb.check_data_quality()
+     #bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent)
+     #bb.check_data_quality()
 
-     viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)
+     #viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)
      
     
