@@ -54,7 +54,7 @@ class Trade(object):
         self.longshort = 'long' if self.units > 0 else 'short'
         self.entrydate = entrydate
         self.entryprice = entrypriceask if self.units > 0 else entrypricebid
-        # Always rememeber: ask price > bid price
+        # Always remember: ask price > bid price
         # When entering a long trade we pay ask price
         # When entering a short trade we pay bid price
         self.marginpercent = marginpercent # Margin percent between 0-100
@@ -82,9 +82,11 @@ class Trade(object):
         Update trade statistics based on new price data, close, high, low, bid/ask
         '''                     
         
-        # Since when we enter a long trade we pay ask price
-        # We use bid price for evaluating long trades, as if we are exiting the trade
-        # Similarly we use ask price for evaluating short trades, as if we are exiting the trade
+        '''
+        Since when we enter a long trade we pay ask price
+        We use bid price for evaluating long trades, as if we are exiting the trade
+        Similarly we use ask price for evaluating short trades, as if we are exiting the trade
+        '''
         price_c = price_bid_c if self.units > 0 else price_ask_c      
         price_h = price_bid_h if self.units > 0 else price_ask_h      
         price_l = price_bid_l if self.units > 0 else price_ask_l      
@@ -605,7 +607,10 @@ class backtest_base(object):
         print('Date: {0}, Equity: {1:.2f}, Realized Cumulative P/L: {2:.2f}, Unrealized P/L: {3:.2f}, Realized Cumulative pips: {4:.2f}, Unrealized pips: {5:.2f}'.format( date, self.equity, self.realizedcumulativeprofitloss, self.unrealizedprofitloss, self.realizedcumulativepips, self.unrealizedpips ) )
         
     def close_out(self):
-    
+        '''
+        Calculate final statistics at closing
+        '''
+        
         self.numberoftrades = len(self.listofClosedTrades)
         self.data['return-asset'] = self.data['ask_c'] / self.data['ask_c'].iloc[0] - 1
         self.data['cumret-strategy'] = ( self.data['equity'] / self.initial_equity - 1 )
@@ -990,13 +995,14 @@ class backtest_base(object):
 
     def calculate_edge_ratio(self):
         
-        # Idea comes from buildalpha: https://www.buildalpha.com/e-ratio/
-        # It is called e-ratio or edge ratio
-        # Add ATR as an indicator to normalize the MFE and MAE
+        '''
+        Idea comes from buildalpha: https://www.buildalpha.com/e-ratio/
+        It is called e-ratio or edge ratio
+        Add ATR as an indicator to normalize the MFE and MAE
         #self.data, self.indicatorlist = AddATR(self.data, self.indicatorlist, 'bid', timeperiod=14, std=0)
-        # For now, exclude normalizing using ATR
-
-        # Find the max number of bars over all the trades        
+        For now, exclude normalizing using ATR
+        '''
+        #Find the max number of bars over all the trades        
         maxBars = max(self.listofClosedTrades, key=operator.attrgetter('bars')).bars
                 
         bar_index = np.arange(1, maxBars+1)
@@ -1015,33 +1021,18 @@ class backtest_base(object):
         
         
         filename = '{}\\{}_df_maxFavorableExcursion.xlsx'.format(self.backtest_folder,self.symbol)
-        # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        
-        # Convert the dataframe to an XlsxWriter Excel object.
         self.df_maxFavorableExcursion.to_excel(writer, sheet_name='Sheet1')
-        
-        # Close the Pandas Excel writer and output the Excel file.
         writer.save()
 
         filename = '{}\\{}_df_maxAdverseExcursion.xlsx'.format(self.backtest_folder,self.symbol)
-        # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        
-        # Convert the dataframe to an XlsxWriter Excel object.
         self.df_maxAdverseExcursion.to_excel(writer, sheet_name='Sheet1')
-        
-        # Close the Pandas Excel writer and output the Excel file.
         writer.save()
 
         filename = '{}\\{}_df_edge_ratio.xlsx'.format(self.backtest_folder,self.symbol)
-        # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        
-        # Convert the dataframe to an XlsxWriter Excel object.
         self.df_edge_ratio.to_excel(writer, sheet_name='Sheet1')
-        
-        # Close the Pandas Excel writer and output the Excel file.
         writer.save()
       
         self.df_edge_ratio['mean'] = self.df_edge_ratio.mean(axis=1)
@@ -1050,14 +1041,8 @@ class backtest_base(object):
         
         now = datetime.datetime.now()
         filename = '{}\\{}_data.xlsx'.format(self.backtest_folder,self.symbol)
-
-        # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        
-        # Convert the dataframe to an XlsxWriter Excel object.
         self.data.to_excel(writer, sheet_name='Sheet1')
-        
-        # Close the Pandas Excel writer and output the Excel file.
         writer.save()
     
     def write_all_trades_to_excel(self):
