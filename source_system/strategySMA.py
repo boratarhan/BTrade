@@ -15,12 +15,10 @@ from indicators import *
 
 class SMA_Crossover(strategy):
     
-    def __init__(self,symbol,account_type,daily_lookback,granularity,socket_number):
+    def __init__(self,config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number):
         
-        strategy.__init__(self,symbol,account_type,daily_lookback,granularity,socket_number)
-        
-        self.strategy_name = "SMA_Crossover"
-               
+        strategy.__init__(self,config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number)
+                       
     def core_strategy(self):
         
         self.resample_data('M1')
@@ -74,12 +72,13 @@ class SMA_Crossover(strategy):
             
             print(e)
             print('Something went wrong in order creation')
-
+       
 if __name__ == '__main__':
         
     import configparser
     
     try:
+        
         config = configparser.ConfigParser()
         config.read('..\..\configinfo.cfg')
 
@@ -88,13 +87,25 @@ if __name__ == '__main__':
 
     try:
         
+        strategy_name = "SMA_Crossover"
+        
         symbol = sys.argv[1]
         granularity = sys.argv[2]
         account_type = sys.argv[3]
         socket_number = int(sys.argv[4])
         daily_lookback = int(sys.argv[5])
-    
+
+        '''
+        # For testing:
+        symbol = 'EUR_USD'
+        granularity = 'S5'
+        account_type = 'practice'
+        socket_number = 5556
+        daily_lookback = 10
+        '''
+        
         print("--- STRATEGY ---")
+        print("Strategy name:", strategy_name)
         print("symbol:", symbol)
         print("granularity:", granularity)
         print("account_type:", account_type)
@@ -103,7 +114,7 @@ if __name__ == '__main__':
         print("--------------")
             
         # execute only if run as the entry point into the program
-        s1 = SMA_Crossover(config,symbol,account_type,daily_lookback,granularity,socket_number)
+        s1 = SMA_Crossover(config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number)
         s1.start()
         
     except:

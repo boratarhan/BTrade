@@ -18,17 +18,25 @@ import sys
 import configparser
     
 class portfolio(object):
-    
+
+    '''
+    Portfolio object receives signals from multiple strategy objects and sends buy/sell/close signals to broker.
+        
+    '''    
     def __init__(self,config,account_type,socket_number):
 
         self.config = config
         self.account_type = account_type
         self.socket_number = socket_number
         
+        '''
+        Subscribe to the feeds coming from strategy objects
+        '''
         self.context_sub = zmq.Context()
         self.socket_sub = self.context_sub.socket(zmq.SUB)
         self.socket_sub.setsockopt_string(zmq.SUBSCRIBE, '')
-        self.socket_sub.connect("tcp://127.0.0.1:{}".format(self.socket_number))
+        self.socket_sub.set_hwm(10)
+        self.socket_sub.bind("tcp://127.0.0.1:{}".format(self.socket_number))
         
         self.position = {}
 
@@ -130,24 +138,32 @@ class portfolio(object):
                                      
     def get_instrument_list(self):
 
+        '''
+        Request all eligible assets to trade
+        '''
         r = accounts.AccountInstruments(accountID=self.accountID)
         self.api.request(r)
         self.instruments = pd.DataFrame(r.response['instruments'])['name'].values
                                                           
     def get_positions_for_all_instruments(self):
 
-        r = accounts.AccountDetails(accountID=self.accountID)
-        df = pd.DataFrame(self.api.request(r))
-            
+        '''
+        Get current positions for all assets
+        Long positions are positive 
+        Short positions are negative
+        '''
         for symbol in self.instruments:
             
             self.position[symbol] = 0.0
+
+        r = accounts.AccountDetails(accountID=self.accountID)
+        df = pd.DataFrame(self.api.request(r))
 
         print('Positions:') 
 
         for e_position in df['account']['positions']:
             
-            self.position[e_position['instrument']] = int(e_position['long']['units'])+int(e_position['short']['units'])
+            self.position[e_position['instrument']] = int(e_position['long']['units'])-int(e_position['short']['units'])
 
             if self.position[e_position['instrument']] != 0:
                 print('{}: {}'.format(e_position['instrument'], self.position[e_position['instrument']]) ) 
@@ -156,12 +172,16 @@ class portfolio(object):
         
     def get_account_value(self):
 
+        '''
+        Get current account value, P&L, and margin information
+        '''
         r = accounts.AccountDetails(accountID=self.accountID)
         self.NAV = pd.DataFrame(self.api.request(r))['account']['NAV']
         self.unrealizedPL = pd.DataFrame(self.api.request(r))['account']['unrealizedPL']
         self.positionValue = pd.DataFrame(self.api.request(r))['account']['positionValue']
         self.marginUsed = pd.DataFrame(self.api.request(r))['account']['marginUsed']
         self.marginAvailable = pd.DataFrame(self.api.request(r))['account']['marginAvailable']
+
         print('Account Values:')
         print('NAV:             ', self.NAV)
         print('Unrealized P&L:  ', self.unrealizedPL)
@@ -169,14 +189,14 @@ class portfolio(object):
         print('Margin Used:     ', self.marginUsed)
         print('Marging Available', self.marginAvailable)
         print("--------------------------------------")
-        print("NEED TO UNDERSTAND THESE...")
+
         '''
+        NEED TO UNDERSTAND THESE...
         marginCloseoutNAV
         marginCloseoutPositionValue
         marginCloseoutMarginUsed
         resettablePL
         '''      
-        print("--------------------------------------")
             
     def start(self):
         
@@ -203,9 +223,15 @@ if __name__ == '__main__':
         print( 'Error in reading configuration file' )
 
     try:
-        
+
+        '''
         account_type = sys.argv[1]
         socket_number = int(sys.argv[2])
+        '''
+            
+        # For testing:
+        account_type = 'live'
+        socket_number = 5554
         
         print("---- PORTFOLIO -----------------------")
         print("account_type:", account_type)

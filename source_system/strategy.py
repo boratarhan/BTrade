@@ -12,37 +12,51 @@ import utility_functions as uf
 from indicators import *
 import time
 import oandapyV20.endpoints.instruments as instruments
-import oandapyV20.endpoints.forexlabs as labs
 
 class strategy(object):
 
-    def __init__(self,symbol,account_type,daily_lookback,granularity,socket_number):
-
+    '''
+    This is the base class for various strategies to be customized in the future
+    It receives data from forwarder/feeder and sends signals to portfolio object
+    '''
+    def __init__(self,config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number):
+           
         self.config = config
+        self.strategy_name = strategy_name
         self.symbol = symbol
         self.account_type = account_type
         self.daily_lookback = daily_lookback
-
         self.granularity = granularity
         self.file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(self.account_type,self.symbol,self.granularity)
-
+    
+        '''
+        This is the socket subscribing to Forwarder/Feeder on socket 5556
+        It received the signal that the data is ready
+        '''
         self.socket_sub_socket_number = socket_number
-        self.context_sub = zmq.Context()
-        self.socket_sub = self.context_sub.socket(zmq.SUB)
-        self.socket_sub.setsockopt_string(zmq.SUBSCRIBE, "")
-        self.socket_sub.connect("tcp://127.0.0.1:{}".format(self.socket_sub_socket_number))
+        self.context_sub_forwarder = zmq.Context()
+        self.socket_sub_forwarder = self.context_sub_forwarder.socket(zmq.SUB)
+        self.socket_sub_forwarder.setsockopt_string(zmq.SUBSCRIBE, "")
+        self.socket_sub_forwarder.connect("tcp://127.0.0.1:{}".format(self.socket_sub_socket_number))
 
+        '''
+        This is the socket publishing back to Forwarder/Feeder on socket 5557
+        It received the signal that the data is ready
+        '''
         self.socket_pub_forwarder_socket_number = socket_number + 1
         self.context_pub_forwarder = zmq.Context()
         self.socket_pub_forwarder = self.context_pub_forwarder.socket(zmq.PUB)
         self.socket_pub_forwarder.set_hwm(0)
         self.socket_pub_forwarder.connect("tcp://127.0.0.1:{}".format(self.socket_pub_forwarder_socket_number))
 
-        self.socket_pub_porfolio_socket_number = 5554   # THIS NEEDS TO BE MADE DYNAMIC WHEN MULTIPLE STRATEGIES ARE RUNNING
+        '''
+        This is the socket publishing to Portfolio object on socket 5554
+        Note that multiple strategies can use the same socket to send messages to Portfolio.
+        '''
+        self.socket_pub_porfolio_socket_number = 5554
         self.context_pub_porfolio = zmq.Context()
         self.socket_pub_porfolio = self.context_pub_porfolio.socket(zmq.PUB)
-        self.socket_pub_porfolio.set_hwm(0)
-        self.socket_pub_porfolio.bind("tcp://127.0.0.1:{}".format(self.socket_pub_porfolio_socket_number))
+        self.socket_pub_porfolio.connect("tcp://127.0.0.1:{}".format(self.socket_pub_porfolio_socket_number))
 
         time.sleep(5) # Since binding takes time, sleep for a few seconds before running
 
@@ -52,7 +66,7 @@ class strategy(object):
         self.df_status['signal'] = 0
 
         self.indicatorlist = []
-
+        
     def connect_broker(self):
 
         ''' 
@@ -74,17 +88,24 @@ class strategy(object):
                 
         while True:
 
-            msg = self.socket_sub.recv_string()
+            '''
+            Receive message from forwarder/feeder
+            '''
+            msg = self.socket_sub_forwarder.recv_string()
             print("Received message: {}".format(msg))
-        
-            self.read_data()
 
+            self.read_data()
+            
             self.core_strategy()
-    
+
+            '''
+            Send message back to forwarder/feeder, so that feeder 
+            can open the database and appended new data
+            '''
             msg = 'Strategy step completed...'
             print("Sending message: {0}".format(msg))
-            self.socket_pub.send_string(msg)
-
+            self.socket_pub_forwarder.send_string(msg)
+ 
     def core_strategy(self):
         
         pass
@@ -92,22 +113,6 @@ class strategy(object):
     def add_indicators(self):
         
         pass
-
-    def add_calendar_data(self):
-        
-        params = {"instrument": list(self.symbol), "period": 217728000 } #period seems to capture the length of future in seconds, default was 86400
-        r = labs.Calendar(params=params)
-        self.df_calendar = pd.DataFrame(self.api.request(r))
-
-    def add_orderbook_data(self):
-        
-        r = instruments.InstrumentsOrderBook(instrument=self.symbol)
-        self.df_orederbook = pd.DataFrame(self.api.request(r))
-
-    def add_positionbook_data(self):
-        
-        r = instruments.InstrumentsPositionBook(instrument=self.symbol)
-        self.df_positionbook = pd.DataFrame(self.api.request(r))
 
     def create_order_signal(self):
         ''' 
@@ -139,7 +144,10 @@ class strategy(object):
             exit()
     
     def resample_data(self,aggregate_frequency):
-        
+        '''
+        Since the feeder receives and stores S5 data, strategy can resample with needed granularity.
+        '''
+
         ohlc_dict = {   'ask_o':'first',                                                                                                    
                         'ask_h':'max',                                                                                                       
                         'ask_l':'min',                                                                                                        
@@ -163,3 +171,17 @@ class strategy(object):
                         
         self.df_aggregate[freq] = self.df.resample(freq, closed='left', label='left').apply(ohlc_dict).dropna()
 
+    def read_calendar_data(self):
+        
+        path = '..\\..\\datastore\\_{0}\\{1}\\calendar.pkl'.format(self.account_type,self.symbol)
+        self.df_calendar = pd.read_pickle(path)
+      
+    def read_orderbook_data(self):
+        
+        path = '..\\..\\datastore\\_{0}\\{1}\\orderbook.pkl'.format(self.account_type,self.symbol)
+        self.df_orderbook = pd.read_pickle(path)
+        
+    def read_positionbook_data(self):
+        
+        path = '..\\..\\datastore\\_{0}\\{1}\\positionbook.pkl'.format(self.account_type,self.symbol)
+        self.df_positionbook = pd.read_pickle(path)

@@ -1,12 +1,15 @@
 import oandapyV20
 import oandapyV20.endpoints.instruments as instruments
 import oandapyV20.endpoints.pricing as pricing
+import oandapyV20.endpoints.forexlabs as labs
 from oandapyV20.exceptions import V20Error
 from oandapyV20.exceptions import StreamTerminated
 from requests.exceptions import ConnectionError
 import zmq
 import pandas as pd
 import tables 
+import tstables 
+import json
 import configparser
 import datetime
 import time
@@ -26,11 +29,9 @@ logging.basicConfig(
 
 isAlive = True
 
-# offset is used for testing during the weekend.
-offset = datetime.timedelta(days=0)
-
 class desc(tables.IsDescription):
-    ''' Description of TsTables table structure.
+    ''' 
+    Description of TsTables table structure.
     '''
     timestamp = tables.Int64Col(pos=0)  
     ask_c = tables.Float64Col(pos=1)  
@@ -46,13 +47,15 @@ class desc(tables.IsDescription):
     volume = tables.Int64Col(pos=9)
 
 class feeder(object):
-    ''' Feeder receives data from broker and publishes messages for the rest of the objects in the system
-        Ideally, feeder only deals with tick data and the rest of the objects handle resampling. However,
-        OANDA streams only a portion of the entire tick data therefore feeder is designed to collect 5S data. 
-        Tick data may be collected only for future analysis or visual purposes.
+    ''' 
+    Feeder receives data from broker and publishes messages for the rest of the objects in the system
+    Ideally, feeder only deals with tick data and the rest of the objects handle resampling. However,
+    OANDA streams only a portion of the entire tick data therefore feeder is designed to collect 5S data. 
+    Also, since my strategies are not suitable for tick data, so it does not lose any advantage by using S5 data.
+    Tick data may be collected only for future analysis or visual purposes.
     '''
 
-    def __init__(self,config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency):
+    def __init__(self,config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date):
 
         self.config = config
         self.symbol = symbol
@@ -68,6 +71,7 @@ class feeder(object):
         '''        
         self.download_frequency = download_frequency
         self.update_signal_frequency = update_signal_frequency
+        self.download_data_start_date = download_data_start_date
         
         self.askbidmid = 'AB'
         self.ticks = 0
@@ -79,7 +83,14 @@ class feeder(object):
         self.folder_path = '..\\..\\datastore\\_{0}\\{1}'.format(self.account_type,self.symbol)
         
         self.in_memory_bar_ohlc_df = pd.DataFrame()
-        
+
+        '''
+        Open two socket connections.
+        Publisher is used for publishing messages to forwarder/strategy that the new data is ready to read.
+        Subscriber receives messages from forwarder/strategy that the strategy has been executed. However, this is fairly obsolete message.
+        I included this with anticipation of future developments.
+        Feeder then continues waiting for receiving new data and saving it.
+        '''        
         self.context_pub = zmq.Context()
         self.socket_pub = self.context_pub.socket(zmq.PUB)
         self.socket_pub.set_hwm(0)
@@ -98,7 +109,7 @@ class feeder(object):
         isAlive = True
                    
         self.connect_broker()
-                           
+
         self.open_database()
 
         self.download_missing_data()
@@ -106,13 +117,11 @@ class feeder(object):
         print('Feeder Ready to go')
 
         self.download_new_data()
-        
+         
     def connect_broker(self):
-
         ''' 
         Connect to OANDA through account ID and access token based on account type.
         '''    
-        
         try: 
    
             self.accountID = self.config['oanda_v20']['account_number_{}'.format(self.account_type)]
@@ -123,23 +132,22 @@ class feeder(object):
             print("V20Error occurred: {}".format(err))
              
     def open_database(self):
-                
         ''' 
         Open an existing h5 file or create a new file and table 
         '''
-        
         if( os.path.exists(self.file_path_ohlc) ):
 
-            ''' If a file exists, then start with current time and go back to find the
-                last data point stored in the database.
-                Otherwise create a new database.
+            ''' 
+            If a file exists, then start with current time and go back to find the
+            last data point stored in the database.
+            Otherwise create a new database.
             '''
-
+                    
             self.h5 = tables.open_file(self.file_path_ohlc, 'a')
             self.ts = self.h5.root.data._f_get_timeseries()
                         
-            read_start_dt = datetime.datetime.utcnow() - offset - datetime.timedelta(days=1)    # datetime.datetime
-            read_end_dt = datetime.datetime.utcnow() - offset                                   # datetime.datetime
+            read_start_dt = datetime.datetime.utcnow() - datetime.timedelta(days=1)     # datetime.datetime
+            read_end_dt = datetime.datetime.utcnow()                                    # datetime.datetime
             
             '''
             tstables does not have a built-in function to return the last row. Therefore,
@@ -167,7 +175,9 @@ class feeder(object):
             self.create_database()
                 
     def create_database(self):
-        
+        '''
+        Create an empty database
+        '''
         if( not os.path.exists(self.folder_path)):
             
             os.mkdir(self.folder_path) 
@@ -175,7 +185,7 @@ class feeder(object):
         self.h5 = tables.open_file(self.file_path_ohlc, 'w')
         self.ts = self.h5.create_ts('/', 'data', desc)
         
-        self.current_timestamp = pd.datetime(2015,1,1,0,0,0,0,datetime.timezone.utc)  #datetime.datetime 
+        self.current_timestamp = self.download_data_start_date  #datetime.datetime 
         
     def download_missing_data(self):
        
@@ -212,9 +222,12 @@ class feeder(object):
         
         suffix = '.000000000Z'  
 
-        # Start datetime comes from self.current_timestamp  
-        # Since self.current_timestamp has timezone information at the end
-        # tz information needs to be eliminated by using [0:-6] because API does not accept that format 
+        '''
+        Start datetime comes from self.current_timestamp  
+        Since self.current_timestamp has timezone information at the end
+        tz information needs to be eliminated by using [0:-6] because API does not accept that format 
+        '''
+        
         start_datetime = start_datetime.isoformat('T')[0:-6] + suffix  
         end_datetime = end_datetime.isoformat('T')[0:-6] + suffix  
 
@@ -233,7 +246,9 @@ class feeder(object):
         
         if len(raw) > 0:
             
-            # Convert raw data to time-open-high-low-close-volume format        
+            '''
+            Convert raw data to time-open-high-low-close-volume format        
+            '''
             for cs in raw:
                 cs['ask_o'] = cs['ask']['o']
                 cs['ask_h'] = cs['ask']['h']
@@ -254,7 +269,9 @@ class feeder(object):
                     
             data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o']] = data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o']].astype('float64')
  
-            # Make sure that the sequence of columns are identical to the description of class desc(tables.IsDescription)
+            '''
+            Make sure that the sequence of columns are identical to the description of class desc(tables.IsDescription)
+            '''
             data = data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o','volume']]
         
             data = data[data.index > self.current_timestamp]
@@ -263,8 +280,11 @@ class feeder(object):
 
     def download_new_data(self):
         
-        # Running two threads for receiving real-time data and bar data 
-        # However, it seems like running both causes problems, therefore I am running only bar data
+        '''
+        My initial plan was to run two threads running parallel to get both streaming data and bar data
+        Running two threads for receiving real-time data and bar data causes problems, therefore I am running only bar data
+        Since this is not a critical issue, I can hold this off for now.
+        '''
         
 #        t1 = threading.Thread( target=self.receive_realtime_tick_data )
         t2 = threading.Thread( target=self.receive_realtime_bar_data, args=(self.granularity, self.askbidmid, ) )
@@ -277,7 +297,7 @@ class feeder(object):
                 
     def receive_realtime_bar_data(self,granularity,askbidmid):
         ''' 
-        Constantly check the current time and download S5 granularity bar data
+        Constantly check the current time and download bar data with specified granularity
         '''
         
         global isAlive
@@ -287,11 +307,18 @@ class feeder(object):
        
         while isAlive:
 
-            timestamp_bar_end = pd.datetime.now(datetime.timezone.utc) - offset
+            timestamp_bar_end = pd.datetime.now(datetime.timezone.utc)
             slack = timestamp_bar_end - timestamp_bar_end.replace(minute=0,second=0)
             
             current_slack_download = slack % self.download_frequency
             current_slack_signal = slack % self.update_signal_frequency
+            
+            '''
+            Feeder constantly checks the time and calculates how much time it has
+            passed since last download through download frequency.
+            At every iteration, slack should increase and it should decrease only 
+            when slack exceeds download frequency.
+            '''
             
             if current_slack_download < previous_slack_download:
             
@@ -315,6 +342,10 @@ class feeder(object):
                     
                     print(e)
 
+                    '''
+                    In case download fails, gloabl isAlive variable is set to false.
+                    This triggers feeder object to restart and make connections with broker and other objects.
+                    '''
                     isAlive = False
                     self.h5.close()
                     print('Bar Data download failed at [UTC]', datetime.datetime.utcnow() )
@@ -464,11 +495,37 @@ class feeder(object):
                 isAlive = False
                 break
                                
-def ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,retries):
+
+    def add_calendar_data(self):
+        
+        params = {"instrument": list(self.symbol), "period": 217728000 } #period seems to capture the length of future in seconds, default was 86400
+        r = labs.Calendar(params=params)
+        self.df_calendar = pd.DataFrame(self.api.request(r))
+        
+        path = '..\\..\\datastore\\_{0}\\{1}\\calendar.pkl'.format(self.account_type,self.symbol)
+        self.df_calendar.to_pickle(path)
+       
+    def add_orderbook_data(self):
+        
+        r = instruments.InstrumentsOrderBook(instrument=self.symbol)
+        self.df_orderbook = pd.DataFrame(self.api.request(r))
+
+        path = '..\\..\\datastore\\_{0}\\{1}\\orderbook.pkl'.format(self.account_type,self.symbol)
+        self.df_orderbook.to_pickle(path)
+
+    def add_positionbook_data(self):
+        
+        r = instruments.InstrumentsPositionBook(instrument=self.symbol)
+        self.df_positionbook = pd.DataFrame(self.api.request(r))
+
+        path = '..\\..\\datastore\\_{0}\\{1}\\positionbook.pkl'.format(self.account_type,self.symbol)
+        self.df_positionbook.to_pickle(path)
+       
+def ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,retries):
     
     while True:
             
-        f1 = feeder(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency)
+        f1 = feeder(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date)
     
         try:
 
@@ -481,21 +538,32 @@ def ContinueLooping(config,symbol,granularity,account_type,socket_number,downloa
         
             retries += 1        
             print('Trying to restart feeder:', retries)
-            ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,retries)
+            ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,retries)
     
 if __name__ == '__main__':
    
     try:
         config = configparser.ConfigParser()
         config.read('..\..\configinfo.cfg')
-
+        
         symbol = sys.argv[1]
         granularity = sys.argv[2]
         account_type = sys.argv[3]
         socket_number = int(sys.argv[4])
         download_frequency = datetime.timedelta(seconds=60)
         update_signal_frequency = datetime.timedelta(seconds=60)
-    
+        download_data_start_date = pd.datetime(2015,1,1,0,0,0,0,datetime.timezone.utc)
+        '''
+        # For testing:
+        symbol = 'EUR_USD'
+        granularity = 'S5'
+        account_type = 'live'
+        socket_number = 5555
+        download_frequency = datetime.timedelta(seconds=60)
+        update_signal_frequency = datetime.timedelta(seconds=60)
+        download_data_start_date = pd.datetime(2020,11,15,0,0,0,0,datetime.timezone.utc)
+        '''
+        
         print("--- FEEDER ---")
         print("symbol:", symbol)
         print("granularity:", granularity)
@@ -507,9 +575,11 @@ if __name__ == '__main__':
             print('Error in account type, it should be either live, practice, or backtest')
             time.sleep(30)
             exit()
-     
-        ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,retries=0)
+
+        ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,retries=0)
         
+        
+       
     except:
         print( 'Error in reading configuration file' )
     

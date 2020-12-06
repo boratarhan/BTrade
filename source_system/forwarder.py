@@ -4,7 +4,8 @@ import sys
 
 class forwarder(object):
     ''' 
-    Forwarder object acts as a stable point between objects
+    Forwarder object acts as a stable point between critical objects
+    If any of the critical objects fail, this aviods an entire system shut-down
     '''
 
     def __init__(self,socket_number):
@@ -40,3 +41,14 @@ if __name__ == "__main__":
     except:
         
         print( 'Error in forwarder object' )
+        
+'''
+About ZMQ:
+https://www.randonomicon.com/zmq/2018/09/19/zmq-bind-vs-connect.html
+
+Use BIND for stable tings & Use CONNECT for volatile things
+Use BIND when listening & Use CONNECT when broadcasting
+Use BIND for incoming & Use CONNECT for outgoing
+Use BIND for long-lived process & Use CONNECT for short-lived process
+
+'''
