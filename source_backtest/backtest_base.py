@@ -621,11 +621,13 @@ class backtest_base(object):
         self.maxdrawdown = self.data['drawdown'].max()
         
         print('-' * 55)
+        print('Performance:')
         print('Initial equity   [$] {0:.2f}'.format(self.initial_equity))
         print('Final equity   [$] {0:.2f}'.format(self.equity))
         print('Net Performance [%] {0:.2f}'.format(self.data['cumret-strategy'][-1] * 100) )
         print('Asset Performance [%] {0:.2f}'.format(self.data['return-asset'][-1] * 100) )
         print('Number of transactions: {}'.format(self.numberoftrades ))
+        
         print('Maximum drawdown: [%] {0:.2f}'.format(self.maxdrawdown * 100) )
 
     def optimizer(self, args):
@@ -823,18 +825,18 @@ class backtest_base(object):
     
         else:
             
+            self.count_number_of_long_trades()
+            self.count_number_of_short_trades()
             self.calculate_PnL()
             self.calculate_winning_losing_ratio()
             self.calculate_sharpe_ratio()
             self.calculate_sortino_ratio(0)
             self.calculate_average_win()
-            self.calculate_average_lose()
+            self.calculate_average_loss()
             self.calculate_expectancy()
             self.calculate_consecutive_win_loss()
             self.count_number_of_trading_days()
             self.calculate_edge_ratio()
-
-        print('-' * 55)
         
     def count_number_of_trading_days(self):
         
@@ -844,11 +846,15 @@ class backtest_base(object):
     def count_number_of_long_trades(self):
         
         self.numberofClosedLongTrades = len(set([x for x in self.listofClosedTrades if x.longshort == 'long']))
+        msg = 'Number of long trades: {}'.format(self.numberofClosedLongTrades)
+        print(msg)
         
     def count_number_of_short_trades(self):
 
         self.numberofClosedShortTrades = len(set([x for x in self.listofClosedTrades if x.longshort == 'short']))
-        
+        msg = 'Number of short trades: {}'.format(self.numberofClosedShortTrades)
+        print(msg)
+                        
     def calculate_PnL(self):
 
         temp = []
@@ -879,9 +885,9 @@ class backtest_base(object):
 
         self.average_win = self.listofrealizedprofitloss[self.listofrealizedprofitloss > 0].mean()
 
-    def calculate_average_lose(self):
+    def calculate_average_loss(self):
 
-        self.average_lose = self.listofrealizedprofitloss[self.listofrealizedprofitloss < 0].mean()
+        self.average_loss = self.listofrealizedprofitloss[self.listofrealizedprofitloss < 0].mean()
 
     def calculate_winning_losing_ratio(self):
                 
@@ -904,7 +910,7 @@ class backtest_base(object):
         PL = probability of losing (PL = <losses> ⁄ numberoftrades)
         '''
         
-        self.expectancy = ( self.winning_ratio * self.average_win + self.losing_ratio * self.average_lose ) / np.abs(self.average_lose)
+        self.expectancy = ( self.winning_ratio * self.average_win + self.losing_ratio * self.average_loss ) / np.abs(self.average_loss)
         msg = 'Expectancy (Earnings per dollar risked): {0:.2f} '.format(self.expectancy)
         print(msg)
         
@@ -998,6 +1004,10 @@ class backtest_base(object):
         '''
         Idea comes from buildalpha: https://www.buildalpha.com/e-ratio/
         It is called e-ratio or edge ratio
+        Edge Ratio or E-Ratio measures how much a trade goes in your favor vs. how much a trade goes against you. 
+        The x-axis is the number of bars since the trading signal. A higher y-value signifies more “edge” at that step in time.
+        '''
+        '''
         Add ATR as an indicator to normalize the MFE and MAE
         #self.data, self.indicatorlist = AddATR(self.data, self.indicatorlist, 'bid', timeperiod=14, std=0)
         For now, exclude normalizing using ATR
@@ -1019,31 +1029,23 @@ class backtest_base(object):
 
         self.df_edge_ratio = self.df_maxFavorableExcursion.div(self.df_maxAdverseExcursion)
         
-        
         filename = '{}\\{}_df_maxFavorableExcursion.xlsx'.format(self.backtest_folder,self.symbol)
-        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        self.df_maxFavorableExcursion.to_excel(writer, sheet_name='Sheet1')
-        writer.save()
+        self.write_to_excel(filename, self.df_maxFavorableExcursion)
 
         filename = '{}\\{}_df_maxAdverseExcursion.xlsx'.format(self.backtest_folder,self.symbol)
-        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        self.df_maxAdverseExcursion.to_excel(writer, sheet_name='Sheet1')
-        writer.save()
-
-        filename = '{}\\{}_df_edge_ratio.xlsx'.format(self.backtest_folder,self.symbol)
-        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        self.df_edge_ratio.to_excel(writer, sheet_name='Sheet1')
-        writer.save()
-      
+        self.write_to_excel(filename, self.df_maxAdverseExcursion)
+        
         self.df_edge_ratio['mean'] = self.df_edge_ratio.mean(axis=1)
-       
+        
+        filename = '{}\\{}_df_edge_ratio.xlsx'.format(self.backtest_folder,self.symbol)
+        self.write_to_excel(filename, self.df_edge_ratio)
+        
+               
     def write_all_data(self):
         
         now = datetime.datetime.now()
         filename = '{}\\{}_data.xlsx'.format(self.backtest_folder,self.symbol)
-        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        self.data.to_excel(writer, sheet_name='Sheet1')
-        writer.save()
+        self.write_to_excel(filename, self.data)
     
     def write_all_trades_to_excel(self):
         
@@ -1069,15 +1071,7 @@ class backtest_base(object):
                 
         now = datetime.datetime.now()
         filename = '{}\\{}_trades.xlsx'.format(self.backtest_folder,self.symbol)
-
-        # Create a Pandas Excel writer using XlsxWriter as the engine.
-        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        
-        # Convert the dataframe to an XlsxWriter Excel object.
-        self.df_trades.to_excel(writer, sheet_name='Sheet1')
-        
-        # Close the Pandas Excel writer and output the Excel file.
-        writer.save()
+        self.write_to_excel(filename, self.df_trades)
     
     def check_equity_curve_trading(self, WindowLenghtList):
         
@@ -1146,19 +1140,22 @@ class backtest_base(object):
         
         now = datetime.datetime.now()
         filename = '{}\\{}_outliers.xlsx'.format(self.backtest_folder,self.symbol)
+        self.write_to_excel(filename, self.data)
+        
+        self.data.drop( ['return_check_ask_h_over_c', 'return_check_ask_l_over_c', 'return_check_ask_c_over_c', 'return_check_bid_h_over_c', 'return_check_bid_l_over_c', 'return_check_bid_c_over_c',
+                         #'outlier_ask_h_over_c', 'outlier_ask_l_over_c', 'outlier_ask_c_over_c', 'outlier_bid_h_over_c', 'outlier_bid_l_over_c', 'outlier_bid_c_over_c',
+                         'normalized_return_ask_h_over_c', 'normalized_return_ask_l_over_c', 'normalized_return_ask_c_over_c', 'normalized_return_bid_h_over_c', 'normalized_return_bid_l_over_c', 'normalized_return_bid_c_over_c'], axis=1, inplace=True )
+
+    def write_to_excel(self, filename, df):
         
         # Create a Pandas Excel writer using XlsxWriter as the engine.
         writer = pd.ExcelWriter(filename, engine='xlsxwriter')
         
         # Convert the dataframe to an XlsxWriter Excel object.
-        self.data.to_excel(writer, sheet_name='Sheet1')
+        df.to_excel(writer, sheet_name='Sheet1')
         
         # Close the Pandas Excel writer and output the Excel file.
-        writer.save()
-
-        self.data.drop( ['return_check_ask_h_over_c', 'return_check_ask_l_over_c', 'return_check_ask_c_over_c', 'return_check_bid_h_over_c', 'return_check_bid_l_over_c', 'return_check_bid_c_over_c',
-                         #'outlier_ask_h_over_c', 'outlier_ask_l_over_c', 'outlier_ask_c_over_c', 'outlier_bid_h_over_c', 'outlier_bid_l_over_c', 'outlier_bid_c_over_c',
-                         'normalized_return_ask_h_over_c', 'normalized_return_ask_l_over_c', 'normalized_return_ask_c_over_c', 'normalized_return_bid_h_over_c', 'normalized_return_bid_l_over_c', 'normalized_return_bid_c_over_c'], axis=1, inplace=True )
+        writer.save()    
 
     def durbin_watson_test(self, data):
         '''
@@ -1189,9 +1186,9 @@ class backtest_base(object):
         frequency = (self.data.index[-1] - self.data.index[0]) / self.numberoftrades
         
         # Assume simulation duration for 1 year but given the frequency, it is more important to calculate how many trades to simulate
-        return int( pd.Timedelta(value='365D') / frequency )
+        return int( pd.Timedelta(value='252D') / frequency )
 
-    def monte_carlo_simulator(self, cols=250):
+    def monte_carlo_simulator(self, no_of_simulations=250):
         '''
         Function to simulate trades for a given number of times.
     
@@ -1199,7 +1196,7 @@ class backtest_base(object):
         ==========
         rows: int
             number of trades to pick
-        cols: int
+        no_of_simulations: int
             number of simulations
    
         Returns
@@ -1215,11 +1212,11 @@ class backtest_base(object):
         self.durbin_watson_test(self.listofrealizedprofitloss)
         
         no_of_rows = self.calculate_number_of_trades_to_simulate()
-        no_of_cols = int(cols)
+        no_of_cols = int(no_of_simulations)
         
         # generate column names
         columns = ['Sim%d' % i for i in range(1, no_of_cols+1, 1)]
-        rows = [i for i in range(1, no_of_rows+2, 1)]
+        rows = [i for i in range(1, no_of_rows+1, 1)]
         
         # generate sample paths for a selected set of trades
         self.simulations_df = pd.DataFrame( index=rows, columns=columns )
@@ -1239,7 +1236,10 @@ class backtest_base(object):
                 temp.append( total )
                 
             self.simulations_df[eSim] = temp
-            
+        
+            '''
+            Temporary calculations to find out max drawdown percent and profit percent
+            '''
             self.simulations_df['cumret-strategy_{}'.format(eSim)] = ( self.simulations_df[eSim] / self.initial_equity - 1 )
             self.simulations_df['cumret-max_{}'.format(eSim)] = self.simulations_df['cumret-strategy_{}'.format(eSim)].cummax()
             self.simulations_df['cumret-min_{}'.format(eSim)] = self.simulations_df['cumret-strategy_{}'.format(eSim)].cummin()
@@ -1248,44 +1248,97 @@ class backtest_base(object):
             
             self.simulations_maxdrawdown_pct.append( self.simulations_df['drawdown_pct_{}'.format(eSim)].max() )
             self.simulations_profit_pct.append( self.simulations_df['cumret-strategy_{}'.format(eSim)].iloc[-1] )
-            
-            del self.simulations_df['cumret-strategy_{}'.format(eSim)]
-            del self.simulations_df['cumret-max_{}'.format(eSim)]
-            del self.simulations_df['cumret-min_{}'.format(eSim)]
-            del self.simulations_df['drawdown_pct_{}'.format(eSim)]
-            
-        self.simulations_df['mean'] = self.simulations_df.mean(axis=1)
-                
+
         self.simulations_mean_maxdrawdown_pct = np.mean( self.simulations_maxdrawdown_pct )
         self.simulations_median_maxdrawdown_pct = statistics.median( self.simulations_maxdrawdown_pct )
        
         self.simulations_mean_profit_pct = np.mean( self.simulations_profit_pct )
         self.simulations_median_profit_pct = statistics.median( self.simulations_profit_pct ) 
 
+        '''
+        Ideally Calmar ratio should be above 2
+        '''
         self.calmar_ratio = self.simulations_median_profit_pct / self.simulations_median_maxdrawdown_pct
+        if self.calmar_ratio < 2:
+            print("Ideally Calmar ratio should be above 2!")
 
         print('-' * 55)
         msg = 'Monte Carlo Simulation Results:  '
         msg += '\nMean Max Drawdown Percent:   %.2f ' % (self.simulations_mean_maxdrawdown_pct*100)
         msg += '\nMedian Max Drawdown Percent: %.2f ' % (self.simulations_median_maxdrawdown_pct*100)
-        msg += '\nCalmar Ratio                 %.4f ' % self.calmar_ratio
+        msg += '\nMean Profit Percent:         %.2f ' % (self.simulations_mean_profit_pct*100)
+        msg += '\nMedian Profit Percent:       %.2f ' % (self.simulations_median_profit_pct*100)
+        msg += '\nCalmar Ratio                %.4f  ' % self.calmar_ratio
         print(msg)
 
+        self.calculate_quantiles_from_MonteCarlo(columns)
+        self.plot_quantiles_from_MonteCarlo()
+
+        for eSim in columns:
+            '''
+            Delete temporary calculations
+            '''            
+            del self.simulations_df['cumret-strategy_{}'.format(eSim)]
+            del self.simulations_df['cumret-max_{}'.format(eSim)]
+            del self.simulations_df['cumret-min_{}'.format(eSim)]
+            del self.simulations_df['drawdown_pct_{}'.format(eSim)]
+
+        self.calculate_risk_of_ruin(no_of_simulations)
+
+        self.simulations_df['mean'] = self.simulations_df.mean(axis=1)
         self.simulations_df['mean'].plot(title='Mean Equity vs Trades')
 
+    def calculate_quantiles_from_MonteCarlo(self, columns):
+        '''
+        Calculate quantiles for returns
+        '''
+        sim_column_names = ['cumret-strategy_{}'.format(eSim) for eSim in columns]
+        quantiles = [5, 10, 25, 50, 75, 90, 95]
+        self.quantile_columns = []
+        self.simulations_df_quantiles = pd.DataFrame()
+        for q in quantiles:
+            self.quantile_columns.append('quantile_{}'.format(q))
+            self.simulations_df_quantiles['quantile_{}'.format(q)]  = self.simulations_df[sim_column_names].quantile(q=q/100, axis=1)
+    
+    def plot_quantiles_from_MonteCarlo(self):
+
+        plt.title('Quantiles Based on Monte Carlo Simulations')
+        self.simulations_df_quantiles[self.quantile_columns].plot()
+        plt.savefig('{}\\Quantiles_Based_on_Mone_Carlo_Simulations.pdf'.format(self.backtest_folder))
+        plt.show()
+        plt.close()
+    
+    def calculate_risk_of_ruin(self, no_of_simulations):
+
+        columns = ['Sim%d' % i for i in range(1, no_of_simulations+1, 1)]
+
+        self.dict_risk_of_ruin = {}
+        
+        print("Risk of Ruin:")
+        
+        for e_threshold in np.arange(0.05, 0.95, 0.05):
+            threshold = self.initial_equity * e_threshold
+            
+            total_cases_of_ruin = 0.0
+            for eSim in columns:
+                if (self.simulations_df[eSim]<threshold).any() == True:
+                    total_cases_of_ruin = total_cases_of_ruin + 1.0
+        
+            self.dict_risk_of_ruin[(1-e_threshold)] = (total_cases_of_ruin / no_of_simulations)
+        
+            print("Risk of losing {:0.0%} of initial equity within 1 year is {:0.2%}".format((1-e_threshold), (total_cases_of_ruin / no_of_simulations) ) )
+
+        print('-' * 55)                        
+
+        df_temp = pd.DataFrame(data=self.dict_risk_of_ruin, index=[0])
+        filename = '{}\\{}_risk_of_ruin_results.xlsx'.format(self.backtest_folder,self.symbol)
+        self.write_to_excel(filename, df_temp)
+        
     def write_monte_carlo_simulation_results_to_excel(self):
 
         now = datetime.datetime.now()
         filename = '{}\\{}_monte_carlo_simulation_results.xlsx'.format(self.backtest_folder,self.symbol)
-
-        # Create a Pandas Excel writer using XlsxWriter as the engine.
-        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        
-        # Convert the dataframe to an XlsxWriter Excel object.
-        self.simulations_df.to_excel(writer, sheet_name='Sheet1')
-        
-        # Close the Pandas Excel writer and output the Excel file.
-        writer.save()
+        self.write_to_excel(filename, self.simulations_df)
         
     def analyze_trades(self):
         
@@ -1302,15 +1355,7 @@ class backtest_base(object):
                 self.trade_performance_over_time.loc[eTrade.ID, i] = eTrade.stat_unrealizedprofitloss[i-1]
         
         filename = '{}\\{}_trades_performance_over_time.xlsx'.format(self.backtest_folder,self.symbol)
-
-        # Create a Pandas Excel writer using XlsxWriter as the engine.
-        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        
-        # Convert the dataframe to an XlsxWriter Excel object.
-        self.trade_performance_over_time.to_excel(writer, sheet_name='Sheet1')
-        
-        # Close the Pandas Excel writer and output the Excel file.
-        writer.save()
+        self.write_to_excel(filename, self.trade_performance_over_time)
 
     def calculate_average_number_of_bars_before_profitability(self):
         '''

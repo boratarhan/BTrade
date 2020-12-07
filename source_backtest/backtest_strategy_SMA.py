@@ -42,17 +42,17 @@ class backtest_strategy_SMA(backtest_base):
         
             if self.units_net == 0:
                 if self.data.loc[date,'SMA_14_bid_c'] > self.data.loc[date,'SMA_28_bid_c']:
-                    self.go_long(date=date, units=1000)
+                    self.go_long(date=date, units=10000)
                 elif self.data.loc[date,'SMA_14_bid_c'] < self.data.loc[date,'SMA_28_bid_c']:
-                    self.go_short(date=date, units=1000)
+                    self.go_short(date=date, units=10000)
 
             elif self.units_net > 0:
                 if self.data.loc[date,'SMA_14_bid_c'] < self.data.loc[date,'SMA_28_bid_c']:
-                    self.go_short(date=date, units=2000)
+                    self.go_short(date=date, units=20000)
             
             elif self.units_net < 0:
                 if self.data.loc[date,'SMA_14_bid_c'] > self.data.loc[date,'SMA_28_bid_c']:
-                    self.go_long(date=date, units=2000)
+                    self.go_long(date=date, units=20000)
                                 
             self.update(date)
                 
@@ -89,15 +89,15 @@ if __name__ == '__main__':
      bb.write_all_data()
      
      bb.write_all_trades_to_excel()
-
-     bb.monte_carlo_simulator(2500)
      
+     bb.monte_carlo_simulator(250)
+
      bb.write_monte_carlo_simulation_results_to_excel()
  
-     viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+     #viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
      
-     bb.analyze_trades()
+     #bb.analyze_trades()
      
-     bb.calculate_average_number_of_bars_before_profitability()
+     #bb.calculate_average_number_of_bars_before_profitability()
      
      
