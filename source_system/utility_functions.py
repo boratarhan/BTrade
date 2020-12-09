@@ -200,7 +200,7 @@ def write2excel( df, filename ):
     
     try:
         
-        filepath = os.path.join('..', '..', 'datastore_results', filename) + '.xlsx'
+        filepath = os.path.join('..', '..', 'datastore_run_results', filename) + '.xlsx'
         writer = pd.ExcelWriter(filepath, engine='xlsxwriter')
         df.to_excel(writer )
         writer.save()

@@ -6,7 +6,7 @@ import tstables
 import configparser
 import strategy
 
-symbol = 'AUD_USD'
+symbol = 'EUR_USD'
 
 # 1) Run update_data.py: download tick data from Dukascopy and merge them to form a h5 file in datastore
 # update_data.py
@@ -18,8 +18,8 @@ file_path_h5 = '..\\..\\datastore\\_practice\\{}\\S5.h5'.format(symbol)
 f = tables.open_file(file_path_h5,'r')
 ts = f.root.data._f_get_timeseries()
 
-read_start_dt = datetime.datetime(2000,1,1,00,00)
-read_end_dt = datetime.datetime(2018,1,1,00,00)
+read_start_dt = datetime.datetime(2020,12,6,00,00)
+read_end_dt = datetime.datetime(2021,1,1,00,00)
 
 rows = ts.read_range(read_start_dt,read_end_dt)
 

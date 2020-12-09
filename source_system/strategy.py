@@ -62,8 +62,8 @@ class strategy(object):
 
         self.df = pd.DataFrame()
         self.df_aggregate = {}
-        self.df_status = pd.DataFrame()
-        self.df_status['signal'] = 0
+        self.df_status = pd.DataFrame(columns=['time','signal'])
+        #self.df_status = 0
 
         self.indicatorlist = []
         
@@ -127,6 +127,8 @@ class strategy(object):
         
         try: 
     
+            print("File path:", self.file_path)
+            
             self.h5 = tables.open_file(self.file_path, 'r')
             self.ts = self.h5.root.data._f_get_timeseries()
             
@@ -185,3 +187,12 @@ class strategy(object):
         
         path = '..\\..\\datastore\\_{0}\\{1}\\positionbook.pkl'.format(self.account_type,self.symbol)
         self.df_positionbook = pd.read_pickle(path)
+        
+def AppendLogFile(error_message):
+    
+    logfile_path = '..\\..\\datastore_run_results\\log_strategy.log'
+    f = open( logfile_path, 'a')
+    f.write( '{}: Error: {} \n'.format(datetime.datetime.utcnow(), error_message) )
+    f.close() 
+    
+    

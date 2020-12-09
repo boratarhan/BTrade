@@ -81,7 +81,7 @@ class feeder(object):
 
         self.file_path_ohlc = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(self.account_type,self.symbol,self.granularity)
         self.folder_path = '..\\..\\datastore\\_{0}\\{1}'.format(self.account_type,self.symbol)
-        
+                
         self.in_memory_bar_ohlc_df = pd.DataFrame()
 
         '''
@@ -535,11 +535,22 @@ def ContinueLooping(config,symbol,granularity,account_type,socket_number,downloa
         except Exception as e:
             
             print(e)
-        
+
+            AppendLogFile(f1, e)
+                
             retries += 1        
             print('Trying to restart feeder:', retries)
             ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,retries)
+            
+        return f1
+
+def AppendLogFile(input_object, error_message):
     
+    logfile_path = '..\\..\\datastore_run_results\\log_feeder_{0}.log'.format(input_object.symbol)                
+    f = open( logfile_path, 'a')
+    f.write( '{}: Error: {} \n'.format(datetime.datetime.utcnow(), error_message) )
+    f.close() 
+        
 if __name__ == '__main__':
    
     try:
@@ -552,7 +563,7 @@ if __name__ == '__main__':
         socket_number = int(sys.argv[4])
         download_frequency = datetime.timedelta(seconds=60)
         update_signal_frequency = datetime.timedelta(seconds=60)
-        download_data_start_date = pd.datetime(2015,1,1,0,0,0,0,datetime.timezone.utc)
+        download_data_start_date = pd.datetime(2020,12,6,0,0,0,0,datetime.timezone.utc)
         '''
         # For testing:
         symbol = 'EUR_USD'
@@ -578,8 +589,10 @@ if __name__ == '__main__':
 
         ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,retries=0)
         
-        
-       
     except:
+        
         print( 'Error in reading configuration file' )
+        
+
+        
     

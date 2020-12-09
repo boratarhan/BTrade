@@ -62,9 +62,9 @@ class SimpleStrategy(strategy):
                 pass
                 
             print( self.df_status.tail() )
-            
-            self.file_path = '..\\..\\datastore_results\\orders_{}.xlsx'.format(self.symbol)
-            uf.write2excel( self.df_status, self.file_path )
+                            
+            filename = 'orders_{}.xlsx'.format(self.symbol)
+            uf.write2excel( self.df_status, filename )
 
                     
         except Exception as e:

@@ -35,7 +35,7 @@ class portfolio(object):
         self.context_sub = zmq.Context()
         self.socket_sub = self.context_sub.socket(zmq.SUB)
         self.socket_sub.setsockopt_string(zmq.SUBSCRIBE, '')
-        self.socket_sub.set_hwm(10)
+        self.socket_sub.set_hwm(0)
         self.socket_sub.bind("tcp://127.0.0.1:{}".format(self.socket_number))
         
         self.position = {}
@@ -60,7 +60,7 @@ class portfolio(object):
     
         except V20Error as err:
             print("V20Error occurred: {}".format(err))
-
+        
     def create_order(self, order_type, symbol, units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill):
         ''' 
         Places orders with Oanda. 
@@ -87,7 +87,7 @@ class portfolio(object):
                 orderinfo = { "order": {"stopLossOnFill": stopLossOnFill} }
                 
         if order_type == "LIMIT":
-
+            
             orderinfo = { "order": {"type": "LIMIT",
                                     "instrument": symbol,
                                     "units": units,
@@ -100,7 +100,7 @@ class portfolio(object):
                 orderinfo = { "order": {"takeProfitOnFill": takeProfitOnFill} }                
             if stopLossOnFill != 0.0:
                 orderinfo = { "order": {"stopLossOnFill": stopLossOnFill} }            
-                            
+                     
         r = orders.OrderCreate(self.accountID, data=orderinfo)
         self.api.request(r)
         
@@ -121,18 +121,25 @@ class portfolio(object):
     def wait_order_signals(self):
 
         while True:
-       
+
             msg = self.socket_sub.recv_string()
             print("Received message: {0}".format(msg))
             order_type, longshort, symbol, units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill = msg.split()
+                        
+            units = int(units)
+            priceBound = float(priceBound)
+            limit_price = float(limit_price)
+            takeProfitOnFill = float(takeProfitOnFill)
+            stopLossOnFill = float(stopLossOnFill)
             
+            print(order_type, longshort, symbol, units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill)
             if longshort == 'Short':
-
-                self.create_order(order_type, symbol,-units)
                 
+                self.create_order(order_type, symbol, -units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill)
+    
             if longshort == 'Long':
                 
-                self.create_order(symbol,units)
+                self.create_order(order_type, symbol, units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill)
 
             self.get_positions_for_all_instruments()
                                      
@@ -212,6 +219,13 @@ class portfolio(object):
            
         self.wait_order_signals()
         
+def AppendLogFile(error_message):
+    
+    logfile_path = '..\\..\\datastore_run_results\\log_portfolio.log'
+    f = open( logfile_path, 'a')
+    f.write( '{}: Error: {} \n'.format(datetime.datetime.utcnow(), error_message) )
+    f.close() 
+        
 if __name__ == '__main__':
         
     try:
@@ -220,19 +234,20 @@ if __name__ == '__main__':
         config.read('..\..\configinfo.cfg')
 
     except:
+                
         print( 'Error in reading configuration file' )
 
     try:
 
-        '''
         account_type = sys.argv[1]
         socket_number = int(sys.argv[2])
+
         '''
-            
         # For testing:
-        account_type = 'live'
+        account_type = 'practice'
         socket_number = 5554
-        
+        '''
+
         print("---- PORTFOLIO -----------------------")
         print("account_type:", account_type)
         print("socket_number:", socket_number)
@@ -241,7 +256,11 @@ if __name__ == '__main__':
         p1 = portfolio(config,account_type,socket_number)
         p1.start()
 
-    except:
+    except Exception as e:
+
         print( 'Error in starting portfolio object' )
+
+        AppendLogFile(e)
+        
         time.sleep(30)
-        exit()
+        
