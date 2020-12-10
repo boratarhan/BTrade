@@ -21,22 +21,20 @@ class desc(tables.IsDescription):
 
     volume = tables.Int64Col(pos=9)
 
-def read_database(symbol, granularity, account_type):
+def read_database(symbol, granularity, account_type, read_start_dt, read_end_dt):
 
     file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(account_type,symbol,granularity)
+    print("Reading from database located at: ", file_path)
     
     f = tables.open_file(file_path,'r')
     ts = f.root.data._f_get_timeseries()
-    
-    read_start_dt = datetime.datetime(2020,1,1,0,0,0)
-    read_end_dt = datetime.datetime.utcnow()
     
     rows = ts.read_range(read_start_dt,read_end_dt)
     
     f.close()
     
-    print(rows.tail)
-
+    return rows
+    
 def combine_databases(symbol, granularity, account_type):
         
     file_path_1 = '..\\..\\datastore\\_{}\\{}\\{}_2016.h5'.format(account_type,symbol,granularity)
@@ -209,17 +207,29 @@ def write2excel( df, filename ):
         
         print('Problem writing to file. Please make sure that the file is closed.')
 
-def write_hdf_file(df, filename):
-    filepath = os.path.join('..', '..', 'datastore', filename)
+def write_hdf_file(df, account_type, symbol, granularity):
+
+    folderpath = '..\\..\\datastore\\_{0}\\{1}'.format(account_type, symbol)
+    if( not os.path.exists(folderpath)):
+        os.mkdir(folderpath) 
+
+    filepath = '..\\..\\datastore\\_{0}\\{1}\\{2}.hdf'.format(account_type, symbol, granularity)
+    
+    print("Writing to file located at: ", filepath)
+            
     df.to_hdf(filepath, 'time', mode='w')
-   
-def read_hdf_file(filename):
-    df_temp = pd.DataFrame()
-    filepath = os.path.join('..', '..', 'datastore', filename)
+
+def read_hdf_file(account_type, symbol, granularity):
+    
+    filepath = '..\\..\\datastore\\_{0}\\{1}\\{2}.hdf'.format(account_type, symbol, granularity)
     if os.path.exists( filepath ):
         df_temp = pd.read_hdf(filepath)
-    return df_temp
+    else:
+        print("Filepath ({}) for reading hdf file does not exist".format(filepath))
+    df_temp = df_temp[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c', 'volume']]
 
+    return df_temp
+    
 def convert_datetime_to_Oanda_format(dt):
     
     return dt.isoformat('T')+'Z'

@@ -64,7 +64,7 @@ class SMA_Crossover(strategy):
                 
                 pass
             
-            filename = 'orders_{}.xlsx'.format(self.symbol)
+            filename = '{}_live_orders.xlsx'.format(self.symbol)
             uf.write2excel( self.df_status, filename )
                    
         except Exception as e:

@@ -293,22 +293,23 @@ class backtest_base(object):
         self.verbose = verbose
         self.data = pd.DataFrame()        
 
-        self.read_hdf_file()
+        self.data = read_hdf_file(self.account_type,self.symbol,self.granularity)
         self.data.loc[:,'units_to_buy'] = 0
         self.data.loc[:,'units_to_sell'] = 0
         self.data.loc[:,'units_net'] = 0
-                                 
+       
+    '''                         
     def read_hdf_file(self):
-        '''
+
         This input data file is generated offline by the file source_research > _create_research_data.py
         This is higher granularity data, i.e. at least as granular as the decision frequency. It can be identical to decision frequency.
         Advantage of using higher granularity data compared to decision frequency is to capture trade statisctics in a more refined way.
-        '''
-        
+
         filepath = '..\\..\\datastore\\_{0}\\{1}\\{2}.hdf'.format(self.account_type,self.symbol,self.granularity)
         if os.path.exists( filepath ):
             self.data = pd.read_hdf(filepath)
         self.data = self.data[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c', 'volume']]
+    '''
     
     def add_indicators(self):
         '''
@@ -1416,7 +1417,7 @@ if __name__ == '__main__':
      marginpercent = 100
      #WindowLenght = 12
     
-     #bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent)
+     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent)
      #bb.check_data_quality()
 
      #viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)
