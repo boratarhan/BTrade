@@ -221,8 +221,8 @@ class portfolio(object):
         
 def AppendLogFile(error_message):
     
-    logfile_path = '..\\..\\datastore_run_results\\log_portfolio.log'
-    f = open( logfile_path, 'a')
+    path_logfile = '..\\..\\results_live\\log_portfolio.log'
+    f = open( path_logfile, 'a')
     f.write( '{}: Error: {} \n'.format(datetime.datetime.utcnow(), error_message) )
     f.close() 
         
@@ -247,7 +247,7 @@ if __name__ == '__main__':
         account_type = 'practice'
         socket_number = 5554
         '''
-
+        
         print("---- PORTFOLIO -----------------------")
         print("account_type:", account_type)
         print("socket_number:", socket_number)

@@ -26,7 +26,7 @@ class backtest_strategy_SMA(backtest_base):
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
         print('-' * 55)
-        
+
         for date, _ in self.data.iterrows():
 
             ''' 
@@ -40,25 +40,37 @@ class backtest_strategy_SMA(backtest_base):
             '''
             #self.run_core_strategy()
         
-            if self.data.loc[date,'SMA_{}_bid_c'.format(SMA2)] > self.data.loc[date,'SMA_{}_bid_c'.format(SMA1)]:
-                self.go_short(date=date, units=10000)
-            elif self.data.loc[date,'SMA_{}_bid_c'.format(SMA2)] < self.data.loc[date,'SMA_{}_bid_c'.format(SMA1)]:
-                self.go_long(date=date, units=10000)
+            if self.units_net == 0:
+                if self.data.loc[date,'SMA_14_bid_c'] > self.data.loc[date,'SMA_28_bid_c']:
+                    self.go_long(date=date, units=10000)
+                elif self.data.loc[date,'SMA_14_bid_c'] < self.data.loc[date,'SMA_28_bid_c']:
+                    self.go_short(date=date, units=10000)
+
+            elif self.units_net > 0:
+                if self.data.loc[date,'SMA_14_bid_c'] < self.data.loc[date,'SMA_28_bid_c']:
+                    self.go_short(date=date, units=20000)
+            
+            elif self.units_net < 0:
+                if self.data.loc[date,'SMA_14_bid_c'] > self.data.loc[date,'SMA_28_bid_c']:
+                    self.go_long(date=date, units=20000)
                                 
             self.update(date)
                 
         self.close_all_trades(date)
         self.update(date)
         self.close_out()
+        
+        self.calculate_stats()   
+
                 
 if __name__ == '__main__':
 
      symbol = 'EUR_USD'
      account_type = 'backtest'
-     granularity = '1M'
-     decision_frequency = '1M'
-     start_datetime = datetime.datetime(2020,11,7,0,0,0)
-     end_datetime = datetime.datetime(2020,12,11,0,0,0)
+     granularity = '1H'
+     decision_frequency = '1H'
+     start_datetime = datetime.datetime(2017,1,1,0,0,0)
+     end_datetime = datetime.datetime(2018,1,1,0,0,0)
      idle_duration_before_start_trading = pd.Timedelta(value='30D')     
      initial_equity = 10000
      marginpercent = 100
@@ -71,26 +83,25 @@ if __name__ == '__main__':
      bb.verbose = True
      #bb.check_data_quality()
 
-     bb.run_strategy(3, 5)
-     
-     bb.calculate_stats()
-     
+     bb.run_strategy(14, 28)
+          
+     '''
      bb.plot()
-     
-     bb.write_all_data()
-     
-     '''
-     bb.write_all_trades_to_excel()
-     
-     bb.monte_carlo_simulator(250)
 
-     bb.write_monte_carlo_simulation_results_to_excel()
+     filename = '{}_data.xlsx'.format(bb.symbol)
+     uf.write_df_to_excel(bb.data, bb.backtest_folder, filename)
+     
+     filename = '{}_data.pkl'.format(bb.symbol)
+     uf.pickle_df(bb.data, bb.backtest_folder, filename)
+             
+     bb.write_all_trades_to_excel()
+               
+     bb.monte_carlo_simulator(250)
  
-     viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+     #viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
      
-     bb.analyze_trades()
+     #bb.analyze_trades()
      
-     bb.calculate_average_number_of_bars_before_profitability()
+     #bb.calculate_average_number_of_bars_before_profitability()
      '''
-     
      

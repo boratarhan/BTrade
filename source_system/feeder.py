@@ -79,8 +79,8 @@ class feeder(object):
         self.heartbeat = 0
         self.current_heartbeat = datetime.datetime.utcnow()
 
-        self.file_path_ohlc = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(self.account_type,self.symbol,self.granularity)
-        self.folder_path = '..\\..\\datastore\\_{0}\\{1}'.format(self.account_type,self.symbol)
+        self.path_ohlc_data = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(self.account_type,self.symbol,self.granularity)
+        self.path_folder = '..\\..\\datastore\\_{0}\\{1}'.format(self.account_type,self.symbol)
                 
         self.in_memory_bar_ohlc_df = pd.DataFrame()
 
@@ -135,7 +135,7 @@ class feeder(object):
         ''' 
         Open an existing h5 file or create a new file and table 
         '''
-        if( os.path.exists(self.file_path_ohlc) ):
+        if( os.path.exists(self.path_ohlc_data) ):
 
             ''' 
             If a file exists, then start with current time and go back to find the
@@ -143,7 +143,7 @@ class feeder(object):
             Otherwise create a new database.
             '''
                     
-            self.h5 = tables.open_file(self.file_path_ohlc, 'a')
+            self.h5 = tables.open_file(self.path_ohlc_data, 'a')
             self.ts = self.h5.root.data._f_get_timeseries()
                         
             read_start_dt = datetime.datetime.utcnow() - datetime.timedelta(days=1)     # datetime.datetime
@@ -178,11 +178,11 @@ class feeder(object):
         '''
         Create an empty database
         '''
-        if( not os.path.exists(self.folder_path)):
+        if( not os.path.exists(self.path_folder)):
             
-            os.mkdir(self.folder_path) 
+            os.mkdir(self.path_folder) 
 
-        self.h5 = tables.open_file(self.file_path_ohlc, 'w')
+        self.h5 = tables.open_file(self.path_ohlc_data, 'w')
         self.ts = self.h5.create_ts('/', 'data', desc)
         
         self.current_timestamp = self.download_data_start_date  #datetime.datetime 
@@ -400,7 +400,7 @@ class feeder(object):
         msg = self.socket_sub.recv_string()
         print("Received message: {0}".format(msg))
         
-        self.h5 = tables.open_file(self.file_path_ohlc, 'a')
+        self.h5 = tables.open_file(self.path_ohlc_data, 'a')
         self.ts = self.h5.root.data._f_get_timeseries()
 
     def receive_realtime_tick_data(self):
@@ -495,7 +495,6 @@ class feeder(object):
                 isAlive = False
                 break
                                
-
     def add_calendar_data(self):
         
         params = {"instrument": list(self.symbol), "period": 217728000 } #period seems to capture the length of future in seconds, default was 86400
@@ -546,8 +545,8 @@ def ContinueLooping(config,symbol,granularity,account_type,socket_number,downloa
 
 def AppendLogFile(input_object, error_message):
     
-    logfile_path = '..\\..\\datastore_run_results\\log_feeder_{0}.log'.format(input_object.symbol)                
-    f = open( logfile_path, 'a')
+    path_logfile = '..\\..\\results_live\\log_feeder_{0}.log'.format(input_object.symbol)                
+    f = open( path_logfile, 'a')
     f.write( '{}: Error: {} \n'.format(datetime.datetime.utcnow(), error_message) )
     f.close() 
         

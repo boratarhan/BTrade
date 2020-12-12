@@ -13,7 +13,7 @@ plt.style.use('seaborn')
 sys.path.append('..\\source_system')
 from indicators import *
 import visualizer as viz
-from utility_functions import *
+import utility_functions as uf
 sys.path.remove('..\\source_system')
 
 import random
@@ -35,6 +35,11 @@ pip_factor['CHF'] = 10000
 pip_factor['CAD'] = 10000
 pip_factor['GBP'] = 10000
 
+ohlc_dict = { 'ask_o':'first', 'ask_h':'max', 'ask_l':'min', 'ask_c': 'last',                                                                                                    
+              'bid_o':'first', 'bid_h':'max', 'bid_l':'min', 'bid_c': 'last',
+              'volume': 'sum'                                                                                                        
+            }
+   
 class Trade(object):
 
     '''
@@ -214,6 +219,8 @@ class Trade(object):
         self.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l)
             
         return self.IsOpen, abs(untransactedunits)
+
+
         
 class backtest_base(object):
     
@@ -221,7 +228,7 @@ class backtest_base(object):
     Base class for event-based backtesting of trading strategies.
     '''
 
-    def __init__(self, symbol, account_type, granularity, decision_frequency, start_date, end_date, idle_duration_before_start_trading, initial_equity, marginpercent, ftc=0.0, ptc=0.0, verbose=False):
+    def __init__(self, symbol, account_type, granularity, decision_frequency, start_date, end_date, idle_duration_before_start_trading, initial_equity, marginpercent, ftc=0.0, ptc=0.0, verbose=False, create_data=False):
         self.symbol = symbol # Same as trade symbol
         self.account_type = account_type # should be set to backtest, eventually used for file/folder name specification
         self.granularity = granularity # Data granularity
@@ -234,11 +241,16 @@ class backtest_base(object):
         self.listofClosedTrades = []
         self.stat_number_of_open_trades = []
 
+        if create_data: self.create_backtest_data()
+        
+        self.input_data_foldername = os.path.join( '..\\..\\datastore', '_{}'.format(self.account_type), '{}'.format(self.symbol) )
+        self.input_data_filename = '{}.hdf'.format(self.granularity)
+
         self.backtest_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
-        self.backtest_folder = self.file_path_ohlc = '..\\..\\backtests\\{}'.format(self.backtest_name)
+        self.backtest_folder = self.file_path_ohlc = '..\\..\\results_backtest\\{}'.format(self.backtest_name)
         if( not os.path.exists(self.backtest_folder)):
             os.mkdir(self.backtest_folder) 
-
+        
         self.df_edge_ratio = pd.DataFrame()
         self.maxNumberBars = 0
         
@@ -291,26 +303,14 @@ class backtest_base(object):
         self.ptc = ptc # Variable transaction cost
         self.trades = 0
         self.verbose = verbose
-        self.data = pd.DataFrame()        
 
-        self.data = read_hdf_file(self.account_type,self.symbol,self.granularity)
+        self.data = pd.DataFrame()                
+        self.data = uf.read_hdf_to_df(self.input_data_foldername, self.input_data_filename)
+    
         self.data.loc[:,'units_to_buy'] = 0
         self.data.loc[:,'units_to_sell'] = 0
         self.data.loc[:,'units_net'] = 0
-       
-    '''                         
-    def read_hdf_file(self):
-
-        This input data file is generated offline by the file source_research > _create_research_data.py
-        This is higher granularity data, i.e. at least as granular as the decision frequency. It can be identical to decision frequency.
-        Advantage of using higher granularity data compared to decision frequency is to capture trade statisctics in a more refined way.
-
-        filepath = '..\\..\\datastore\\_{0}\\{1}\\{2}.hdf'.format(self.account_type,self.symbol,self.granularity)
-        if os.path.exists( filepath ):
-            self.data = pd.read_hdf(filepath)
-        self.data = self.data[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c', 'volume']]
-    '''
-    
+   
     def add_indicators(self):
         '''
         This should be overwritten within derived classes from this base class.
@@ -358,7 +358,9 @@ class backtest_base(object):
         self.close_all_trades(date)
         self.update(date)
         self.close_out()
-    
+        
+        self.calculate_stats()
+        
     def run_core_strategy(self):
         '''
         This should be overwritten within derived classes from this base class.
@@ -1030,23 +1032,16 @@ class backtest_base(object):
 
         self.df_edge_ratio = self.df_maxFavorableExcursion.div(self.df_maxAdverseExcursion)
         
-        filename = '{}\\{}_df_maxFavorableExcursion.xlsx'.format(self.backtest_folder,self.symbol)
-        self.write_to_excel(filename, self.df_maxFavorableExcursion)
+        filename = '{}_df_maxFavorableExcursion.xlsx'.format(self.symbol)
+        uf.write_df_to_excel(self.df_maxFavorableExcursion, self.backtest_folder, filename)
 
-        filename = '{}\\{}_df_maxAdverseExcursion.xlsx'.format(self.backtest_folder,self.symbol)
-        self.write_to_excel(filename, self.df_maxAdverseExcursion)
+        filename = '{}_df_maxAdverseExcursion.xlsx'.format(self.symbol)
+        uf.write_df_to_excel(self.df_maxAdverseExcursion, self.backtest_folder, filename)
         
         self.df_edge_ratio['mean'] = self.df_edge_ratio.mean(axis=1)
         
-        filename = '{}\\{}_df_edge_ratio.xlsx'.format(self.backtest_folder,self.symbol)
-        self.write_to_excel(filename, self.df_edge_ratio)
-        
-               
-    def write_all_data(self):
-        
-        now = datetime.datetime.now()
-        filename = '{}\\{}_data.xlsx'.format(self.backtest_folder,self.symbol)
-        self.write_to_excel(filename, self.data)
+        filename = '{}_df_edge_ratio.xlsx'.format(self.symbol)
+        uf.write_df_to_excel(self.df_edge_ratio, self.backtest_folder, filename)
     
     def write_all_trades_to_excel(self):
         
@@ -1071,8 +1066,9 @@ class backtest_base(object):
                 self.df_trades.loc[eTrade.ID,'exit_{}_realized P&L'.format(idx)] = exTrade['realized P&L']                
                 
         now = datetime.datetime.now()
-        filename = '{}\\{}_trades.xlsx'.format(self.backtest_folder,self.symbol)
-        self.write_to_excel(filename, self.df_trades)
+        filename = '{}_trades.xlsx'.format(self.symbol)
+        uf.write_df_to_excel(self.df_trades, self.backtest_folder, filename)
+        
     
     def check_equity_curve_trading(self, WindowLenghtList):
         
@@ -1140,24 +1136,13 @@ class backtest_base(object):
         print('Percentage of outliers in the data set is {0:.2f}%'.format( len(self.data[self.data['outlier_any'] == True]) / len(self.data) * 100 ) ) 
         
         now = datetime.datetime.now()
-        filename = '{}\\{}_outliers.xlsx'.format(self.backtest_folder,self.symbol)
-        self.write_to_excel(filename, self.data)
+        filename = '{}_outliers.xlsx'.format(self.symbol)
+        uf.write_df_to_excel(self.data, self.backtest_folder, filename)
         
         self.data.drop( ['return_check_ask_h_over_c', 'return_check_ask_l_over_c', 'return_check_ask_c_over_c', 'return_check_bid_h_over_c', 'return_check_bid_l_over_c', 'return_check_bid_c_over_c',
                          #'outlier_ask_h_over_c', 'outlier_ask_l_over_c', 'outlier_ask_c_over_c', 'outlier_bid_h_over_c', 'outlier_bid_l_over_c', 'outlier_bid_c_over_c',
                          'normalized_return_ask_h_over_c', 'normalized_return_ask_l_over_c', 'normalized_return_ask_c_over_c', 'normalized_return_bid_h_over_c', 'normalized_return_bid_l_over_c', 'normalized_return_bid_c_over_c'], axis=1, inplace=True )
-
-    def write_to_excel(self, filename, df):
-        
-        # Create a Pandas Excel writer using XlsxWriter as the engine.
-        writer = pd.ExcelWriter(filename, engine='xlsxwriter')
-        
-        # Convert the dataframe to an XlsxWriter Excel object.
-        df.to_excel(writer, sheet_name='Sheet1')
-        
-        # Close the Pandas Excel writer and output the Excel file.
-        writer.save()    
-
+    
     def durbin_watson_test(self, data):
         '''
         The null hypothesis of the test is that there is no serial correlation. The Durbin-Watson test statistics is defined as:
@@ -1288,6 +1273,8 @@ class backtest_base(object):
 
         self.simulations_df['mean'] = self.simulations_df.mean(axis=1)
         self.simulations_df['mean'].plot(title='Mean Equity vs Trades')
+        
+        self.write_monte_carlo_simulation_results_to_excel()
 
     def calculate_quantiles_from_MonteCarlo(self, columns):
         '''
@@ -1332,14 +1319,13 @@ class backtest_base(object):
         print('-' * 55)                        
 
         df_temp = pd.DataFrame(data=self.dict_risk_of_ruin, index=[0])
-        filename = '{}\\{}_risk_of_ruin_results.xlsx'.format(self.backtest_folder,self.symbol)
-        self.write_to_excel(filename, df_temp)
+        filename = '{}_risk_of_ruin_results.xlsx'.format(self.symbol)
+        uf.write_df_to_excel(df_temp, self.backtest_folder, filename)
         
     def write_monte_carlo_simulation_results_to_excel(self):
 
-        now = datetime.datetime.now()
-        filename = '{}\\{}_monte_carlo_simulation_results.xlsx'.format(self.backtest_folder,self.symbol)
-        self.write_to_excel(filename, self.simulations_df)
+        filename = '{}_monte_carlo_simulation_results.xlsx'.format(self.symbol)
+        uf.write_df_to_excel(self.simulations_df, self.backtest_folder, filename)
         
     def analyze_trades(self):
         
@@ -1355,8 +1341,8 @@ class backtest_base(object):
                 
                 self.trade_performance_over_time.loc[eTrade.ID, i] = eTrade.stat_unrealizedprofitloss[i-1]
         
-        filename = '{}\\{}_trades_performance_over_time.xlsx'.format(self.backtest_folder,self.symbol)
-        self.write_to_excel(filename, self.trade_performance_over_time)
+        filename = '{}_trades_performance_over_time.xlsx'.format(self.symbol)
+        uf.write_df_to_excel(self.trade_performance_over_time, self.backtest_folder, filename)
 
     def calculate_average_number_of_bars_before_profitability(self):
         '''
@@ -1403,6 +1389,72 @@ class backtest_base(object):
         plt.xlabel('Number of periods')
         plt.savefig('{}\\Periods_before_profitable_short.pdf'.format(self.backtest_folder))
         plt.close()
+
+    def create_backtest_data(self):
+        
+        account_type = 'live'
+        granularity = 'S5'
+        df_5S = uf.read_database(self.symbol, granularity, account_type, self.start_date, self.end_date)
+    
+        #-------------------------------------------------------------------------------------------------------------
+        folderpath = os.path.join( '..\\..\\datastore', '_backtest', '{}'.format(symbol) )
+        filename = 'S5.hdf'
+        uf.write_df_to_hdf(df_5S, folderpath, filename)
+    
+        #-------------------------------------------------------------------------------------------------------------
+        df_1M = df_5S.resample('1T', closed='left', label='left').apply(ohlc_dict).dropna()
+        df_1M = df_1M.reset_index()
+        df_1M = df_1M.rename(columns={'index': 'date'})
+        df_1M = df_1M.set_index('date')
+        df_1M = df_1M.loc[~ ( (df_1M['bid_o'] == df_1M['bid_h']) & (df_1M['bid_o'] == df_1M['bid_l']) & (df_1M['bid_o'] == df_1M['bid_c']) ) ]
+        
+        granularity = '1M'
+        filename = '{}.hdf'.format(granularity)
+        uf.write_df_to_hdf(df_1M, folderpath, filename)
+        
+        #-------------------------------------------------------------------------------------------------------------
+        df_1H = df_5S.resample('1H', closed='left', label='left').apply(ohlc_dict).dropna()
+        df_1H = df_1H.reset_index()
+        df_1H = df_1H.rename(columns={'index': 'date'})
+        df_1H = df_1H.set_index('date')
+        df_1H = df_1H.loc[~ ( (df_1H['bid_o'] == df_1H['bid_h']) & (df_1H['bid_o'] == df_1H['bid_l']) & (df_1H['bid_o'] == df_1H['bid_c']) ) ]
+    
+        granularity = '1H'
+        filename = '{}.hdf'.format(granularity)
+        uf.write_df_to_hdf(df_1H, folderpath, filename)
+    
+        #-------------------------------------------------------------------------------------------------------------
+        df_4H = df_5S.resample('4H', closed='left', label='left').apply(ohlc_dict).dropna()
+        df_4H = df_4H.reset_index()
+        df_4H = df_4H.rename(columns={'index': 'date'})
+        df_4H = df_4H.set_index('date')
+        df_4H = df_4H[~ ( (df_4H['bid_o'] == df_4H['bid_h']) & (df_4H['bid_o'] == df_4H['bid_l']) & (df_4H['bid_o'] == df_4H['bid_c']) ) ]
+    
+        granularity = '4H'
+        filename = '{}.hdf'.format(granularity)
+        uf.write_df_to_hdf(df_4H, folderpath, filename)
+    
+        #-------------------------------------------------------------------------------------------------------------
+        df_8H = df_5S.resample('8H', closed='left', label='left').apply(ohlc_dict).dropna()
+        df_8H = df_8H.reset_index()
+        df_8H = df_8H.rename(columns={'index': 'date'})
+        df_8H = df_8H.set_index('date')
+        df_8H = df_8H[~ ( (df_8H['bid_o'] == df_8H['bid_h']) & (df_8H['bid_o'] == df_8H['bid_l']) & (df_8H['bid_o'] == df_8H['bid_c']) ) ]
+    
+        granularity = '8H'
+        filename = '{}.hdf'.format(granularity)
+        uf.write_df_to_hdf(df_8H, folderpath, filename)
+        
+        #-------------------------------------------------------------------------------------------------------------
+        df_1D = df_5S.resample('1D', closed='left', label='left').apply(ohlc_dict).dropna()
+        df_1D = df_1D.reset_index()
+        df_1D = df_1D.rename(columns={'index': 'date'})
+        df_1D = df_1D.set_index('date')
+        df_1D = df_1D[~ ( (df_1D['bid_o'] == df_1D['bid_h']) & (df_1D['bid_o'] == df_1D['bid_l']) & (df_1D['bid_o'] == df_1D['bid_c']) ) ]
+    
+        granularity = '1D'
+        filename = '{}.hdf'.format(granularity)
+        uf.write_df_to_hdf(df_1D, folderpath, filename)
         
 if __name__ == '__main__':
 
@@ -1410,14 +1462,18 @@ if __name__ == '__main__':
      account_type = 'backtest'
      granularity = '1H'
      decision_frequency = '1H'
-     start_datetime = datetime.datetime(2019,1,1,0,0,0)
+     start_datetime = datetime.datetime(2000,1,1,0,0,0)
      end_datetime = datetime.datetime.now()
      idle_duration_before_start_trading = pd.Timedelta(value='0D')     
      initial_equity = 10000
      marginpercent = 100
-     #WindowLenght = 12
+     ftc=0.0
+     ptc=0.0
+     verbose=False
+     create_data=False
     
-     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent)
+     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
+
      #bb.check_data_quality()
 
      #viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)

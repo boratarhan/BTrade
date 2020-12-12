@@ -26,10 +26,13 @@ class SMA_Crossover(strategy):
         self.add_indicators()
 
         self.create_order_signal()
+                    
+        #result = pd.concat([self.df_aggregate['1T'], self.df_status['signal']], axis=1)    #Frequencies are detailed in parent object, 1T = 1 Minute
+        #print(result.tail())
         
-        result = pd.concat([self.df_aggregate['1T'], self.df_status['signal']], axis=1)    #Frequencies are detailed in parent object, 1T = 1 Minute
-        print(result.tail())
-                
+        self.df_aggregate['1T']= pd.concat([self.df_aggregate['1T'], self.df_status['signal']], axis=1)
+        print(self.df_aggregate['1T'].tail())
+        
     def add_indicators(self):
 
         self.df_aggregate['1T'], self.indicatorlist = AddSMA( self.df_aggregate['1T'], self.indicatorlist, 'bid', 'c', 5)
@@ -47,7 +50,7 @@ class SMA_Crossover(strategy):
                 self.df_status.loc[temp_index,'time'] = datetime.datetime.utcnow()
                 self.df_status.loc[temp_index,'signal'] = -1
 
-                msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Short', self.symbol, 1000, 0 , 0, 0, 0 )
+                msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Short', self.symbol, 10000, 0 , 0, 0, 0 )
                 print("Sending message: {}".format(msg))                   
                 self.socket_pub_porfolio.send_string(msg)
                             
@@ -56,17 +59,14 @@ class SMA_Crossover(strategy):
                 self.df_status.loc[temp_index,'time'] = datetime.datetime.utcnow()
                 self.df_status.loc[temp_index,'signal'] = 1
     
-                msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Long', self.symbol, 1000, 0 , 0, 0, 0 )
+                msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Long', self.symbol, 10000, 0 , 0, 0, 0 )
                 print("Sending message: {}".format(msg))                   
                 self.socket_pub_porfolio.send_string(msg)
                         
             else:
                 
                 pass
-            
-            filename = '{}_live_orders.xlsx'.format(self.symbol)
-            uf.write2excel( self.df_status, filename )
-                   
+                                           
         except Exception as e:
             
             print(e)
@@ -102,6 +102,7 @@ if __name__ == '__main__':
         account_type = 'practice'
         socket_number = 5556
         daily_lookback = 10
+
         
         print("--- STRATEGY ---")
         print("Strategy name:", strategy_name)

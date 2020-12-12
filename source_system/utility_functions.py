@@ -68,6 +68,82 @@ def combine_databases(symbol, granularity, account_type):
     ts.append(rows)
     f.close()
 
+def write_df_to_excel(df, folderpath, filename):
+              
+    try:
+        
+        filepath = os.path.join( folderpath, filename)
+        if( not os.path.exists(folderpath)):
+            os.mkdir(folderpath) 
+
+        print("Writing to file located at: ", filepath)
+        writer = pd.ExcelWriter(filepath, engine='xlsxwriter')
+        df.to_excel(writer)
+        writer.save()
+
+    except:
+        
+        print('Problem writing df to excel file. Please make sure that the file is closed.')
+
+def write_df_to_hdf(df, folderpath, filename):
+
+    try:
+        
+        filepath = os.path.join( folderpath, filename)
+        if( not os.path.exists(folderpath)):
+            os.mkdir(folderpath) 
+
+        print("Writing to file located at: ", filepath)
+        df.to_hdf(filepath, 'time', mode='w')
+
+    except:
+        
+        print('Problem writing df to hdf file. Please make sure that the file is closed.')
+
+def pickle_df(df, folderpath, filename):
+
+    try:
+        
+        filepath = os.path.join( folderpath, filename)
+        if( not os.path.exists(folderpath)):
+            os.mkdir(folderpath) 
+        
+        print("Pickling to file located at: ", filepath)
+        df.to_pickle(filepath)
+        
+    except:
+        
+        print('Problem pickling dataframe.')
+
+def read_hdf_to_df(folderpath, filename):
+        
+    filepath = os.path.join( folderpath, filename)
+    if os.path.exists( filepath ):
+        df_temp = pd.read_hdf(filepath)
+    else:
+        print("Filepath ({}) for reading hdf file does not exist".format(filepath))
+
+    df_temp = df_temp[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c', 'volume']]
+
+    return df_temp
+    
+def convert_datetime_to_Oanda_format(dt):
+    
+    return dt.isoformat('T')+'Z'
+
+def convert_Oanda_format_to_datetime(dt):
+    
+    dt = dt.replace('T',' ').replace('Z','')
+    try:
+    
+        dt = datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S.%f")
+    
+    except:
+    
+        dt = datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S")
+        
+    return dt
+
 def download_historical_tick_data_from_Dukascopy(instrument,start_date,end_date):
     ''' Download tick data for the instrument for each day
         Example input arguments for the method are as follows:
@@ -193,57 +269,4 @@ def parse_date(timestamp):
         timestamp = datetime.datetime.strptime(timestamp,"%Y-%m-%d %H:%M:%S")
     
     return timestamp
-
-def write2excel( df, filename ):
-    
-    try:
-        
-        filepath = os.path.join('..', '..', 'datastore_run_results', filename) + '.xlsx'
-        writer = pd.ExcelWriter(filepath, engine='xlsxwriter')
-        df.to_excel(writer )
-        writer.save()
-
-    except:
-        
-        print('Problem writing to file. Please make sure that the file is closed.')
-
-def write_hdf_file(df, account_type, symbol, granularity):
-
-    folderpath = '..\\..\\datastore\\_{0}\\{1}'.format(account_type, symbol)
-    if( not os.path.exists(folderpath)):
-        os.mkdir(folderpath) 
-
-    filepath = '..\\..\\datastore\\_{0}\\{1}\\{2}.hdf'.format(account_type, symbol, granularity)
-    
-    print("Writing to file located at: ", filepath)
-            
-    df.to_hdf(filepath, 'time', mode='w')
-
-def read_hdf_file(account_type, symbol, granularity):
-    
-    filepath = '..\\..\\datastore\\_{0}\\{1}\\{2}.hdf'.format(account_type, symbol, granularity)
-    if os.path.exists( filepath ):
-        df_temp = pd.read_hdf(filepath)
-    else:
-        print("Filepath ({}) for reading hdf file does not exist".format(filepath))
-    df_temp = df_temp[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c', 'volume']]
-
-    return df_temp
-    
-def convert_datetime_to_Oanda_format(dt):
-    
-    return dt.isoformat('T')+'Z'
-
-def convert_Oanda_format_to_datetime(dt):
-    
-    dt = dt.replace('T',' ').replace('Z','')
-    try:
-    
-        dt = datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S.%f")
-    
-    except:
-    
-        dt = datetime.datetime.strptime(dt,"%Y-%m-%d %H:%M:%S")
-        
-    return dt
 

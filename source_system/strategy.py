@@ -27,7 +27,8 @@ class strategy(object):
         self.account_type = account_type
         self.daily_lookback = daily_lookback
         self.granularity = granularity
-        self.file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(self.account_type,self.symbol,self.granularity)
+        self.path_input_data = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(self.account_type,self.symbol,self.granularity)
+        self.path_results_live = '..\\..\\results_live'
     
         '''
         This is the socket subscribing to Forwarder/Feeder on socket 5556
@@ -63,7 +64,6 @@ class strategy(object):
         self.df = pd.DataFrame()
         self.df_aggregate = {}
         self.df_status = pd.DataFrame(columns=['time','signal'])
-        #self.df_status = 0
 
         self.indicatorlist = []
         
@@ -105,7 +105,13 @@ class strategy(object):
             msg = 'Strategy step completed...'
             print("Sending message: {0}".format(msg))
             self.socket_pub_forwarder.send_string(msg)
- 
+            
+            filename = '{}_data.xlsx'.format(self.symbol)
+            uf.write_df_to_excel(self.df_aggregate['1T'], self.path_results_live, filename)
+                    
+            filename = '{}_data.pkl'.format(self.symbol)
+            uf.pickle_df(self.df_aggregate['1T'], self.path_results_live, filename)
+                        
     def core_strategy(self):
         
         pass
@@ -126,10 +132,8 @@ class strategy(object):
         '''
         
         try: 
-    
-            print("File path:", self.file_path)
             
-            self.h5 = tables.open_file(self.file_path, 'r')
+            self.h5 = tables.open_file(self.path_input_data, 'r')
             self.ts = self.h5.root.data._f_get_timeseries()
             
             read_end_dt = pd.datetime.now(datetime.timezone.utc)
@@ -141,7 +145,7 @@ class strategy(object):
         except: 
 
             print('Database does not exist')
-            print('Expected location: {}'.format(os.path.exists(self.file_path)))
+            print('Expected location: {}'.format(os.path.exists(self.path_input_data)))
             time.sleep(30)
             exit()
     
@@ -190,9 +194,8 @@ class strategy(object):
         
 def AppendLogFile(error_message):
     
-    logfile_path = '..\\..\\datastore_run_results\\log_strategy.log'
-    f = open( logfile_path, 'a')
+    path_logfile = '..\\..\\results_live\\log_strategy.log'
+    f = open( path_logfile, 'a')
     f.write( '{}: Error: {} \n'.format(datetime.datetime.utcnow(), error_message) )
     f.close() 
-    
-    
+       
