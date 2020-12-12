@@ -1250,10 +1250,10 @@ class backtest_base(object):
 
         print('-' * 55)
         msg = 'Monte Carlo Simulation Results:  '
-        msg += '\nMean Max Drawdown Percent:   %.2f ' % (self.simulations_mean_maxdrawdown_pct*100)
-        msg += '\nMedian Max Drawdown Percent: %.2f ' % (self.simulations_median_maxdrawdown_pct*100)
-        msg += '\nMean Profit Percent:         %.2f ' % (self.simulations_mean_profit_pct*100)
-        msg += '\nMedian Profit Percent:       %.2f ' % (self.simulations_median_profit_pct*100)
+        msg += '\nMean Profit Percent:         %.2f ' % (self.simulations_mean_profit_pct)
+        msg += '\nMedian Profit Percent:       %.2f ' % (self.simulations_median_profit_pct)
+        msg += '\nMean Max Drawdown Percent:   %.2f ' % (self.simulations_mean_maxdrawdown_pct)
+        msg += '\nMedian Max Drawdown Percent: %.2f ' % (self.simulations_median_maxdrawdown_pct)
         msg += '\nCalmar Ratio                %.4f  ' % self.calmar_ratio
         print(msg)
 
@@ -1287,7 +1287,7 @@ class backtest_base(object):
         for q in quantiles:
             self.quantile_columns.append('quantile_{}'.format(q))
             self.simulations_df_quantiles['quantile_{}'.format(q)]  = self.simulations_df[sim_column_names].quantile(q=q/100, axis=1)
-    
+
     def plot_quantiles_from_MonteCarlo(self):
 
         plt.title('Quantiles Based on Monte Carlo Simulations')

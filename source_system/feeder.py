@@ -562,7 +562,7 @@ if __name__ == '__main__':
         socket_number = int(sys.argv[4])
         download_frequency = datetime.timedelta(seconds=60)
         update_signal_frequency = datetime.timedelta(seconds=60)
-        download_data_start_date = pd.datetime(2020,12,6,0,0,0,0,datetime.timezone.utc)
+        download_data_start_date = pd.datetime(2010,1,1,0,0,0,0,datetime.timezone.utc)
         '''
         # For testing:
         symbol = 'EUR_USD'
