@@ -19,6 +19,14 @@ import os
 import sys
 
 '''
+The code should be updated based on deprecation warnings. However, it may require extensive work.
+I will keep it in this version as long as it works.
+Turn off warnings for keeping the screen cleaner.
+'''
+import warnings
+warnings.filterwarnings("ignore", category=Warning) 
+
+'''
 import logging
 logging.basicConfig(
     filename="v20.log",
@@ -122,11 +130,13 @@ class feeder(object):
         ''' 
         Connect to OANDA through account ID and access token based on account type.
         '''    
+        print("Connecting to broker...")
         try: 
    
             self.accountID = self.config['oanda_v20']['account_number_{}'.format(self.account_type)]
             self.access_token = self.config['oanda_v20']['access_token_{}'.format(self.account_type)]
             self.api = oandapyV20.API(access_token=self.access_token, environment="{}".format(self.account_type))
+            print("Connection successful")
     
         except V20Error as err:
             print("V20Error occurred: {}".format(err))
@@ -135,6 +145,7 @@ class feeder(object):
         ''' 
         Open an existing h5 file or create a new file and table 
         '''
+        print("Opening database...")
         if( os.path.exists(self.path_ohlc_data) ):
 
             ''' 
@@ -169,7 +180,9 @@ class feeder(object):
                 else:
 
                     read_start_dt = read_start_dt - datetime.timedelta(days=1)
-                                     
+
+            print("Database is opened successfully")
+            
         else:
             
             self.create_database()
@@ -286,14 +299,11 @@ class feeder(object):
         Since this is not a critical issue, I can hold this off for now.
         '''
         
-#        t1 = threading.Thread( target=self.receive_realtime_tick_data )
-        t2 = threading.Thread( target=self.receive_realtime_bar_data, args=(self.granularity, self.askbidmid, ) )
+        t1 = threading.Thread( target=self.receive_realtime_bar_data, args=(self.granularity, self.askbidmid, ) )
 
-#        t1.start()
-        t2.start()
+        t1.start()
 
-#        t1.join()
-        t2.join()
+        t1.join()
                 
     def receive_realtime_bar_data(self,granularity,askbidmid):
         ''' 
@@ -308,7 +318,7 @@ class feeder(object):
         while isAlive:
 
             timestamp_bar_end = pd.datetime.now(datetime.timezone.utc)
-            slack = timestamp_bar_end - timestamp_bar_end.replace(minute=0,second=0)
+
             
             current_slack_download = slack % self.download_frequency
             current_slack_signal = slack % self.update_signal_frequency
@@ -569,9 +579,10 @@ if __name__ == '__main__':
         granularity = 'S5'
         account_type = 'live'
         socket_number = 5555
+        daily_lookback = 10
         download_frequency = datetime.timedelta(seconds=60)
         update_signal_frequency = datetime.timedelta(seconds=60)
-        download_data_start_date = pd.datetime(2020,11,15,0,0,0,0,datetime.timezone.utc)
+        download_data_start_date = pd.datetime(2010,1,1,0,0,0,0,datetime.timezone.utc)
         '''
         
         print("--- FEEDER ---")

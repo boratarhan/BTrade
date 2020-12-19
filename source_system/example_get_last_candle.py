@@ -94,11 +94,17 @@ class feeder(object):
         
         try:
             
-            params = {"count": 5,
+            params = {"count": 1,
                       "granularity": "S5"}
             self.r = instruments.InstrumentsCandles(self.symbol, params)
             self.api.request(self.r)
-            print(self.r.response)
+            
+            if self.r.response.get('candles')[0]['complete'] == True:
+                print("candles is complete")
+                print(self.r.response.get('candles')[0]['time'])
+                
+                print(self.r.response)
+            
             #RAW = r.response.get('candles')
             
 
