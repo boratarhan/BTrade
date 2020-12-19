@@ -133,6 +133,7 @@ class portfolio(object):
             stopLossOnFill = float(stopLossOnFill)
             
             print(order_type, longshort, symbol, units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill)
+            '''
             if longshort == 'Short':
                 
                 self.create_order(order_type, symbol, -units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill)
@@ -140,7 +141,7 @@ class portfolio(object):
             if longshort == 'Long':
                 
                 self.create_order(order_type, symbol, units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill)
-
+            '''
             self.get_positions_for_all_instruments()
                                      
     def get_instrument_list(self):

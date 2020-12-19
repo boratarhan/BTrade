@@ -29,6 +29,7 @@ class strategy(object):
         self.granularity = granularity
         self.path_input_data = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(self.account_type,self.symbol,self.granularity)
         self.path_results_live = '..\\..\\results_live'
+        self.path_timestamp = datetime.datetime.utcnow()
     
         '''
         This is the socket subscribing to Forwarder/Feeder on socket 5556
@@ -106,10 +107,10 @@ class strategy(object):
             print("Sending message: {0}".format(msg))
             self.socket_pub_forwarder.send_string(msg)
             
-            filename = '{}_data.xlsx'.format(self.symbol)
+            filename = '{0}_{1}-{2:02d}-{3:02d}-{4:02d}-{5:02d}-{6:02d}_data.xlsx'.format(self.symbol, self.path_timestamp.year, self.path_timestamp.month, self.path_timestamp.day, self.path_timestamp.hour, self.path_timestamp.minute, self.path_timestamp.second)
             uf.write_df_to_excel(self.df_aggregate['1T'], self.path_results_live, filename)
                     
-            filename = '{}_data.pkl'.format(self.symbol)
+            filename = '{0}_{1}-{2:02d}-{3:02d}-{4:02d}-{5:02d}-{6:02d}_data.pkl'.format(self.symbol, self.path_timestamp.year, self.path_timestamp.month, self.path_timestamp.day, self.path_timestamp.hour, self.path_timestamp.minute, self.path_timestamp.second)
             uf.pickle_df(self.df_aggregate['1T'], self.path_results_live, filename)
                         
     def core_strategy(self):

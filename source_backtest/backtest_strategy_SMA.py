@@ -21,11 +21,10 @@ class backtest_strategy_SMA(backtest_base):
         self.data = self.data.loc[(self.data.index >= self.date_to_start_trading) & (self.data.index <= self.end_date),:]
 
         print('-' * 55)
-        msg = '\n\nRunning SMA strategy | SMA1 = %d & SMA2 = %d' % (SMA1, SMA2)
+        msg = 'Running SMA strategy | SMA1 = %d & SMA2 = %d' % (SMA1, SMA2)
         msg += '\nFixed costs %.2f | ' % self.ftc
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
-        print('-' * 55)
         
         for date, _ in self.data.iterrows():
 
@@ -59,23 +58,26 @@ if __name__ == '__main__':
      account_type = 'backtest'
      granularity = '1M'
      decision_frequency = '1M'
-     start_datetime = datetime.datetime(2020,11,7,0,0,0)
-     end_datetime = datetime.datetime(2020,12,11,0,0,0)
+     start_datetime = datetime.datetime(2020,11,11,0,0,0)
+     end_datetime = datetime.datetime(2021,1,1,0,0,0)
      idle_duration_before_start_trading = pd.Timedelta(value='30D')     
      initial_equity = 10000
      marginpercent = 100
+     ftc=0.0
+     ptc=0.0
+     verbose=False
+     create_data=False
      
      # A standard lot = 100,000 units of base currency. 
      # A mini lot = 10,000 units of base currency.
      # A micro lot = 1,000 units of base currency.
 
-     bb = backtest_strategy_SMA(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, True)
-     bb.verbose = True
-     bb.check_data_quality()
+     bb = backtest_strategy_SMA(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
+     #bb.check_data_quality()
 
      bb.run_strategy(3, 5)
      
-     bb.plot()
+     #bb.plot()
      
      filename = '{}_data.xlsx'.format(bb.symbol)
      uf.write_df_to_excel(bb.data, bb.backtest_folder, filename)
@@ -85,6 +87,7 @@ if __name__ == '__main__':
              
      bb.write_all_trades_to_excel()
      
+     '''
      bb.monte_carlo_simulator(250)
  
      viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
@@ -92,6 +95,6 @@ if __name__ == '__main__':
      bb.analyze_trades()
      
      bb.calculate_average_number_of_bars_before_profitability()
-
+     '''
      
      

@@ -16,10 +16,10 @@ start python "C:\\Users\\boratarhan\\Google Drive\\_Github\\BTrader\\source_syst
 sleep 30
 start python "C:\\Users\\boratarhan\\Google Drive\\_Github\\BTrader\\source_system\\feeder.py" USD_TRY S5 live 5555
 sleep 30
-start python "C:\\Users\\boratarhan\\Google Drive\\_Github\\BTrader\\source_system\\feeder.py" AUD_JPY S5 live 5555
-sleep 30
 start python "C:\\Users\\boratarhan\\Google Drive\\_Github\\BTrader\\source_system\\feeder.py" AUD_NZD S5 live 5555
 sleep 30
 start python "C:\\Users\\boratarhan\\Google Drive\\_Github\\BTrader\\source_system\\feeder.py" EUR_CHF S5 live 5555
+sleep 30
+start python "C:\\Users\\boratarhan\\Google Drive\\_Github\\BTrader\\source_system\\feeder.py" AUD_JPY S5 live 5555
 sleep 30
 call conda deactivate

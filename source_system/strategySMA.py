@@ -88,7 +88,6 @@ if __name__ == '__main__':
         
         strategy_name = "SMA_Crossover"
         
-        '''
         symbol = sys.argv[1]
         granularity = sys.argv[2]
         account_type = sys.argv[3]
@@ -102,7 +101,7 @@ if __name__ == '__main__':
         account_type = 'practice'
         socket_number = 5556
         daily_lookback = 10
-
+        '''
         
         print("--- STRATEGY ---")
         print("Strategy name:", strategy_name)

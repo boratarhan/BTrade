@@ -18,7 +18,7 @@ def create_research_data(symbol, granularity, read_start_dt, read_end_dt):
     
     account_type = 'live'
     df_5S = uf.read_database(symbol, granularity, account_type, read_start_dt, read_end_dt)
-
+    
     #-------------------------------------------------------------------------------------------------------------
     folderpath = os.path.join( '..\\..\\datastore', '_backtest', '{}'.format(symbol) )
     filename = 'S5.hdf'
@@ -79,14 +79,38 @@ def create_research_data(symbol, granularity, read_start_dt, read_end_dt):
     granularity = '1D'
     filename = '{}.hdf'.format(granularity)
     uf.write_df_to_hdf(df_1D, folderpath, filename)
+
+
+def split_5S_data_to_years(symbol, granularity):
+
+    account_type = 'live'
+    
+    for e_year in [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020]:
+
+        read_start_dt = datetime.datetime(e_year,1,1,0,0,0)
+        read_end_dt = datetime.datetime(e_year+1,1,1,0,0,0)
+        df_5S = uf.read_database(symbol, granularity, account_type, read_start_dt, read_end_dt)
+
+        df_5S_year = df_5S.iloc[ ( df_5S.index >= datetime.datetime(e_year,1,1,0,0,0) ) & ( df_5S.index < datetime.datetime(e_year+1,1,1,0,0,0) ), : ]
+
+        folderpath = os.path.join( '..\\..\\datastore', '_live', '{}'.format(symbol) )
+        filename = 'S5_{}.hdf'.format(e_year)
+        uf.write_df_to_hdf(df_5S_year, folderpath, filename)
+    
     
 if __name__ == '__main__':
 
-    symbol = 'EUR_USD'
-    granularity = 'S5'
-    read_start_dt = datetime.datetime(2020,1,1,0,0,0)
-    read_end_dt = datetime.datetime(2021,1,1,0,0,0)
-    create_research_data(symbol, granularity, read_start_dt, read_end_dt)
+    #list_pairs = ['AUD_USD', 'EUR_USD', 'GBP_USD', 'NZD_USD', 'USD_CAD', 'USD_CHF', 'USD_JPY', 'USD_TRY', 'AUD_NZD', 'EUR_CHF', 'AUD_JPY' ]
+    list_pairs = ['EUR_USD']
+
+    df_5S = pd.DataFrame()
     
+    for e_symbol in list_pairs:
     
+        symbol = e_symbol
+        granularity = 'S5'
+        #split_5S_data_to_years(symbol, granularity)
     
+        read_start_dt = datetime.datetime(2010,1,1,0,0,0)
+        read_end_dt = datetime.datetime(2021,1,1,0,0,0)
+        create_research_data(symbol, granularity, read_start_dt, read_end_dt)

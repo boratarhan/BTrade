@@ -220,7 +220,13 @@ class Trade(object):
             
         return self.IsOpen, abs(untransactedunits)
 
-
+    def __repr__(self):
+        '''
+        This is a dunder method used for converting difficult to understand object names to ones
+        which are easier to follow.
+        '''
+        return "Trade({}, {}, {}, {})".format(self.ID, self.longshort, self.units, self.entrydate)
+        
         
 class backtest_base(object):
     
@@ -324,11 +330,10 @@ class backtest_base(object):
         self.data = self.data.iloc[(self.data.index.date >= self.date_to_start_trading) and (self.data.index.date <=self.end),:]
         
         print('-' * 55)
-        msg = '\n\nRunning strategy '
+        msg = 'Running strategy '
         msg += '\nFixed costs %.2f | ' % self.ftc
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
-        print('-' * 55)
                 
         for date, _ in self.data.iterrows():
             
@@ -607,7 +612,8 @@ class backtest_base(object):
         self.data.loc[date,'required margin'] = self.required_margin
         self.data.loc[date,'free margin'] = self.free_margin             
         
-        print('Date: {0}, Equity: {1:.2f}, Realized Cumulative P/L: {2:.2f}, Unrealized P/L: {3:.2f}, Realized Cumulative pips: {4:.2f}, Unrealized pips: {5:.2f}'.format( date, self.equity, self.realizedcumulativeprofitloss, self.unrealizedprofitloss, self.realizedcumulativepips, self.unrealizedpips ) )
+        if self.verbose:
+            print('Date: {0}, Equity: {1:.2f}, Realized Cumulative P/L: {2:.2f}, Unrealized P/L: {3:.2f}, Realized Cumulative pips: {4:.2f}, Unrealized pips: {5:.2f}'.format( date, self.equity, self.realizedcumulativeprofitloss, self.unrealizedprofitloss, self.realizedcumulativepips, self.unrealizedpips ) )
         
     def close_out(self):
         '''
@@ -1304,7 +1310,7 @@ class backtest_base(object):
         
         print("Risk of Ruin:")
         
-        for e_threshold in np.arange(0.05, 0.95, 0.05):
+        for e_threshold in np.arange(0.00, 1.00, 0.05):
             threshold = self.initial_equity * e_threshold
             
             total_cases_of_ruin = 0.0
@@ -1462,7 +1468,7 @@ if __name__ == '__main__':
      account_type = 'backtest'
      granularity = '1H'
      decision_frequency = '1H'
-     start_datetime = datetime.datetime(2000,1,1,0,0,0)
+     start_datetime = datetime.datetime(20,1,1,0,0,0)
      end_datetime = datetime.datetime.now()
      idle_duration_before_start_trading = pd.Timedelta(value='0D')     
      initial_equity = 10000

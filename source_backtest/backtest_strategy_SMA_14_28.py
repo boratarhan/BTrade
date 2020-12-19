@@ -21,11 +21,10 @@ class backtest_strategy_SMA(backtest_base):
         self.data = self.data.loc[(self.data.index >= self.date_to_start_trading) & (self.data.index <= self.end_date),:]
 
         print('-' * 55)
-        msg = '\n\nRunning SMA strategy | SMA1 = %d & SMA2 = %d' % (SMA1, SMA2)
+        msg = 'Running SMA strategy | SMA1 = %d & SMA2 = %d' % (SMA1, SMA2)
         msg += '\nFixed costs %.2f | ' % self.ftc
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
-        print('-' * 55)
 
         for date, _ in self.data.iterrows():
 
@@ -61,7 +60,6 @@ class backtest_strategy_SMA(backtest_base):
         self.close_out()
         
         self.calculate_stats()   
-
                 
 if __name__ == '__main__':
 
@@ -69,23 +67,26 @@ if __name__ == '__main__':
      account_type = 'backtest'
      granularity = '1H'
      decision_frequency = '1H'
-     start_datetime = datetime.datetime(2017,1,1,0,0,0)
-     end_datetime = datetime.datetime(2018,1,1,0,0,0)
+     start_datetime = datetime.datetime(2010,1,1,0,0,0)
+     end_datetime = datetime.datetime(2011,1,1,0,0,0)
      idle_duration_before_start_trading = pd.Timedelta(value='30D')     
      initial_equity = 10000
-     marginpercent = 100
-     
+     marginpercent = 10
+     ftc=0.0
+     ptc=0.0
+     verbose=False
+     create_data=False
+
      # A standard lot = 100,000 units of base currency. 
      # A mini lot = 10,000 units of base currency.
      # A micro lot = 1,000 units of base currency.
 
-     bb = backtest_strategy_SMA(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, True)
-     bb.verbose = True
+     bb = backtest_strategy_SMA(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
      #bb.check_data_quality()
 
+     '''
      bb.run_strategy(14, 28)
           
-     '''
      bb.plot()
 
      filename = '{}_data.xlsx'.format(bb.symbol)
@@ -100,8 +101,7 @@ if __name__ == '__main__':
  
      #viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
      
-     #bb.analyze_trades()
+     bb.analyze_trades()
      
-     #bb.calculate_average_number_of_bars_before_profitability()
+     bb.calculate_average_number_of_bars_before_profitability()
      '''
-     
