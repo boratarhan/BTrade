@@ -25,12 +25,13 @@ def read_database(symbol, granularity, account_type, read_start_dt, read_end_dt)
 
     file_path = '..\\..\\datastore\\_{0}\\{1}\\{2}.h5'.format(account_type,symbol,granularity)
     print("Reading from database located at: ", file_path)
-    
+
     f = tables.open_file(file_path,'r')
+    print(type(f))
     ts = f.root.data._f_get_timeseries()
-    
+    print(type(ts))    
     rows = ts.read_range(read_start_dt,read_end_dt)
-    
+    print(type(rows))
     f.close()
     
     return rows
