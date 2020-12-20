@@ -233,7 +233,8 @@ class feeder(object):
         
         print('Downloading data from', start_datetime, 'to', end_datetime, 'requested at', datetime.datetime.utcnow())
         
-        suffix = '.000000000Z'  
+        #suffix = '.000000000Z'  
+        suffix = '.000000Z'  
 
         '''
         Start datetime comes from self.current_timestamp  
@@ -256,6 +257,12 @@ class feeder(object):
         
         raw = r.response.get('candles')
         raw = [cs for cs in raw if cs['complete']]
+
+        data = self.convert_raw_data_to_dataframe(raw)
+        
+        return data
+
+    def convert_raw_data_to_dataframe(self, raw):
 
         data = pd.DataFrame()
         
@@ -281,8 +288,6 @@ class feeder(object):
                        
             data = data.set_index('time')  
             data.index = pd.DatetimeIndex(data.index)  
-            print("First index: {}".format(data.index[0]))
-            print("Last index: {}".format(data.index[-1]))
                     
             data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o']] = data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o']].astype('float64')
  
@@ -309,11 +314,11 @@ class feeder(object):
 
         t1.join()
                 
-    def get_last_candle(self):
+    def get_latest_candle(self,granularity):
         
         try:
             
-            params = {"count": 1, "granularity": "M1"}
+            params = {"count": 1, "granularity": "{}".format(granularity)}
             self.r = instruments.InstrumentsCandles(self.symbol, params)
             self.api.request(self.r)
                            
@@ -323,28 +328,87 @@ class feeder(object):
             
             print("Error in getting candle...")            
             
-            
     def receive_realtime_bar_data(self,granularity,askbidmid):
         ''' 
         Constantly check the current time and download bar data with specified granularity
         '''
         global isAlive
+        previous_slack_download = datetime.timedelta(seconds=0)
+        previous_slack_signal = datetime.timedelta(seconds=0)
         
         while isAlive:
-                                
-            last_candle = self.get_last_candle()
-            print(last_candle)
             
-            if last_candle['complete'] == True:
-                print("candle is complete")
-                print(last_candle['time'])
+            '''
+            Feeder constantly checks the time and checks triggers as soon as duration of
+            length self.download_frequency passes. 
+            At every iteration, slack should increase and it should decrease only 
+            when slack exceeds download frequency.
+            '''
+            
+            slack = pd.datetime.now(datetime.timezone.utc) - pd.datetime.now(datetime.timezone.utc).replace(hour= 0, minute=0, second=0)
+            
+            current_slack_download = slack % self.download_frequency
+            current_slack_signal = slack % self.update_signal_frequency
+            
+            if current_slack_download < previous_slack_download:
+                        
+                latest_candle = self.get_latest_candle("M1")
+                
+                latest_candle_time = (datetime.datetime.fromisoformat(latest_candle['time'].replace('000Z', '+00:00'))).replace(second=0)
+                last_candle_time = self.current_timestamp.replace(second=0)
 
-            break
+                while latest_candle_time == last_candle_time:
+
+                    print("Try fetching new bar one more time...")
+
+                    latest_candle = self.get_latest_candle("M1")
+                    latest_candle_time = (datetime.datetime.fromisoformat(latest_candle['time'].replace('000Z', '+00:00'))).replace(second=0)
+                
+                # Download
+                #Filter any data older than latest_candle_time 
+            
+                fromTime = self.current_timestamp
+                toTime = latest_candle_time
+                
+                print('fromTime:', fromTime, ' toTime:', toTime)
+
+                try:
+
+                    data = self.download_ohlc_data(fromTime, toTime, granularity, askbidmid)
+                    
+                    self.append_bar_data_to_in_memory_bar_ohlc_df(data)
+
+                    if current_slack_signal < previous_slack_signal:
+                        self.append_in_memory_bar_ohlc_df_to_database()
+                                        
+                    self.number_of_bars = self.number_of_bars + 1
+        
+                except Exception as e:
+                    
+                    print(e)
+
+                    '''
+                    In case download fails, global isAlive variable is set to false.
+                    This triggers feeder object to restart and make connections with broker and other objects.
+                    '''
+
+                    isAlive = False
+                    self.h5.close()
+                    print('Bar Data download failed at [UTC]', datetime.datetime.utcnow() )
+                    
+                    break
+           
+            previous_slack_download = current_slack_download
+            previous_slack_signal = current_slack_signal
+            
+            time.sleep(0.5)
             
             if isAlive == False:
                 
                 break
 
+
+            
     def append_bar_data_to_in_memory_bar_ohlc_df(self,temp):
         ''' 
         Take each received data signal as input and append to an in-memory dataframe
@@ -464,7 +528,7 @@ if __name__ == '__main__':
         account_type = 'live'
         socket_number = 5555
         daily_lookback = 10
-        download_frequency = datetime.timedelta(seconds=60)
+        download_frequency = datetime.timedelta(seconds=30)
         update_signal_frequency = datetime.timedelta(seconds=60)
         download_data_start_date = pd.datetime(2010,1,1,0,0,0,0,datetime.timezone.utc)
 
