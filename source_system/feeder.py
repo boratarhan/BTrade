@@ -228,7 +228,7 @@ class feeder(object):
         start_datetime = start_datetime.replace(microsecond=0)
         end_datetime = end_datetime.replace(microsecond=0)
         slack = end_datetime - end_datetime.replace(second=0)
-        slack = slack % datetime.timedelta(seconds=5)
+        slack = slack % datetime.timedelta(seconds=0)
         end_datetime = end_datetime - slack        
         
         print('Downloading data from', start_datetime, 'to', end_datetime, 'requested at', datetime.datetime.utcnow())
@@ -318,7 +318,7 @@ class feeder(object):
         while isAlive:
 
             timestamp_bar_end = pd.datetime.now(datetime.timezone.utc)
-
+            slack = timestamp_bar_end - timestamp_bar_end - time.replace(minute=0, second=0)
             
             current_slack_download = slack % self.download_frequency
             current_slack_signal = slack % self.update_signal_frequency
