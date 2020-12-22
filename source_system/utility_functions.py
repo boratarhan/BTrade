@@ -74,6 +74,7 @@ def write_df_to_excel(df, folderpath, filename):
     try:
         
         filepath = os.path.join( folderpath, filename)
+        print(filepath)
         if( not os.path.exists(folderpath)):
             os.mkdir(folderpath) 
 
