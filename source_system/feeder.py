@@ -561,20 +561,19 @@ if __name__ == '__main__':
         config = configparser.ConfigParser()
         config.read('..\..\configinfo.cfg')
 
-        '''
         symbol = sys.argv[1]
         granularity = sys.argv[2]
         account_type = sys.argv[3]
         socket_number = int(sys.argv[4])
-        download_frequency = datetime.timedelta(seconds=60)
-        update_signal_frequency = datetime.timedelta(seconds=60)
-        '''
-        
-        # For testing:
+
+        '''        
+       # For testing:
         symbol = 'EUR_USD'
         granularity = 'S5'
         account_type = 'live'
         socket_number = 5555
+        '''
+        
         daily_lookback = 10
         download_frequency = datetime.timedelta(seconds=60)
         update_signal_frequency = datetime.timedelta(seconds=60)

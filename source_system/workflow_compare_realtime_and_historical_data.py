@@ -27,13 +27,14 @@ socket_number = 5555
 daily_lookback = 10
 download_frequency = datetime.timedelta(seconds=60)
 update_signal_frequency = datetime.timedelta(seconds=60)
-download_data_start_date = datetime.datetime.utcnow()
-download_data_end_date = download_data_start_date + datetime.timedelta(hours=8)
+#download_data_start_date = datetime.datetime.utcnow()
+download_data_start_date = pd.datetime(2020,12,22,0,0,0,0,datetime.timezone.utc)
+download_data_end_date = download_data_start_date + datetime.timedelta(hours=36)
 
 verbose = False
 
 # -----------------------------------------------------------------------------------------------------
-if 0==0:
+if 0==1:
     
     print("--- FEEDER ---")
     print("symbol:", symbol)
@@ -50,7 +51,7 @@ if 0==0:
     f1 = feeder.feeder(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,download_data_end_date,verbose)
     f1.start()  
 
-if 0==0:
+if 0==1:
 
     # Save real-time data as excel
     
@@ -75,10 +76,10 @@ if 0==0:
 # Download historical data
 if 0==0:
    
-    end_time = download_data_end_date
-    start_time = download_data_start_date
+    start_time = datetime.datetime(2020, 12, 22, 23, 0, 0)
+    end_time = datetime.datetime.utcnow()
      
-    suffix = '000000Z'     
+    suffix = '000Z'     
     start_datetime = start_time.isoformat('T') + suffix  
     end_datetime = end_time.isoformat('T') + suffix  
     
@@ -134,15 +135,18 @@ if 0==0:
     
     uf.write_df_to_excel(df_historical, folderpath, filename)
     
+# -----------------------------------------------------------------------------------------------------
+# Final Analysis
+if 0==1:
 
-# Check if two dataframes are identical:
-print(df_realtime.eq(df_historical))
-
-# Tyically there will be some indices on the top/bottom that will not exiss in one dataframe.
-# Check the indices that exists in both dataframes
-idx = df_realtime.index.intersection(df_historical.index)
-df_compare = df_realtime.loc[idx,:].eq(df_historical.loc[idx,:])
-print(df_compare.describe())
+    # Check if two dataframes are identical:
+    print(df_realtime.eq(df_historical))
+    
+    # Tyically there will be some indices on the top/bottom that will not exiss in one dataframe.
+    # Check the indices that exists in both dataframes
+    idx = df_realtime.index.intersection(df_historical.index)
+    df_compare = df_realtime.loc[idx,:].eq(df_historical.loc[idx,:])
+    print(df_compare.describe())
 
 
                 
