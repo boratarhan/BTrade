@@ -63,7 +63,7 @@ class feeder(object):
     Tick data may be collected only for future analysis or visual purposes.
     '''
 
-    def __init__(self,config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date):
+    def __init__(self,config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,download_data_end_date,verbose):
 
         self.config = config
         self.symbol = symbol
@@ -80,6 +80,12 @@ class feeder(object):
         self.download_frequency = download_frequency
         self.update_signal_frequency = update_signal_frequency
         self.download_data_start_date = download_data_start_date
+        '''
+        Following input is mostly take None value. It is useful only if user wants to download realtime data for a defined period.
+        In that case, the feeder will start as usual but end after this date.
+        It is used in source_system > workflow_compare_realtime_and_historical_data.py
+        '''
+        self.download_data_end_date = download_data_end_date
         
         self.askbidmid = 'AB'
         self.ticks = 0
@@ -108,6 +114,8 @@ class feeder(object):
         self.socket_sub = self.context_sub.socket(zmq.SUB)
         self.socket_sub.setsockopt_string(zmq.SUBSCRIBE, "")
         self.socket_sub.connect("tcp://127.0.0.1:{}".format(self.socket_sub_socket_number))
+        
+        self.verbose = verbose
 
         time.sleep(5) # Since binding takes time, sleep for a few seconds before running
 
@@ -202,6 +210,8 @@ class feeder(object):
         
     def download_missing_data(self):
        
+        print("download_missing_data")
+        
         if ( pd.datetime.now(datetime.timezone.utc) - self.current_timestamp > datetime.timedelta(hours=1) ):
                                    
             print('More than 1 hour of data missing, need to download before starting')
@@ -209,31 +219,43 @@ class feeder(object):
 
             start_time = self.current_timestamp
             end_time = start_time + datetime.timedelta(hours=1)
+            end_time = end_time.replace(second = 0, microsecond = 0)
             
             while end_time <= pd.datetime.now(datetime.timezone.utc):
                     
-                temp = self.download_ohlc_data(start_time, end_time, self.granularity, self.askbidmid)
+                temp = self.download_ohlc_data(start_time, end_time)
                  
                 self.ts.append(temp)
                 
                 start_time = end_time
                 end_time = start_time + datetime.timedelta(hours=1)
-                                
+                              
+            end_time = pd.datetime.now(datetime.timezone.utc)
+            temp = self.download_ohlc_data(start_time, end_time)
+            self.ts.append(temp)
             self.h5.close()
-
             self.open_database()
-       
-    def download_ohlc_data(self, start_datetime, end_datetime, granularity, askbidmid):
+
+        else:
+            
+            start_time = self.current_timestamp
+            end_time = pd.datetime.now(datetime.timezone.utc).replace(second = 0, microsecond = 0)
+            temp = self.download_ohlc_data(start_time, end_time)
+            self.ts.append(temp)
+            self.h5.close()
+            self.open_database()            
+            
+    def download_ohlc_data(self, start_datetime, end_datetime):
                 
         start_datetime = start_datetime.replace(microsecond=0)
         end_datetime = end_datetime.replace(microsecond=0)
         slack = end_datetime - end_datetime.replace(second=0)
-        slack = slack % datetime.timedelta(seconds=0)
+        slack = slack % datetime.timedelta(seconds=5)  # Download 5 second frequency data
         end_datetime = end_datetime - slack        
         
         print('Downloading data from', start_datetime, 'to', end_datetime, 'requested at', datetime.datetime.utcnow())
         
-        suffix = '.000000000Z'  
+        suffix = '.000000Z'  
 
         '''
         Start datetime comes from self.current_timestamp  
@@ -246,14 +268,25 @@ class feeder(object):
 
         params = {"from": start_datetime,
                   "to": end_datetime,
-                  "granularity": granularity,
-                  "price": askbidmid }
+                  "granularity": self.granularity,
+                  "price": self.askbidmid }
         
+                            
+        if self.verbose == True: 
+            print("requesting data...")
         r = instruments.InstrumentsCandles(instrument=self.symbol, params=params)
         self.api.request(r)
+        if self.verbose == True: 
+            print("received data...")
         
         raw = r.response.get('candles')
         raw = [cs for cs in raw if cs['complete']]
+
+        data = self.convert_raw_data_to_dataframe(raw)
+        
+        return data
+
+    def convert_raw_data_to_dataframe(self, raw):
 
         data = pd.DataFrame()
         
@@ -290,7 +323,7 @@ class feeder(object):
             data = data[data.index > self.current_timestamp]
     
         return data
-
+    
     def download_new_data(self):
         
         '''
@@ -299,76 +332,130 @@ class feeder(object):
         Since this is not a critical issue, I can hold this off for now.
         '''
         
-        t1 = threading.Thread( target=self.receive_realtime_bar_data, args=(self.granularity, self.askbidmid, ) )
+        t1 = threading.Thread( target=self.receive_realtime_bar_data, args=() )
 
         t1.start()
 
         t1.join()
                 
-    def receive_realtime_bar_data(self,granularity,askbidmid):
+    def get_latest_candles(self, no_of_candles, granularity):
+        
+        try:
+            
+            params = {"count": no_of_candles, "granularity": "{}".format(granularity)}
+            self.r = instruments.InstrumentsCandles(self.symbol, params)
+            self.api.request(self.r)
+                           
+            return self.r.response.get('candles')
+             
+        except:
+            
+            print("Error in getting candle...")            
+            
+    def receive_realtime_bar_data(self):
         ''' 
         Constantly check the current time and download bar data with specified granularity
         '''
-        
         global isAlive
-        
-        previous_slack_download = datetime.timedelta(seconds=0)
         previous_slack_signal = datetime.timedelta(seconds=0)
-       
-        while isAlive:
-
-            timestamp_bar_end = pd.datetime.now(datetime.timezone.utc)
-            slack = timestamp_bar_end - timestamp_bar_end - time.replace(minute=0, second=0)
-            
-            current_slack_download = slack % self.download_frequency
-            current_slack_signal = slack % self.update_signal_frequency
-            
-            '''
-            Feeder constantly checks the time and calculates how much time it has
-            passed since last download through download frequency.
-            At every iteration, slack should increase and it should decrease only 
-            when slack exceeds download frequency.
-            '''
-            
-            if current_slack_download < previous_slack_download:
-            
-                fromTime = self.current_timestamp
-                toTime = timestamp_bar_end
-                
-                print('fromTime:', fromTime, ' toTime:', toTime)
-
-                try:
-
-                    data = self.download_ohlc_data(fromTime, toTime, granularity, askbidmid)
-                    
-                    self.append_bar_data_to_in_memory_bar_ohlc_df(data)
-
-                    if current_slack_signal < previous_slack_signal:
-                        self.append_in_memory_bar_ohlc_df_to_database()
-                                        
-                    self.number_of_bars = self.number_of_bars + 1
         
-                except Exception as e:
+        while isAlive:
+            
+            '''
+            Feeder constantly requests minute bar data from broker. As soon as the minute
+            bar is closed, it downloads 5S granularity data. This ensures any premature 
+            data requests. Typically there is 1-5 seconds lag between theoretical bar close
+            and receipt of actual bar close signal.
+            '''
                     
-                    print(e)
+            last_candle_time = self.current_timestamp
+            if self.verbose == True: 
+                print("Last candle: {}".format(last_candle_time))
 
-                    '''
-                    In case download fails, gloabl isAlive variable is set to false.
-                    This triggers feeder object to restart and make connections with broker and other objects.
-                    '''
-                    isAlive = False
-                    self.h5.close()
-                    print('Bar Data download failed at [UTC]', datetime.datetime.utcnow() )
+            while True:  
+
+                '''
+                This section is useful when user wants feeder to download real-time data for
+                a defined period. Once that date is reached, feeder stops, database is closed and 
+                feeder ends. It is used in source_system > workflow_compare_realtime_and_historical_data.py
+                '''
+                if self.download_data_end_date != None:
                     
-                    break
-                                
-            previous_slack_download = current_slack_download
-            previous_slack_signal = current_slack_signal
-
-            if isAlive == False:
+                    if datetime.datetime.utcnow() >= self.download_data_end_date:
+                        
+                        isAlive = False
+                        self.h5.close()
+                        break
+                    
+                '''
+                Fetching latest 2 candles
+                '''
+                latest_candles = self.get_latest_candles(2, "M1")
                 
-                break
+                for e_candle in latest_candles:
+    
+                    latest_candle_time = (datetime.datetime.fromisoformat(e_candle['time'].replace('000Z', '+00:00')))
+                                        
+                    if (e_candle['complete'] == True) and (latest_candle_time > last_candle_time):
+                    
+                        if self.verbose == True: 
+                            print("Latest candle: {0}, {1} ".format( latest_candle_time, last_candle_time) )
 
+                        latest_candle_time = (datetime.datetime.fromisoformat(e_candle['time'].replace('000Z', '+00:00'))).replace(second=0)
+                        
+                        fromTime = self.current_timestamp
+                        toTime = latest_candle_time + datetime.timedelta(minutes=1)
+                        
+                        if self.verbose == True: 
+                            print('fromTime:', fromTime, ' toTime:', toTime)
+
+                        try:
+        
+                            data = self.download_ohlc_data(fromTime, toTime)
+                            
+                            self.append_bar_data_to_in_memory_bar_ohlc_df(data)
+        
+                            slack = pd.datetime.now(datetime.timezone.utc) - pd.datetime.now(datetime.timezone.utc).replace(hour= 0, minute=0, second=0)
+                            current_slack_signal = slack % self.update_signal_frequency
+
+                            if self.download_frequency == self.update_signal_frequency:
+                                
+                                self.append_in_memory_bar_ohlc_df_to_database()
+                                
+                            elif self.download_frequency < self.update_signal_frequency:
+                                
+                                if current_slack_signal < previous_slack_signal:
+                                    
+                                    self.append_in_memory_bar_ohlc_df_to_database()
+                            
+                            else:
+                                
+                                print("Problem: download_frequency > update_signal_frequency, please check the feeder inputs")
+                                exit()
+                                
+                            self.number_of_bars = self.number_of_bars + 1
+                
+                            previous_slack_signal = current_slack_signal
+                
+                        except Exception as e:
+                            
+                            print(e)
+        
+                            '''
+                            In case download fails, global isAlive variable is set to false.
+                            This triggers feeder object to restart and make connections with broker and other objects.
+                            '''
+                            
+                            isAlive = False
+                            self.h5.close()
+                            print('Bar Data download failed at [UTC]', datetime.datetime.utcnow() )
+                            
+                            break
+                        
+                        last_candle_time = latest_candle_time
+                
+                
+                
     def append_bar_data_to_in_memory_bar_ohlc_df(self,temp):
         ''' 
         Take each received data signal as input and append to an in-memory dataframe
@@ -407,103 +494,11 @@ class feeder(object):
         print("Sending message: {0}".format(msg))                   
         self.socket_pub.send_string(msg)
         
-        msg = self.socket_sub.recv_string()
-        print("Received message: {0}".format(msg))
+        #msg = self.socket_sub.recv_string()
+        #print("Received message: {0}".format(msg))
         
         self.h5 = tables.open_file(self.path_ohlc_data, 'a')
         self.ts = self.h5.root.data._f_get_timeseries()
-
-    def receive_realtime_tick_data(self):
-
-        global isAlive
-        
-        try:
-         
-            self.download_tick_data()
-            
-        except Exception as e:                    
-            
-            print(e)
-            
-            isAlive = False
-            print('Tick data download failed at [UTC]', datetime.datetime.utcnow() )
-
-    def download_tick_data(self):
-
-        global isAlive
-        params = { "instruments": self.symbol }
-        s = pricing.PricingStream(accountID=self.accountID , params=params)
-
-        while isAlive:
-
-            try:
-
-                for msg in self.api.request(s):
-        
-                    timestamp = msg['time']
-                    timestamp = timestamp.replace('T',' ')
-                    timestamp = timestamp.replace('Z','')
-                    timestamp = uf.parse_date(timestamp)
-        
-                    if (msg['type'] == 'PRICE') and isAlive:
-        
-                        # compose the message
-                        instrument = msg['instrument']
-                        ask = msg['asks'][0]['price']
-                        bid = msg['bids'][0]['price']
-                        ask_volume = msg['asks'][0]['liquidity']
-                        bid_volume = msg['bids'][0]['liquidity']
-                                             
-                        print(instrument, timestamp, ask, bid, ask_volume, bid_volume)                     
-                        
-                        self.ticks = self.ticks + 1
-                         
-                    elif (msg['type'] == 'HEARTBEAT') and isAlive:
-                        ''' Heartbeat happens at approximately every 5 seconds. Even when the markets are closed.
-                        '''
-                
-                        print("Receiving Heartbeat,{0}".format(timestamp))
-                
-                        current_heartbeat = timestamp
-                        previous_heartbeat = timestamp
-                        
-                        if current_heartbeat - previous_heartbeat >= datetime.timedelta(seconds=9) and self.heartbeat > 1:
-                            
-                            print("Heartbeat not received for extended period")
-                            isAlive = False
-                                            
-                        previous_heartbeat = current_heartbeat
-                        
-                        self.heartbeat = self.heartbeat + 1
-        
-                    else:
-        
-                        print("msg type not receognized by feeder")
-                        isAlive = False
-                        
-                    if isAlive == False:
-                    
-                        break
-                
-            except V20Error as e:
-                # catch API related errors that may occur
-                print("V20Error Error: {}".format(e))
-                isAlive = False
-                break
-
-            except ConnectionError as e:
-                print("ConnectionError Error: {}".format(e))
-                break
-
-            except StreamTerminated as e:
-                print("Error: {}".format(e))
-                isAlive = False                        
-                break
-
-            except Exception as e:
-                print("Error: {}".format(e))
-                isAlive = False
-                break
                                
     def add_calendar_data(self):
         
@@ -529,12 +524,12 @@ class feeder(object):
 
         path = '..\\..\\datastore\\_{0}\\{1}\\positionbook.pkl'.format(self.account_type,self.symbol)
         self.df_positionbook.to_pickle(path)
-       
-def ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,retries):
+
+def ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,download_data_end_date,verbose,retries):
     
     while True:
             
-        f1 = feeder(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date)
+        f1 = feeder(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,download_data_end_date,verbose)
     
         try:
 
@@ -549,7 +544,7 @@ def ContinueLooping(config,symbol,granularity,account_type,socket_number,downloa
                 
             retries += 1        
             print('Trying to restart feeder:', retries)
-            ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,retries)
+            ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,download_data_end_date,verbose,retries)
             
         return f1
 
@@ -559,31 +554,32 @@ def AppendLogFile(input_object, error_message):
     f = open( path_logfile, 'a')
     f.write( '{}: Error: {} \n'.format(datetime.datetime.utcnow(), error_message) )
     f.close() 
-        
+
 if __name__ == '__main__':
    
     try:
         config = configparser.ConfigParser()
         config.read('..\..\configinfo.cfg')
-        
+
         symbol = sys.argv[1]
         granularity = sys.argv[2]
         account_type = sys.argv[3]
         socket_number = int(sys.argv[4])
-        download_frequency = datetime.timedelta(seconds=60)
-        update_signal_frequency = datetime.timedelta(seconds=60)
-        download_data_start_date = pd.datetime(2010,1,1,0,0,0,0,datetime.timezone.utc)
-        '''
-        # For testing:
+
+        '''        
+       # For testing:
         symbol = 'EUR_USD'
         granularity = 'S5'
         account_type = 'live'
         socket_number = 5555
+        '''
+        
         daily_lookback = 10
         download_frequency = datetime.timedelta(seconds=60)
         update_signal_frequency = datetime.timedelta(seconds=60)
-        download_data_start_date = pd.datetime(2010,1,1,0,0,0,0,datetime.timezone.utc)
-        '''
+        download_data_start_date = pd.datetime(2020,12,18,0,0,0,0,datetime.timezone.utc)
+        download_data_end_date = None
+        verbose = False
         
         print("--- FEEDER ---")
         print("symbol:", symbol)
@@ -597,12 +593,11 @@ if __name__ == '__main__':
             time.sleep(30)
             exit()
 
-        ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,retries=0)
-        
+        ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,download_data_end_date,verbose,retries=0)
+            
     except:
         
         print( 'Error in reading configuration file' )
         
-
-        
+   
     
