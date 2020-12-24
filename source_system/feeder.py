@@ -212,7 +212,7 @@ class feeder(object):
        
         print("download_missing_data")
         
-        if ( pd.datetime.now(datetime.timezone.utc) - self.current_timestamp > datetime.timedelta(hours=1) ):
+        if ( datetime.datetime.now(datetime.timezone.utc) - self.current_timestamp > datetime.timedelta(hours=1) ):
                                    
             print('More than 1 hour of data missing, need to download before starting')
             print('Downloading chunks of data of 1 hour length of duration')            
@@ -221,7 +221,7 @@ class feeder(object):
             end_time = start_time + datetime.timedelta(hours=1)
             end_time = end_time.replace(second = 0, microsecond = 0)
             
-            while end_time <= pd.datetime.now(datetime.timezone.utc):
+            while end_time <= datetime.datetime.now(datetime.timezone.utc):
                     
                 temp = self.download_ohlc_data(start_time, end_time)
                  
@@ -230,7 +230,7 @@ class feeder(object):
                 start_time = end_time
                 end_time = start_time + datetime.timedelta(hours=1)
                               
-            end_time = pd.datetime.now(datetime.timezone.utc)
+            end_time = datetime.datetime.now(datetime.timezone.utc)
             temp = self.download_ohlc_data(start_time, end_time)
             self.ts.append(temp)
             self.h5.close()
@@ -494,8 +494,8 @@ class feeder(object):
         print("Sending message: {0}".format(msg))                   
         self.socket_pub.send_string(msg)
         
-        #msg = self.socket_sub.recv_string()
-        #print("Received message: {0}".format(msg))
+        msg = self.socket_sub.recv_string()
+        print("Received message: {0}".format(msg))
         
         self.h5 = tables.open_file(self.path_ohlc_data, 'a')
         self.ts = self.h5.root.data._f_get_timeseries()
@@ -560,24 +560,24 @@ if __name__ == '__main__':
     try:
         config = configparser.ConfigParser()
         config.read('..\..\configinfo.cfg')
-
+       
         symbol = sys.argv[1]
         granularity = sys.argv[2]
         account_type = sys.argv[3]
         socket_number = int(sys.argv[4])
 
-        '''        
+        '''
        # For testing:
         symbol = 'EUR_USD'
         granularity = 'S5'
         account_type = 'live'
         socket_number = 5555
-        '''
+        ''' 
         
         daily_lookback = 10
         download_frequency = datetime.timedelta(seconds=60)
         update_signal_frequency = datetime.timedelta(seconds=60)
-        download_data_start_date = pd.datetime(2020,12,18,0,0,0,0,datetime.timezone.utc)
+        download_data_start_date = datetime.datetime(2020,11,1,0,0,0,0,datetime.timezone.utc)
         download_data_end_date = None
         verbose = False
         

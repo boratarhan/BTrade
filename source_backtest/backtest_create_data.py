@@ -29,18 +29,18 @@ def create_research_data(symbol, granularity, read_start_dt, read_end_dt):
     df_1M = df_1M.reset_index()
     df_1M = df_1M.rename(columns={'index': 'date'})
     df_1M = df_1M.set_index('date')
-    df_1M = df_1M.loc[~ ( (df_1M['bid_o'] == df_1M['bid_h']) & (df_1M['bid_o'] == df_1M['bid_l']) & (df_1M['bid_o'] == df_1M['bid_c']) ) ]
+    #df_1M = df_1M.loc[~ ( (df_1M['bid_o'] == df_1M['bid_h']) & (df_1M['bid_o'] == df_1M['bid_l']) & (df_1M['bid_o'] == df_1M['bid_c']) ) ]
     
     granularity = '1M'
     filename = '{}.hdf'.format(granularity)
     uf.write_df_to_hdf(df_1M, folderpath, filename)
-    
+       
     #-------------------------------------------------------------------------------------------------------------
     df_1H = df_5S.resample('1H', closed='left', label='left').apply(ohlc_dict).dropna()
     df_1H = df_1H.reset_index()
     df_1H = df_1H.rename(columns={'index': 'date'})
     df_1H = df_1H.set_index('date')
-    df_1H = df_1H.loc[~ ( (df_1H['bid_o'] == df_1H['bid_h']) & (df_1H['bid_o'] == df_1H['bid_l']) & (df_1H['bid_o'] == df_1H['bid_c']) ) ]
+    #df_1H = df_1H.loc[~ ( (df_1H['bid_o'] == df_1H['bid_h']) & (df_1H['bid_o'] == df_1H['bid_l']) & (df_1H['bid_o'] == df_1H['bid_c']) ) ]
 
     granularity = '1H'
     filename = '{}.hdf'.format(granularity)
@@ -51,7 +51,7 @@ def create_research_data(symbol, granularity, read_start_dt, read_end_dt):
     df_4H = df_4H.reset_index()
     df_4H = df_4H.rename(columns={'index': 'date'})
     df_4H = df_4H.set_index('date')
-    df_4H = df_4H[~ ( (df_4H['bid_o'] == df_4H['bid_h']) & (df_4H['bid_o'] == df_4H['bid_l']) & (df_4H['bid_o'] == df_4H['bid_c']) ) ]
+    #df_4H = df_4H[~ ( (df_4H['bid_o'] == df_4H['bid_h']) & (df_4H['bid_o'] == df_4H['bid_l']) & (df_4H['bid_o'] == df_4H['bid_c']) ) ]
 
     granularity = '4H'
     filename = '{}.hdf'.format(granularity)
@@ -62,7 +62,7 @@ def create_research_data(symbol, granularity, read_start_dt, read_end_dt):
     df_8H = df_8H.reset_index()
     df_8H = df_8H.rename(columns={'index': 'date'})
     df_8H = df_8H.set_index('date')
-    df_8H = df_8H[~ ( (df_8H['bid_o'] == df_8H['bid_h']) & (df_8H['bid_o'] == df_8H['bid_l']) & (df_8H['bid_o'] == df_8H['bid_c']) ) ]
+    #df_8H = df_8H[~ ( (df_8H['bid_o'] == df_8H['bid_h']) & (df_8H['bid_o'] == df_8H['bid_l']) & (df_8H['bid_o'] == df_8H['bid_c']) ) ]
 
     granularity = '8H'
     filename = '{}.hdf'.format(granularity)
@@ -74,12 +74,11 @@ def create_research_data(symbol, granularity, read_start_dt, read_end_dt):
     df_1D = df_1D.reset_index()
     df_1D = df_1D.rename(columns={'index': 'date'})
     df_1D = df_1D.set_index('date')
-    df_1D = df_1D[~ ( (df_1D['bid_o'] == df_1D['bid_h']) & (df_1D['bid_o'] == df_1D['bid_l']) & (df_1D['bid_o'] == df_1D['bid_c']) ) ]
+    #df_1D = df_1D[~ ( (df_1D['bid_o'] == df_1D['bid_h']) & (df_1D['bid_o'] == df_1D['bid_l']) & (df_1D['bid_o'] == df_1D['bid_c']) ) ]
 
     granularity = '1D'
     filename = '{}.hdf'.format(granularity)
     uf.write_df_to_hdf(df_1D, folderpath, filename)
-
 
 def split_5S_data_to_years(symbol, granularity):
 
@@ -114,3 +113,4 @@ if __name__ == '__main__':
         read_start_dt = datetime.datetime(2020,1,1,0,0,0)
         read_end_dt = datetime.datetime(2021,1,1,0,0,0)
         create_research_data(symbol, granularity, read_start_dt, read_end_dt)
+        

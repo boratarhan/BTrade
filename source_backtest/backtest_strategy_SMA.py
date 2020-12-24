@@ -58,9 +58,9 @@ if __name__ == '__main__':
      account_type = 'backtest'
      granularity = '1M'
      decision_frequency = '1M'
-     start_datetime = datetime.datetime(2020,11,11,0,0,0)
+     start_datetime = datetime.datetime(2020,12,22,0,0,0)
      end_datetime = datetime.datetime(2021,1,1,0,0,0)
-     idle_duration_before_start_trading = pd.Timedelta(value='30D')     
+     idle_duration_before_start_trading = pd.Timedelta(value='5M')     
      initial_equity = 10000
      marginpercent = 100
      ftc=0.0
