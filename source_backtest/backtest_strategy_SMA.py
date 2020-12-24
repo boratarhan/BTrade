@@ -58,14 +58,14 @@ if __name__ == '__main__':
      account_type = 'backtest'
      granularity = '1M'
      decision_frequency = '1M'
-     start_datetime = datetime.datetime(2020,12,22,0,0,0)
+     start_datetime = datetime.datetime(2020,12,24,4,35,0)
      end_datetime = datetime.datetime(2021,1,1,0,0,0)
      idle_duration_before_start_trading = pd.Timedelta(value='5M')     
      initial_equity = 10000
      marginpercent = 100
      ftc=0.0
      ptc=0.0
-     verbose=False
+     verbose=True
      create_data=False
      
      # A standard lot = 100,000 units of base currency. 

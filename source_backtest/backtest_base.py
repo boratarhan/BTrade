@@ -200,7 +200,7 @@ class Trade(object):
         If trade is closed in several steps, keep track of exit transactions        
         '''                
         self.realizedpips = self.realizedpips - np.sign(transactedunits) * ( exitprice - self.entryprice ) * pip_factor[self.quote_currency]
-        
+
         if self.quote_currency == 'USD':
 
             self.realizedprofitloss = self.realizedprofitloss - transactedunits * ( exitprice - self.entryprice )            
@@ -215,9 +215,9 @@ class Trade(object):
         '''
         Calculate trade statistics at the close
         '''
-        
+
         self.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l)
-            
+
         return self.IsOpen, abs(untransactedunits)
 
     def __repr__(self):
@@ -225,7 +225,7 @@ class Trade(object):
         This is a dunder method used for converting difficult to understand object names to ones
         which are easier to follow.
         '''
-        return "Trade({}, {}, {}, {})".format(self.ID, self.longshort, self.units, self.entrydate)
+        return "Trade({}, {}, {}, {})".format(self.ID, self.longshort, self.entry_unit, self.entrydate)
         
         
 class backtest_base(object):
@@ -561,6 +561,7 @@ class backtest_base(object):
         '''
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
         
+        print("self.units_net: {}".format(self.units_net))
         if self.units_net < 0:
             self.data.loc[date,'units_to_buy'] = self.data.loc[date,'units_to_buy'] - self.units_net
         elif self.units_net > 0:
@@ -571,10 +572,14 @@ class backtest_base(object):
         
         self.listofOpenTrades = [ etrade for etrade in self.listofOpenTrades]
         
-        for etrade in self.listofOpenTrades:
+        while len(self.listofOpenTrades)>0:
+            etrade = self.listofOpenTrades[0]
+            print("self.units_net: {}".format(self.units_net))
             self.units_net = self.units_net - etrade.units
+            print("self.units_net: {}".format(self.units_net))
             etrade.close(-etrade.units, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
             self.listofOpenTrades.remove(etrade)
+            print(self.listofOpenTrades)
             self.listofClosedTrades.append(etrade)
         
     def update(self, date):

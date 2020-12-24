@@ -42,15 +42,15 @@ class desc(tables.IsDescription):
     Description of TsTables table structure.
     '''
     timestamp = tables.Int64Col(pos=0)  
-    ask_c = tables.Float64Col(pos=1)  
+    ask_o = tables.Float64Col(pos=1)  
     ask_h = tables.Float64Col(pos=2)  
     ask_l = tables.Float64Col(pos=3)  
-    ask_o = tables.Float64Col(pos=4)  
+    ask_c = tables.Float64Col(pos=4)  
 
-    bid_c = tables.Float64Col(pos=5)  
+    bid_o = tables.Float64Col(pos=5)  
     bid_h = tables.Float64Col(pos=6)  
     bid_l = tables.Float64Col(pos=7)  
-    bid_o = tables.Float64Col(pos=8)  
+    bid_c = tables.Float64Col(pos=8)  
 
     volume = tables.Int64Col(pos=9)
 
@@ -313,12 +313,12 @@ class feeder(object):
             data = data.set_index('time')  
             data.index = pd.DatetimeIndex(data.index)  
                     
-            data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o']] = data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o']].astype('float64')
+            data[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c']] = data[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c']].astype('float64')
  
             '''
             Make sure that the sequence of columns are identical to the description of class desc(tables.IsDescription)
             '''
-            data = data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o','volume']]
+            data = data[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c','volume']]
         
             data = data[data.index > self.current_timestamp]
     
@@ -540,7 +540,7 @@ def ContinueLooping(config,symbol,granularity,account_type,socket_number,downloa
             
             print(e)
 
-            AppendLogFile(f1, e)
+            AppendLogFile(f1.symbol, e)
                 
             retries += 1        
             print('Trying to restart feeder:', retries)
@@ -548,9 +548,9 @@ def ContinueLooping(config,symbol,granularity,account_type,socket_number,downloa
             
         return f1
 
-def AppendLogFile(input_object, error_message):
+def AppendLogFile(symbol, error_message):
     
-    path_logfile = '..\\..\\results_live\\log_feeder_{0}.log'.format(input_object.symbol)                
+    path_logfile = '..\\..\\results_live\\log_feeder_{0}.log'.format(symbol)                
     f = open( path_logfile, 'a')
     f.write( '{}: Error: {} \n'.format(datetime.datetime.utcnow(), error_message) )
     f.close() 
@@ -577,7 +577,7 @@ if __name__ == '__main__':
         daily_lookback = 10
         download_frequency = datetime.timedelta(seconds=60)
         update_signal_frequency = datetime.timedelta(seconds=60)
-        download_data_start_date = datetime.datetime(2020,11,1,0,0,0,0,datetime.timezone.utc)
+        download_data_start_date = datetime.datetime(2020,11,15,0,0,0,0,datetime.timezone.utc)
         download_data_end_date = None
         verbose = False
         
@@ -595,9 +595,12 @@ if __name__ == '__main__':
 
         ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,download_data_end_date,verbose,retries=0)
             
-    except:
+    except Exception as e:
         
-        print( 'Error in reading configuration file' )
+        print( 'Error in starting the object' )
+        print(e)
+        AppendLogFile(symbol, e)
+        
         
    
     
