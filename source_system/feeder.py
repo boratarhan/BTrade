@@ -14,7 +14,6 @@ import configparser
 import datetime
 import time
 import utility_functions as uf
-import threading
 import os
 import sys
 
@@ -253,7 +252,7 @@ class feeder(object):
         slack = slack % datetime.timedelta(seconds=5)  # Download 5 second frequency data
         end_datetime = end_datetime - slack        
         
-        print('Downloading data from', start_datetime, 'to', end_datetime, 'requested at', datetime.datetime.utcnow())
+        print('Downloading', self.symbol, 'data from', start_datetime, 'to', end_datetime, 'requested at', datetime.datetime.utcnow())
         
         suffix = '.000000Z'  
 
@@ -330,14 +329,13 @@ class feeder(object):
         My initial plan was to run two threads running parallel to get both streaming data and bar data
         Running two threads for receiving real-time data and bar data causes problems, therefore I am running only bar data
         Since this is not a critical issue, I can hold this off for now.
-        '''
         
         t1 = threading.Thread( target=self.receive_realtime_bar_data, args=() )
-
         t1.start()
-
         t1.join()
-                
+        '''
+        self.receive_realtime_bar_data()
+        
     def get_latest_candles(self, no_of_candles, granularity):
         
         try:
@@ -577,7 +575,7 @@ if __name__ == '__main__':
         daily_lookback = 10
         download_frequency = datetime.timedelta(seconds=60)
         update_signal_frequency = datetime.timedelta(seconds=60)
-        download_data_start_date = datetime.datetime(2020,11,15,0,0,0,0,datetime.timezone.utc)
+        download_data_start_date = datetime.datetime(2010,1,1,0,0,0,0,datetime.timezone.utc)
         download_data_end_date = None
         verbose = False
         

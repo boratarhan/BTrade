@@ -23,8 +23,8 @@ file_path_h5 = '..\\..\\datastore\\_live\\{}\\S5.h5'.format(symbol)
 f = tables.open_file(file_path_h5,'r')
 ts = f.root.data._f_get_timeseries()
 
-read_start_dt = datetime.datetime(2020,12,22,22,37)
-read_end_dt = datetime.datetime(2020,12,22,23,8)
+read_start_dt = datetime.datetime(2020,12,1,0,0,0)
+read_end_dt = datetime.datetime(2021,1,1,0,0,0)
 
 rows = ts.read_range(read_start_dt,read_end_dt)
 
