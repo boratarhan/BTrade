@@ -43,15 +43,14 @@ def convert_raw_data_to_dataframe(raw):
         data = data.set_index('time')  
         data.index = pd.DatetimeIndex(data.index)  
                 
-        data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o']] = data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o']].astype('float64')
+        data[['ask_o', 'ask_h', 'ask_l', 'ask_c','bid_o', 'bid_h', 'bid_l', 'bid_c']] = data[['ask_o', 'ask_h', 'ask_l', 'ask_c','bid_o', 'bid_h', 'bid_l', 'bid_c']].astype('float64')
  
-        data = data[['ask_c', 'ask_h', 'ask_l', 'ask_o','bid_c', 'bid_h', 'bid_l', 'bid_o','volume']]
+        data = data[['ask_o', 'ask_h', 'ask_l', 'ask_c','bid_o', 'bid_h', 'bid_l', 'bid_c','volume']]
     
     return data
 
-
-start_time = datetime.datetime(2020, 12, 22, 0, 0, 00)
-end_time = datetime.datetime(2020, 12, 22, 4, 29, 00)
+start_time = datetime.datetime(2020, 12, 28, 2, 28, 00)
+end_time = datetime.datetime(2020, 12, 28, 2, 29, 00)
  
 suffix = '.000000Z'     
 start_datetime = start_time.isoformat('T') + suffix  

@@ -58,8 +58,8 @@ if __name__ == '__main__':
         config = configparser.ConfigParser()
         config.read('..\..\configinfo.cfg')
 
-        #list_pairs = ['AUD_USD', 'EUR_USD', 'GBP_USD', 'NZD_USD', 'USD_CAD', 'USD_CHF', 'USD_JPY', 'USD_TRY', 'AUD_NZD', 'EUR_CHF', 'AUD_JPY' ]
-        list_pairs = ['AUD_USD', 'EUR_USD', 'GBP_USD', 'NZD_USD', 'USD_CHF', 'USD_JPY', 'USD_TRY', 'AUD_NZD']
+        list_pairs = ['AUD_USD', 'EUR_USD', 'GBP_USD', 'NZD_USD', 'USD_CAD', 'USD_CHF', 'USD_JPY', 'USD_TRY', 'AUD_NZD', 'EUR_CHF', 'AUD_JPY' ]
+        #list_pairs = ['USD_CAD', 'EUR_CHF', 'AUD_JPY' ]
 
         account_type = 'live'
         socket_number = 5555

@@ -93,7 +93,8 @@ def split_5S_data_to_years(symbol, granularity):
     
 if __name__ == '__main__':
 
-    list_pairs = ['AUD_USD', 'EUR_USD', 'GBP_USD', 'NZD_USD', 'USD_CAD', 'USD_CHF', 'USD_JPY', 'USD_TRY', 'AUD_NZD', 'EUR_CHF', 'AUD_JPY' ]
+    #list_pairs = ['AUD_USD', 'EUR_USD', 'GBP_USD', 'NZD_USD', 'USD_CAD', 'USD_CHF', 'USD_JPY', 'USD_TRY', 'AUD_NZD', 'EUR_CHF', 'AUD_JPY' ]
+    list_pairs = ['EUR_USD']
 
     df_5S = pd.DataFrame()
     
@@ -103,7 +104,7 @@ if __name__ == '__main__':
         granularity = 'S5'
         #split_5S_data_to_years(symbol, granularity)
     
-        read_start_dt = datetime.datetime(2020,1,1,0,0,0)
+        read_start_dt = datetime.datetime(2010,1,1,0,0,0)
         read_end_dt = datetime.datetime(2021,1,1,0,0,0)
         create_research_data(symbol, granularity, read_start_dt, read_end_dt)
         

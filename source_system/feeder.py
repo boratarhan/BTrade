@@ -559,6 +559,7 @@ if __name__ == '__main__':
         config = configparser.ConfigParser()
         config.read('..\..\configinfo.cfg')
        
+        ''' 
         symbol = sys.argv[1]
         granularity = sys.argv[2]
         account_type = sys.argv[3]
@@ -570,7 +571,6 @@ if __name__ == '__main__':
         granularity = 'S5'
         account_type = 'live'
         socket_number = 5555
-        ''' 
         
         daily_lookback = 10
         download_frequency = datetime.timedelta(seconds=60)

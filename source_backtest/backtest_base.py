@@ -1473,7 +1473,7 @@ if __name__ == '__main__':
      account_type = 'backtest'
      granularity = '1H'
      decision_frequency = '1H'
-     start_datetime = datetime.datetime(20,1,1,0,0,0)
+     start_datetime = datetime.datetime(2010,1,1,0,0,0)
      end_datetime = datetime.datetime.now()
      idle_duration_before_start_trading = pd.Timedelta(value='0D')     
      initial_equity = 10000

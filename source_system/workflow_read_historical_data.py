@@ -27,10 +27,11 @@ read_start_dt = datetime.datetime(2020,12,1,0,0,0)
 read_end_dt = datetime.datetime(2021,1,1,0,0,0)
 
 rows = ts.read_range(read_start_dt,read_end_dt)
-
+'''
 filename = "Realtime.xlsx"
 folderpath = '..\\..\\datastore'           
 
 uf.write_df_to_excel(rows, folderpath, filename)
 
 f.close()                
+'''
