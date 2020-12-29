@@ -8,6 +8,10 @@ import chart_studio.plotly as ply
 from plotly import tools
 import plotly.graph_objs as go
 
+# Change the current working directory to the folder where the file is located.
+cwd = os.path.dirname(__file__)
+os.chdir(cwd)
+
 # configuration
 config = configparser.ConfigParser()
 config.read('..\..\configinfo.cfg')

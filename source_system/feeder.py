@@ -243,6 +243,15 @@ class feeder(object):
             self.ts.append(temp)
             self.h5.close()
             self.open_database()            
+
+    def data_quality_check(self):
+        
+        pass
+        '''
+        for e_date, e_price in self.ts. :
+            
+            print(e_date, e_price)
+        '''
             
     def download_ohlc_data(self, start_datetime, end_datetime):
                 
@@ -575,7 +584,7 @@ if __name__ == '__main__':
         daily_lookback = 10
         download_frequency = datetime.timedelta(seconds=60)
         update_signal_frequency = datetime.timedelta(seconds=60)
-        download_data_start_date = datetime.datetime(2010,1,1,0,0,0,0,datetime.timezone.utc)
+        download_data_start_date = datetime.datetime(2020,12,21,0,0,0,0,datetime.timezone.utc)
         download_data_end_date = None
         verbose = False
         
@@ -592,7 +601,7 @@ if __name__ == '__main__':
             exit()
 
         ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,download_data_end_date,verbose,retries=0)
-            
+                
     except Exception as e:
         
         print( 'Error in starting the object' )
