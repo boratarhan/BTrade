@@ -26,10 +26,7 @@ class SMA_Crossover(strategy):
         self.add_indicators()
 
         self.create_order_signal()
-                    
-        #result = pd.concat([self.df_aggregate['1T'], self.df_status['signal']], axis=1)    #Frequencies are detailed in parent object, 1T = 1 Minute
-        #print(result.tail())
-        
+                            
         self.df_aggregate['1T']= pd.concat([self.df_aggregate['1T'], self.df_status['signal']], axis=1)
         print(self.df_aggregate['1T'].tail())
         
@@ -50,7 +47,7 @@ class SMA_Crossover(strategy):
                 self.df_status.loc[temp_index,'time'] = datetime.datetime.utcnow()
                 self.df_status.loc[temp_index,'signal'] = -1
 
-                msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Short', self.symbol, 10000, 0 , 0, 0, 0 )
+                msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Short', self.symbol, 1000, 0 , 0, 0, 0 )
                 print("Sending message: {}".format(msg))                   
                 self.socket_pub_porfolio.send_string(msg)
                             
@@ -59,7 +56,7 @@ class SMA_Crossover(strategy):
                 self.df_status.loc[temp_index,'time'] = datetime.datetime.utcnow()
                 self.df_status.loc[temp_index,'signal'] = 1
     
-                msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Long', self.symbol, 10000, 0 , 0, 0, 0 )
+                msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Long', self.symbol, 1000, 0 , 0, 0, 0 )
                 print("Sending message: {}".format(msg))                   
                 self.socket_pub_porfolio.send_string(msg)
                         
@@ -71,7 +68,7 @@ class SMA_Crossover(strategy):
             
             print(e)
             print('Something went wrong in order creation')
-       
+
 if __name__ == '__main__':
         
     import configparser

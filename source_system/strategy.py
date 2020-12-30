@@ -106,13 +106,17 @@ class strategy(object):
             msg = 'Strategy step completed...'
             print("Sending message: {0}".format(msg))
             self.socket_pub_forwarder.send_string(msg)
-            
-            filename = '{0}_{1}-{2:02d}-{3:02d}-{4:02d}-{5:02d}-{6:02d}_data.xlsx'.format(self.symbol, self.path_timestamp.year, self.path_timestamp.month, self.path_timestamp.day, self.path_timestamp.hour, self.path_timestamp.minute, self.path_timestamp.second)
-            uf.write_df_to_excel(self.df_aggregate['1T'], self.path_results_live, filename)
-                    
-            filename = '{0}_{1}-{2:02d}-{3:02d}-{4:02d}-{5:02d}-{6:02d}_data.pkl'.format(self.symbol, self.path_timestamp.year, self.path_timestamp.month, self.path_timestamp.day, self.path_timestamp.hour, self.path_timestamp.minute, self.path_timestamp.second)
-            uf.pickle_df(self.df_aggregate['1T'], self.path_results_live, filename)
-                        
+        
+            self.update_results_log()
+
+    def update_results_log(self):
+                
+        filename = '{0}_{1}-{2:02d}-{3:02d}-{4:02d}-{5:02d}-{6:02d}_data.xlsx'.format(self.symbol, self.path_timestamp.year, self.path_timestamp.month, self.path_timestamp.day, self.path_timestamp.hour, self.path_timestamp.minute, self.path_timestamp.second)
+        uf.write_df_to_excel(self.df_aggregate['1T'], self.path_results_live, filename)
+                
+        filename = '{0}_{1}-{2:02d}-{3:02d}-{4:02d}-{5:02d}-{6:02d}_data.pkl'.format(self.symbol, self.path_timestamp.year, self.path_timestamp.month, self.path_timestamp.day, self.path_timestamp.hour, self.path_timestamp.minute, self.path_timestamp.second)
+        uf.pickle_df(self.df_aggregate['1T'], self.path_results_live, filename)
+       
     def core_strategy(self):
         
         pass
@@ -139,7 +143,7 @@ class strategy(object):
             
             read_end_dt = pd.datetime.now(datetime.timezone.utc)
             read_start_dt = pd.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=self.daily_lookback)
-                            
+
             self.df = self.ts.read_range(read_start_dt,read_end_dt)
             self.h5.close()
 

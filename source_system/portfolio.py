@@ -133,7 +133,7 @@ class portfolio(object):
             stopLossOnFill = float(stopLossOnFill)
             
             print(order_type, longshort, symbol, units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill)
-            '''
+
             if longshort == 'Short':
                 
                 self.create_order(order_type, symbol, -units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill)
@@ -141,7 +141,7 @@ class portfolio(object):
             if longshort == 'Long':
                 
                 self.create_order(order_type, symbol, units, priceBound, limit_price, takeProfitOnFill, stopLossOnFill)
-            '''
+
             self.get_positions_for_all_instruments()
                                      
     def get_instrument_list(self):
@@ -166,12 +166,12 @@ class portfolio(object):
 
         r = accounts.AccountDetails(accountID=self.accountID)
         df = pd.DataFrame(self.api.request(r))
-
-        print('Positions:') 
+                
+        print('Net Positions:') 
 
         for e_position in df['account']['positions']:
-            
-            self.position[e_position['instrument']] = int(e_position['long']['units'])-int(e_position['short']['units'])
+                        
+            self.position[e_position['instrument']] = int(e_position['long']['units'])+int(e_position['short']['units'])
 
             if self.position[e_position['instrument']] != 0:
                 print('{}: {}'.format(e_position['instrument'], self.position[e_position['instrument']]) ) 

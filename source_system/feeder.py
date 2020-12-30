@@ -396,72 +396,78 @@ class feeder(object):
                     
                 '''
                 Fetching latest 2 candles
+                This should always bring the last candles but in case number of 
+                candles are less than 2, code tries again. Without the length check,
+                it would throw an error.
                 '''
-                latest_candles = self.get_latest_candles(2, "M1")
                 
-                for e_candle in latest_candles:
-    
-                    latest_candle_time = (datetime.datetime.fromisoformat(e_candle['time'].replace('000Z', '+00:00')))
-                                        
-                    if (e_candle['complete'] == True) and (latest_candle_time > last_candle_time):
+                latest_candles = self.get_latest_candles(2, "M1")
+
+                if( len(latest_candles)) >= 2:
                     
-                        if self.verbose == True: 
-                            print("Latest candle: {0}, {1} ".format( latest_candle_time, last_candle_time) )
-
-                        latest_candle_time = (datetime.datetime.fromisoformat(e_candle['time'].replace('000Z', '+00:00'))).replace(second=0)
-                        
-                        fromTime = self.current_timestamp
-                        toTime = latest_candle_time + datetime.timedelta(minutes=1)
-                        
-                        if self.verbose == True: 
-                            print('fromTime:', fromTime, ' toTime:', toTime)
-
-                        try:
+                    for e_candle in latest_candles:
         
-                            data = self.download_ohlc_data(fromTime, toTime)
+                        latest_candle_time = (datetime.datetime.fromisoformat(e_candle['time'].replace('000Z', '+00:00')))
+                                            
+                        if (e_candle['complete'] == True) and (latest_candle_time > last_candle_time):
+                        
+                            if self.verbose == True: 
+                                print("Latest candle: {0}, {1} ".format( latest_candle_time, last_candle_time) )
+    
+                            latest_candle_time = (datetime.datetime.fromisoformat(e_candle['time'].replace('000Z', '+00:00'))).replace(second=0)
                             
-                            self.append_bar_data_to_in_memory_bar_ohlc_df(data)
-        
-                            slack = pd.datetime.now(datetime.timezone.utc) - pd.datetime.now(datetime.timezone.utc).replace(hour= 0, minute=0, second=0)
-                            current_slack_signal = slack % self.update_signal_frequency
-
-                            if self.download_frequency == self.update_signal_frequency:
+                            fromTime = self.current_timestamp
+                            toTime = latest_candle_time + datetime.timedelta(minutes=1)
+                            
+                            if self.verbose == True: 
+                                print('fromTime:', fromTime, ' toTime:', toTime)
+    
+                            try:
+            
+                                data = self.download_ohlc_data(fromTime, toTime)
                                 
-                                self.append_in_memory_bar_ohlc_df_to_database()
-                                
-                            elif self.download_frequency < self.update_signal_frequency:
-                                
-                                if current_slack_signal < previous_slack_signal:
+                                self.append_bar_data_to_in_memory_bar_ohlc_df(data)
+            
+                                slack = pd.datetime.now(datetime.timezone.utc) - pd.datetime.now(datetime.timezone.utc).replace(hour= 0, minute=0, second=0)
+                                current_slack_signal = slack % self.update_signal_frequency
+    
+                                if self.download_frequency == self.update_signal_frequency:
                                     
                                     self.append_in_memory_bar_ohlc_df_to_database()
-                            
-                            else:
+                                    
+                                elif self.download_frequency < self.update_signal_frequency:
+                                    
+                                    if current_slack_signal < previous_slack_signal:
+                                        
+                                        self.append_in_memory_bar_ohlc_df_to_database()
                                 
-                                print("Problem: download_frequency > update_signal_frequency, please check the feeder inputs")
-                                exit()
+                                else:
+                                    
+                                    print("Problem: download_frequency > update_signal_frequency, please check the feeder inputs")
+                                    exit()
+                                    
+                                self.number_of_bars = self.number_of_bars + 1
+                    
+                                previous_slack_signal = current_slack_signal
+                    
+                            except Exception as e:
                                 
-                            self.number_of_bars = self.number_of_bars + 1
-                
-                            previous_slack_signal = current_slack_signal
-                
-                        except Exception as e:
+                                print(e)
+            
+                                '''
+                                In case download fails, global isAlive variable is set to false.
+                                This triggers feeder object to restart and make connections with broker and other objects.
+                                '''
+                                
+                                isAlive = False
+                                self.h5.close()
+                                error_message = 'Bar Data download failed at [UTC]'.format(datetime.datetime.utcnow())
+                                print(error_message)
+                                AppendLogFile(self.symbol, error_message)
+
+                                break
                             
-                            print(e)
-        
-                            '''
-                            In case download fails, global isAlive variable is set to false.
-                            This triggers feeder object to restart and make connections with broker and other objects.
-                            '''
-                            
-                            isAlive = False
-                            self.h5.close()
-                            print('Bar Data download failed at [UTC]', datetime.datetime.utcnow() )
-                            
-                            break
-                        
-                        last_candle_time = latest_candle_time
-                
-                
+                            last_candle_time = latest_candle_time
                 
     def append_bar_data_to_in_memory_bar_ohlc_df(self,temp):
         ''' 
@@ -568,7 +574,6 @@ if __name__ == '__main__':
         config = configparser.ConfigParser()
         config.read('..\..\configinfo.cfg')
        
-        ''' 
         symbol = sys.argv[1]
         granularity = sys.argv[2]
         account_type = sys.argv[3]
@@ -580,6 +585,7 @@ if __name__ == '__main__':
         granularity = 'S5'
         account_type = 'live'
         socket_number = 5555
+        ''' 
         
         daily_lookback = 10
         download_frequency = datetime.timedelta(seconds=60)
