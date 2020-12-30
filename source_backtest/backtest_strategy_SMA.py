@@ -4,9 +4,9 @@ class backtest_strategy_SMA(backtest_base):
 
     def add_indicators(self, SMA1, SMA2):
 
-        self.data, self.indicatorlist = AddSMA( self.data, self.indicatorlist, 'bid', 'c', SMA2)
-        self.data, self.indicatorlist = AddSMA( self.data, self.indicatorlist, 'bid', 'c', SMA1)
-        self.data = self.data.dropna()
+        self.data[self.decision_frequency], self.indicatorlist = AddSMA( self.data[self.decision_frequency], self.indicatorlist, 'bid', 'c', SMA2)
+        self.data[self.decision_frequency], self.indicatorlist = AddSMA( self.data[self.decision_frequency], self.indicatorlist, 'bid', 'c', SMA1)
+        self.data[self.decision_frequency] = self.data[self.decision_frequency].dropna()
 
     def go_long(self, date, units):
         self.open_long_trade(units, date=date)
@@ -18,7 +18,7 @@ class backtest_strategy_SMA(backtest_base):
     
         self.add_indicators(SMA1, SMA2)
 
-        self.data = self.data.loc[(self.data.index >= self.date_to_start_trading) & (self.data.index <= self.end_date),:]
+        self.data[self.decision_frequency] = self.data[self.decision_frequency].loc[(self.data[self.decision_frequency].index >= self.date_to_start_trading) & (self.data[self.decision_frequency].index <= self.end_date),:]
 
         print('-' * 55)
         msg = 'Running SMA strategy | SMA1 = %d & SMA2 = %d' % (SMA1, SMA2)
@@ -26,7 +26,7 @@ class backtest_strategy_SMA(backtest_base):
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
         
-        for date, _ in self.data.iterrows():
+        for date, _ in self.data[self.decision_frequency].iterrows():
 
             ''' 
             Get signal
@@ -38,14 +38,14 @@ class backtest_strategy_SMA(backtest_base):
             -	Or eliminate some from list, move to ListofClosedOrders
             '''
             #self.run_core_strategy()
-        
-            if self.data.loc[date,'SMA_{}_bid_c'.format(SMA2)] > self.data.loc[date,'SMA_{}_bid_c'.format(SMA1)]:
+
+            if self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA2)] > self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA1)]:
                 self.go_short(date=date, units=10000)
-            elif self.data.loc[date,'SMA_{}_bid_c'.format(SMA2)] < self.data.loc[date,'SMA_{}_bid_c'.format(SMA1)]:
+            elif self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA2)] < self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA1)]:
                 self.go_long(date=date, units=10000)
                                 
             self.update(date)
-                
+            
         self.close_all_trades(date)
         self.update(date)
         self.close_out()
@@ -56,11 +56,12 @@ if __name__ == '__main__':
 
      symbol = 'EUR_USD'
      account_type = 'backtest'
-     granularity = '1M'
+     granularity = ['1M']
      decision_frequency = '1M'
+     granularity.append(decision_frequency)
      start_datetime = datetime.datetime(2020,12,24,4,35,0)
      end_datetime = datetime.datetime(2021,1,1,0,0,0)
-     idle_duration_before_start_trading = pd.Timedelta(value='5M')     
+     idle_duration_before_start_trading = datetime.timedelta(days=0, hours=0, minutes=5)
      initial_equity = 10000
      marginpercent = 100
      ftc=0.0
@@ -80,19 +81,18 @@ if __name__ == '__main__':
      #bb.plot()
      
      filename = '{}_data.xlsx'.format(bb.symbol)
-     uf.write_df_to_excel(bb.data, bb.backtest_folder, filename)
+     uf.write_df_to_excel(bb.data[bb.decision_frequency], bb.backtest_folder, filename)
      
      filename = '{}_data.pkl'.format(bb.symbol)
-     uf.pickle_df(bb.data, bb.backtest_folder, filename)
+     uf.pickle_df(bb.data[bb.decision_frequency], bb.backtest_folder, filename)
              
      bb.write_all_trades_to_excel()
      
      bb.monte_carlo_simulator(250)
  
-     viz.visualize(bb.symbol, bb.data, bb.listofClosedTrades)
+     viz.visualize(bb.symbol, bb.data[bb.decision_frequency], bb.listofClosedTrades)
      
      bb.analyze_trades()
      
      bb.calculate_average_number_of_bars_before_profitability()
-     
      

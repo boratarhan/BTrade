@@ -1,27 +1,33 @@
-import sys
-from sys import exit
-import os
-import numpy as np
-import pandas as pd
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
-import datetime
-import tables 
-plt.style.use('seaborn')
+try:
 
-sys.path.append('..\\source_system')
-from indicators import *
-import visualizer as viz
-import utility_functions as uf
-sys.path.remove('..\\source_system')
+    import sys
+    from sys import exit
+    import os
+    import numpy as np
+    import pandas as pd
+    import matplotlib
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import MaxNLocator
+    import datetime
+    import tables 
+    plt.style.use('seaborn')
+    
+    sys.path.append('..\\source_system')
+    from indicators import *
+    import visualizer as viz
+    import utility_functions as uf
+    sys.path.remove('..\\source_system')
+    
+    import random
+    import statistics
+    import pickle
+    from statistics import mean
+    import operator
 
-import random
-import statistics
-import pickle
-from statistics import mean
-import operator
-
+except Exception as e:
+    
+    print(e)    
+    
  # A standard lot = 100,000 units of base currency. 
  # A mini lot = 10,000 units of base currency.
  # A micro lot = 1,000 units of base currency.
@@ -234,10 +240,10 @@ class backtest_base(object):
     Base class for event-based backtesting of trading strategies.
     '''
 
-    def __init__(self, symbol, account_type, granularity, decision_frequency, start_date, end_date, idle_duration_before_start_trading, initial_equity, marginpercent, ftc=0.0, ptc=0.0, verbose=False, create_data=False):
+    def __init__(self, symbol, account_type, data_granularity, decision_frequency, start_date, end_date, idle_duration_before_start_trading, initial_equity, marginpercent, ftc=0.0, ptc=0.0, verbose=False, create_data=False):
         self.symbol = symbol # Same as trade symbol
         self.account_type = account_type # should be set to backtest, eventually used for file/folder name specification
-        self.granularity = granularity # Data granularity
+        self.data_granularity = data_granularity # Data granularity
         self.decision_frequency = decision_frequency # Decision frequency can be less granular (e.g. 1H) than data granularity (e.g. S5)
         self.start_date = start_date # Start date
         self.end_date = end_date # End date
@@ -250,7 +256,7 @@ class backtest_base(object):
         if create_data: self.create_backtest_data()
         
         self.input_data_foldername = os.path.join( '..\\..\\datastore', '_{}'.format(self.account_type), '{}'.format(self.symbol) )
-        self.input_data_filename = '{}.hdf'.format(self.granularity)
+        self.input_data_filename = {}
 
         self.backtest_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
         self.backtest_folder = self.file_path_ohlc = '..\\..\\results_backtest\\{}'.format(self.backtest_name)
@@ -310,13 +316,18 @@ class backtest_base(object):
         self.trades = 0
         self.verbose = verbose
 
-        self.data = pd.DataFrame()                
-        self.data = uf.read_hdf_to_df(self.input_data_foldername, self.input_data_filename)
-    
-        self.data.loc[:,'units_to_buy'] = 0
-        self.data.loc[:,'units_to_sell'] = 0
-        self.data.loc[:,'units_net'] = 0
-   
+        self.data = {}
+        
+        for e_data_granularity in self.data_granularity:
+                    
+            self.input_data_filename[e_data_granularity] = '{}.hdf'.format(e_data_granularity)
+            self.data[e_data_granularity] = pd.DataFrame()            
+            self.data[e_data_granularity] = uf.read_hdf_to_df(self.input_data_foldername, self.input_data_filename[e_data_granularity])
+
+        self.data[self.decision_frequency].loc[:,'units_to_buy'] = 0
+        self.data[self.decision_frequency].loc[:,'units_to_sell'] = 0
+        self.data[self.decision_frequency].loc[:,'units_net'] = 0
+        
     def add_indicators(self):
         '''
         This should be overwritten within derived classes from this base class.
@@ -327,7 +338,7 @@ class backtest_base(object):
 
         self.add_indicators()
 
-        self.data = self.data.iloc[(self.data.index.date >= self.date_to_start_trading) and (self.data.index.date <=self.end),:]
+        self.data[self.decision_frequency] = self.data[self.decision_frequency].iloc[(self.data[self.decision_frequency].index.date >= self.date_to_start_trading) and (self.data[self.decision_frequency].index.date <=self.end),:]
         
         print('-' * 55)
         msg = 'Running strategy '
@@ -335,7 +346,7 @@ class backtest_base(object):
         msg += 'proportional costs %.4f' % self.ptc
         print(msg)
                 
-        for date, _ in self.data.iterrows():
+        for date, _ in self.data[self.decision_frequency].iterrows():
             
             '''
             In case we need to update P/L using more refined data (e.g. hourly) and make decisions more 
@@ -363,7 +374,7 @@ class backtest_base(object):
         self.close_all_trades(date)
         self.update(date)
         self.close_out()
-        
+
         self.calculate_stats()
         
     def run_core_strategy(self):
@@ -377,14 +388,14 @@ class backtest_base(object):
         Return price for a given date.
         '''
 
-        price_ask_c = self.data.loc[date,'ask_c']
-        price_bid_c = self.data.loc[date,'bid_c']
+        price_ask_c = self.data[self.decision_frequency].loc[date,'ask_c']
+        price_bid_c = self.data[self.decision_frequency].loc[date,'bid_c']
 
-        price_ask_h = self.data.loc[date,'ask_h']
-        price_bid_h = self.data.loc[date,'bid_h']
+        price_ask_h = self.data[self.decision_frequency].loc[date,'ask_h']
+        price_bid_h = self.data[self.decision_frequency].loc[date,'bid_h']
 
-        price_ask_l = self.data.loc[date,'ask_l']
-        price_bid_l = self.data.loc[date,'bid_l']
+        price_ask_l = self.data[self.decision_frequency].loc[date,'ask_l']
+        price_bid_l = self.data[self.decision_frequency].loc[date,'bid_l']
             
         return price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l
 
@@ -392,7 +403,7 @@ class backtest_base(object):
         ''' 
         Enter into long trade on a given date
         '''
-        self.data.loc[date,'units_to_buy'] = self.data.loc[date,'units_to_buy'] + units_to_buy
+        self.data[self.decision_frequency].loc[date,'units_to_buy'] = self.data[self.decision_frequency].loc[date,'units_to_buy'] + units_to_buy
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
 
@@ -416,7 +427,6 @@ class backtest_base(object):
                 Note that units_to_buy > 0
                 '''
                 etrade = Trade(self.symbol, units_to_buy, date, price_bid_c, price_ask_c, self.marginpercent, self.verbose )
-                #etrade.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
                 self.listofOpenTrades.append(etrade)
                 self.longshort = 'long'                                
                 break
@@ -437,6 +447,7 @@ class backtest_base(object):
                 If IsOpen is True that means that the existing short trade is not closed; units_to_buy (input parameter) is less than the size of the existing short trade.
                 '''    
                 if not IsOpen:
+        
                     self.listofOpenTrades.remove(etrade)
                     self.listofClosedTrades.append(etrade)
 
@@ -456,7 +467,7 @@ class backtest_base(object):
         Close all long trades.
         '''
         
-        self.data.loc[date,'units_to_sell'] = self.units_net
+        self.data[self.decision_frequency].loc[date,'units_to_sell'] = self.units_net
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
 
@@ -476,7 +487,7 @@ class backtest_base(object):
         ''' 
         Enter into short trade on a given date
         '''                
-        self.data.loc[date,'units_to_sell'] = self.data.loc[date,'units_to_sell'] - units_to_sell
+        self.data[self.decision_frequency].loc[date,'units_to_sell'] = self.data[self.decision_frequency].loc[date,'units_to_sell'] - units_to_sell
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
     
@@ -500,7 +511,6 @@ class backtest_base(object):
                 Note that units_to_sell > 0
                 '''                
                 etrade = Trade(self.symbol, -units_to_sell, date, price_bid_c, price_ask_c, self.marginpercent, self.verbose )
-                #etrade.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l)
                 self.listofOpenTrades.append(etrade)
                 self.longshort = 'short'
                                 
@@ -522,6 +532,7 @@ class backtest_base(object):
                 If IsOpen is True that means that the existing long trade is not closed; units_to_sell (input parameter) is less than the size of the existing long trade.
                 '''    
                 if not IsOpen:
+
                     self.listofOpenTrades.remove(etrade)
                     self.listofClosedTrades.append(etrade)
 
@@ -541,7 +552,7 @@ class backtest_base(object):
         Close all short trades.
         '''
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
-        self.data.loc[date,'units_to_buy'] = -self.units_net
+        self.data[self.decision_frequency].loc[date,'units_to_buy'] = -self.units_net
 
         if self.verbose:
 
@@ -563,9 +574,9 @@ class backtest_base(object):
         
         print("self.units_net: {}".format(self.units_net))
         if self.units_net < 0:
-            self.data.loc[date,'units_to_buy'] = self.data.loc[date,'units_to_buy'] - self.units_net
+            self.data[self.decision_frequency].loc[date,'units_to_buy'] = self.data[self.decision_frequency].loc[date,'units_to_buy'] - self.units_net
         elif self.units_net > 0:
-            self.data.loc[date,'units_to_sell'] = self.data.loc[date,'units_to_sell'] + self.units_net
+            self.data[self.decision_frequency].loc[date,'units_to_sell'] = self.data[self.decision_frequency].loc[date,'units_to_sell'] + self.units_net
         
         if self.verbose:
             print('%s | closing all trades' %date)
@@ -607,15 +618,15 @@ class backtest_base(object):
             etrade.share_within_equity.append( etrade.trade_size / self.equity )
 
         self.stat_number_of_open_trades.append(len(self.listofOpenTrades))
-        self.data.loc[date,'units_net'] = self.units_net
-        self.data.loc[date,'equity'] = self.equity                    
-        self.data.loc[date,'balance'] = self.balance                    
-        self.data.loc[date,'realized cumulative P/L'] = self.realizedcumulativeprofitloss                   
-        self.data.loc[date,'unrealized P/L'] = self.unrealizedprofitloss   
-        self.data.loc[date,'realized cumulative pips'] = self.realizedcumulativepips                   
-        self.data.loc[date,'unrealized pips'] = self.unrealizedpips   
-        self.data.loc[date,'required margin'] = self.required_margin
-        self.data.loc[date,'free margin'] = self.free_margin             
+        self.data[self.decision_frequency].loc[date,'units_net'] = self.units_net
+        self.data[self.decision_frequency].loc[date,'equity'] = self.equity                    
+        self.data[self.decision_frequency].loc[date,'balance'] = self.balance                    
+        self.data[self.decision_frequency].loc[date,'realized cumulative P/L'] = self.realizedcumulativeprofitloss                   
+        self.data[self.decision_frequency].loc[date,'unrealized P/L'] = self.unrealizedprofitloss   
+        self.data[self.decision_frequency].loc[date,'realized cumulative pips'] = self.realizedcumulativepips                   
+        self.data[self.decision_frequency].loc[date,'unrealized pips'] = self.unrealizedpips   
+        self.data[self.decision_frequency].loc[date,'required margin'] = self.required_margin
+        self.data[self.decision_frequency].loc[date,'free margin'] = self.free_margin             
         
         if self.verbose:
             print('Date: {0}, Equity: {1:.2f}, Realized Cumulative P/L: {2:.2f}, Unrealized P/L: {3:.2f}, Realized Cumulative pips: {4:.2f}, Unrealized pips: {5:.2f}'.format( date, self.equity, self.realizedcumulativeprofitloss, self.unrealizedprofitloss, self.realizedcumulativepips, self.unrealizedpips ) )
@@ -626,20 +637,20 @@ class backtest_base(object):
         '''
         
         self.numberoftrades = len(self.listofClosedTrades)
-        self.data['return-asset'] = self.data['ask_c'] / self.data['ask_c'].iloc[0] - 1
-        self.data['cumret-strategy'] = ( self.data['equity'] / self.initial_equity - 1 )
-        self.data['cumret-max'] = self.data['cumret-strategy'].cummax()
-        self.data['cumret-min'] = self.data['cumret-strategy'].cummin()
-        self.data['drawdown'] = self.data['cumret-max'] - self.data['cumret-strategy']
+        self.data[self.decision_frequency]['return-asset'] = self.data[self.decision_frequency]['ask_c'] / self.data[self.decision_frequency]['ask_c'].iloc[0] - 1
+        self.data[self.decision_frequency]['cumret-strategy'] = ( self.data[self.decision_frequency]['equity'] / self.initial_equity - 1 )
+        self.data[self.decision_frequency]['cumret-max'] = self.data[self.decision_frequency]['cumret-strategy'].cummax()
+        self.data[self.decision_frequency]['cumret-min'] = self.data[self.decision_frequency]['cumret-strategy'].cummin()
+        self.data[self.decision_frequency]['drawdown'] = self.data[self.decision_frequency]['cumret-max'] - self.data[self.decision_frequency]['cumret-strategy']
     
-        self.maxdrawdown = self.data['drawdown'].max()
+        self.maxdrawdown = self.data[self.decision_frequency]['drawdown'].max()
         
         print('-' * 55)
         print('Performance:')
         print('Initial equity   [$] {0:.2f}'.format(self.initial_equity))
         print('Final equity   [$] {0:.2f}'.format(self.equity))
-        print('Net Performance [%] {0:.2f}'.format(self.data['cumret-strategy'][-1] * 100) )
-        print('Asset Performance [%] {0:.2f}'.format(self.data['return-asset'][-1] * 100) )
+        print('Net Performance [%] {0:.2f}'.format(self.data[self.decision_frequency]['cumret-strategy'][-1] * 100) )
+        print('Asset Performance [%] {0:.2f}'.format(self.data[self.decision_frequency]['return-asset'][-1] * 100) )
         print('Number of transactions: {}'.format(self.numberoftrades ))
         
         print('Maximum drawdown: [%] {0:.2f}'.format(self.maxdrawdown * 100) )
@@ -663,7 +674,7 @@ class backtest_base(object):
     def plot_data(self):
         ''' Plots the (adjusted) closing prices for symbol.
         '''
-        fig1 = self.data['ask_c'].plot(figsize=(10, 6), title=self.symbol)
+        fig1 = self.data[self.decision_frequency]['ask_c'].plot(figsize=(10, 6), title=self.symbol)
         fig2 = fig1.get_figure()
         fig2.savefig('{}\\data.pdf'.format(self.backtest_folder))
         plt.show()
@@ -671,7 +682,7 @@ class backtest_base(object):
         
     def plot_returns(self):
 
-        fig1 = self.data[['cumret-strategy','cumret-max', 'return-asset']].plot(figsize=(10,6), title='Returns')
+        fig1 = self.data[self.decision_frequency][['cumret-strategy','cumret-max', 'return-asset']].plot(figsize=(10,6), title='Returns')
         fig2 = fig1.get_figure()
         fig2.savefig('{}\\returns.pdf'.format(self.backtest_folder))
         plt.show()
@@ -704,7 +715,7 @@ class backtest_base(object):
         
     def plot_drawdown(self):
 
-        fig1 = self.data[['drawdown']].plot(figsize=(10,6), title='Drawdown')
+        fig1 = self.data[self.decision_frequency][['drawdown']].plot(figsize=(10,6), title='Drawdown')
         fig2 = fig1.get_figure()
         fig2.savefig('{}\\drawdown.pdf'.format(self.backtest_folder))
         plt.show()
@@ -819,14 +830,14 @@ class backtest_base(object):
         
     def plot_equity(self):
 
-        if len(self.data[self.data['free margin'] < 0 ]) > 0:                
+        if len(self.data[self.data[self.decision_frequency]['free margin'] < 0 ]) > 0:                
         
             print('Margin requirement exceeded equity at least one point in time, need to change trade size')
             
         else:
             
-            self.data[['required margin','free margin']].plot.area(title="Equity (required + free margin)")
-            self.data['balance'].plot(title="Balance")
+            self.data[self.decision_frequency][['required margin','free margin']].plot.area(title="Equity (required + free margin)")
+            self.data[self.decision_frequency]['balance'].plot(title="Balance")
         
     def calculate_stats(self):
 
@@ -854,7 +865,7 @@ class backtest_base(object):
         
     def count_number_of_trading_days(self):
         
-        msg = 'Number of trading days: {}'.format(len(set(self.data.index.date)))
+        msg = 'Number of trading days: {}'.format(len(set(self.data[self.decision_frequency].index.date)))
         print(msg)
         
     def count_number_of_long_trades(self):
@@ -1115,43 +1126,42 @@ class backtest_base(object):
         stands out 4 sigma. They should be extreme cases, o/w it is bad data.
         '''
 
-        self.data['return_check_ask_h_over_c'] = self.data['ask_h'] / self.data['ask_c'].shift(1)
-        self.data['return_check_ask_l_over_c'] = self.data['ask_l'] / self.data['ask_c'].shift(1)
-        self.data['return_check_ask_c_over_c'] = self.data['ask_c'] / self.data['ask_c'].shift(1)
+        self.data[self.decision_frequency]['return_check_ask_h_over_c'] = self.data[self.decision_frequency]['ask_h'] / self.data[self.decision_frequency]['ask_c'].shift(1)
+        self.data[self.decision_frequency]['return_check_ask_l_over_c'] = self.data[self.decision_frequency]['ask_l'] / self.data[self.decision_frequency]['ask_c'].shift(1)
+        self.data[self.decision_frequency]['return_check_ask_c_over_c'] = self.data[self.decision_frequency]['ask_c'] / self.data[self.decision_frequency]['ask_c'].shift(1)
 
-        self.data['return_check_bid_h_over_c'] = self.data['bid_h'] / self.data['bid_c'].shift(1)
-        self.data['return_check_bid_l_over_c'] = self.data['bid_l'] / self.data['bid_c'].shift(1)
-        self.data['return_check_bid_c_over_c'] = self.data['bid_c'] / self.data['bid_c'].shift(1)
+        self.data[self.decision_frequency]['return_check_bid_h_over_c'] = self.data[self.decision_frequency]['bid_h'] / self.data[self.decision_frequency]['bid_c'].shift(1)
+        self.data[self.decision_frequency]['return_check_bid_l_over_c'] = self.data[self.decision_frequency]['bid_l'] / self.data[self.decision_frequency]['bid_c'].shift(1)
+        self.data[self.decision_frequency]['return_check_bid_c_over_c'] = self.data[self.decision_frequency]['bid_c'] / self.data[self.decision_frequency]['bid_c'].shift(1)
         
-        self.data['normalized_return_ask_h_over_c'] = np.abs( self.data['return_check_ask_h_over_c'] - self.data['return_check_ask_h_over_c'].mean() ) / self.data['return_check_ask_h_over_c'].std()
-        self.data['normalized_return_ask_l_over_c'] = np.abs( self.data['return_check_ask_l_over_c'] - self.data['return_check_ask_l_over_c'].mean() ) / self.data['return_check_ask_l_over_c'].std()
-        self.data['normalized_return_ask_c_over_c'] = np.abs( self.data['return_check_ask_c_over_c'] - self.data['return_check_ask_c_over_c'].mean() ) / self.data['return_check_ask_c_over_c'].std()
+        self.data[self.decision_frequency]['normalized_return_ask_h_over_c'] = np.abs( self.data[self.decision_frequency]['return_check_ask_h_over_c'] - self.data[self.decision_frequency]['return_check_ask_h_over_c'].mean() ) / self.data[self.decision_frequency]['return_check_ask_h_over_c'].std()
+        self.data[self.decision_frequency]['normalized_return_ask_l_over_c'] = np.abs( self.data[self.decision_frequency]['return_check_ask_l_over_c'] - self.data[self.decision_frequency]['return_check_ask_l_over_c'].mean() ) / self.data[self.decision_frequency]['return_check_ask_l_over_c'].std()
+        self.data[self.decision_frequency]['normalized_return_ask_c_over_c'] = np.abs( self.data[self.decision_frequency]['return_check_ask_c_over_c'] - self.data[self.decision_frequency]['return_check_ask_c_over_c'].mean() ) / self.data[self.decision_frequency]['return_check_ask_c_over_c'].std()
 
-        self.data['normalized_return_bid_h_over_c'] = np.abs( self.data['return_check_bid_h_over_c'] - self.data['return_check_bid_h_over_c'].mean() ) / self.data['return_check_bid_h_over_c'].std()
-        self.data['normalized_return_bid_l_over_c'] = np.abs( self.data['return_check_bid_l_over_c'] - self.data['return_check_bid_l_over_c'].mean() ) / self.data['return_check_bid_l_over_c'].std()
-        self.data['normalized_return_bid_c_over_c'] = np.abs( self.data['return_check_bid_c_over_c'] - self.data['return_check_bid_c_over_c'].mean() ) / self.data['return_check_bid_c_over_c'].std()
+        self.data[self.decision_frequency]['normalized_return_bid_h_over_c'] = np.abs( self.data[self.decision_frequency]['return_check_bid_h_over_c'] - self.data[self.decision_frequency]['return_check_bid_h_over_c'].mean() ) / self.data[self.decision_frequency]['return_check_bid_h_over_c'].std()
+        self.data[self.decision_frequency]['normalized_return_bid_l_over_c'] = np.abs( self.data[self.decision_frequency]['return_check_bid_l_over_c'] - self.data[self.decision_frequency]['return_check_bid_l_over_c'].mean() ) / self.data[self.decision_frequency]['return_check_bid_l_over_c'].std()
+        self.data[self.decision_frequency]['normalized_return_bid_c_over_c'] = np.abs( self.data[self.decision_frequency]['return_check_bid_c_over_c'] - self.data[self.decision_frequency]['return_check_bid_c_over_c'].mean() ) / self.data[self.decision_frequency]['return_check_bid_c_over_c'].std()
 
-        self.data['outlier_ask_h_over_c'] = np.where( abs(self.data['normalized_return_ask_h_over_c']) > 3, 1, 0)
-        self.data['outlier_ask_l_over_c'] = np.where( abs(self.data['normalized_return_ask_l_over_c']) > 3, 1, 0)
-        self.data['outlier_ask_c_over_c'] = np.where( abs(self.data['normalized_return_ask_c_over_c']) > 3, 1, 0)
+        self.data[self.decision_frequency]['outlier_ask_h_over_c'] = np.where( abs(self.data[self.decision_frequency]['normalized_return_ask_h_over_c']) > 3, 1, 0)
+        self.data[self.decision_frequency]['outlier_ask_l_over_c'] = np.where( abs(self.data[self.decision_frequency]['normalized_return_ask_l_over_c']) > 3, 1, 0)
+        self.data[self.decision_frequency]['outlier_ask_c_over_c'] = np.where( abs(self.data[self.decision_frequency]['normalized_return_ask_c_over_c']) > 3, 1, 0)
 
-        self.data['outlier_bid_h_over_c'] = np.where( abs(self.data['normalized_return_bid_h_over_c']) > 3, 1, 0)
-        self.data['outlier_bid_l_over_c'] = np.where( abs(self.data['normalized_return_bid_l_over_c']) > 3, 1, 0)
-        self.data['outlier_bid_c_over_c'] = np.where( abs(self.data['normalized_return_bid_c_over_c']) > 3, 1, 0)
+        self.data[self.decision_frequency]['outlier_bid_h_over_c'] = np.where( abs(self.data[self.decision_frequency]['normalized_return_bid_h_over_c']) > 3, 1, 0)
+        self.data[self.decision_frequency]['outlier_bid_l_over_c'] = np.where( abs(self.data[self.decision_frequency]['normalized_return_bid_l_over_c']) > 3, 1, 0)
+        self.data[self.decision_frequency]['outlier_bid_c_over_c'] = np.where( abs(self.data[self.decision_frequency]['normalized_return_bid_c_over_c']) > 3, 1, 0)
         
-        self.data['outlier_any'] = self.data[['outlier_ask_h_over_c','outlier_ask_l_over_c','outlier_ask_c_over_c','outlier_bid_h_over_c','outlier_bid_l_over_c','outlier_bid_c_over_c']].any(axis='columns')
+        self.data[self.decision_frequency]['outlier_any'] = self.data[self.decision_frequency][['outlier_ask_h_over_c','outlier_ask_l_over_c','outlier_ask_c_over_c','outlier_bid_h_over_c','outlier_bid_l_over_c','outlier_bid_c_over_c']].any(axis='columns')
 
         print('Data Quality:')
         print('Total number of data set is {}'.format( len(self.data) ))
-        print('Total number of outliers (exceed 3 std) is {}'.format( len(self.data[self.data['outlier_any'] == True]) )) 
-        print('Percentage of outliers in the data set is {0:.2f}%'.format( len(self.data[self.data['outlier_any'] == True]) / len(self.data) * 100 ) ) 
+        print('Total number of outliers (exceed 3 std) is {}'.format( len(self.data[self.decision_frequency][self.data[self.decision_frequency]['outlier_any'] == True]) )) 
+        print('Percentage of outliers in the data set is {0:.2f}%'.format( len(self.data[self.decision_frequency][self.data[self.decision_frequency]['outlier_any'] == True]) / len(self.data[self.decision_frequency]) * 100 ) ) 
         
         now = datetime.datetime.now()
         filename = '{}_outliers.xlsx'.format(self.symbol)
-        uf.write_df_to_excel(self.data, self.backtest_folder, filename)
+        uf.write_df_to_excel(self.data[self.decision_frequency], self.backtest_folder, filename)
         
-        self.data.drop( ['return_check_ask_h_over_c', 'return_check_ask_l_over_c', 'return_check_ask_c_over_c', 'return_check_bid_h_over_c', 'return_check_bid_l_over_c', 'return_check_bid_c_over_c',
-                         #'outlier_ask_h_over_c', 'outlier_ask_l_over_c', 'outlier_ask_c_over_c', 'outlier_bid_h_over_c', 'outlier_bid_l_over_c', 'outlier_bid_c_over_c',
+        self.data[self.decision_frequency].drop( ['return_check_ask_h_over_c', 'return_check_ask_l_over_c', 'return_check_ask_c_over_c', 'return_check_bid_h_over_c', 'return_check_bid_l_over_c', 'return_check_bid_c_over_c',
                          'normalized_return_ask_h_over_c', 'normalized_return_ask_l_over_c', 'normalized_return_ask_c_over_c', 'normalized_return_bid_h_over_c', 'normalized_return_bid_l_over_c', 'normalized_return_bid_c_over_c'], axis=1, inplace=True )
     
     def durbin_watson_test(self, data):
@@ -1180,10 +1190,10 @@ class backtest_base(object):
     def calculate_number_of_trades_to_simulate(self):
                 
         # Calculate the frequency of trades in the backtest
-        frequency = (self.data.index[-1] - self.data.index[0]) / self.numberoftrades
+        frequency = (self.data[self.decision_frequency].index[-1] - self.data[self.decision_frequency].index[0]) / self.numberoftrades
         
         # Assume simulation duration for 1 year but given the frequency, it is more important to calculate how many trades to simulate
-        return int( pd.Timedelta(value='252D') / frequency )
+        return int( datetime.timedelta(days=252) / frequency )
 
     def monte_carlo_simulator(self, no_of_simulations=250):
         '''
@@ -1471,11 +1481,13 @@ if __name__ == '__main__':
 
      symbol = 'EUR_USD'
      account_type = 'backtest'
-     granularity = '1H'
+     data_granularity = ['S5']
      decision_frequency = '1H'
+     data_granularity.append(decision_frequency)
+
      start_datetime = datetime.datetime(2010,1,1,0,0,0)
      end_datetime = datetime.datetime.now()
-     idle_duration_before_start_trading = pd.Timedelta(value='0D')     
+     idle_duration_before_start_trading = datetime.timedelta(days=0, hours=0, minutes=0)
      initial_equity = 10000
      marginpercent = 100
      ftc=0.0
@@ -1483,9 +1495,9 @@ if __name__ == '__main__':
      verbose=False
      create_data=False
     
-     bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
+     bb = backtest_base(symbol, account_type, data_granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
 
-     #bb.check_data_quality()
+     bb.check_data_quality()
 
      #viz.visualize(bb.symbol, bb.data, sorted(bb.listofClosedTrades, key=lambda k: k.ID), False)
      

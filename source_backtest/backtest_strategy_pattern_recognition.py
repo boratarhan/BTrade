@@ -130,7 +130,7 @@ if __name__ == '__main__':
 #     decision_frequency = '1T'
      start_datetime = datetime.datetime(2010,1,1,0,0,0)
      end_datetime = datetime.datetime.now()
-     margin_duration_before_start_trading = pd.Timedelta(value='0D')     
+     margin_duration_before_start_trading = datetime.timedelta(days=0, hours=0, minutes=0)
      marginpercent = 100
      WindowLenght = 12
      

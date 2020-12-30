@@ -13,7 +13,7 @@ for e_symbol in list_pairs:
      decision_frequency = '1H'
      start_datetime = datetime.datetime(2017,1,1,0,0,0)
      end_datetime = datetime.datetime(2021,1,1,0,0,0)
-     idle_duration_before_start_trading = pd.Timedelta(value='30D')     
+     idle_duration_before_start_trading = datetime.timedelta(days=30, hours=0, minutes=0)
      initial_equity = 10000
      marginpercent = 10
      ftc=0.0
