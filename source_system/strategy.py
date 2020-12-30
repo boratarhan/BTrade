@@ -1,18 +1,24 @@
-import zmq
-import os
-import tables  
-import tstables  
-import pandas as pd
-from pandas.tseries.offsets import BDay
-import datetime
-import talib
-import numpy as np
-import time
-import utility_functions as uf
-from indicators import *
-import time
-import oandapyV20.endpoints.instruments as instruments
+try:
+    
+    import zmq
+    import os
+    import tables  
+    import tstables  
+    import pandas as pd
+    from pandas.tseries.offsets import BDay
+    import datetime
+    import talib
+    import numpy as np
+    import time
+    import utility_functions as uf
+    from indicators import *
+    import time
+    import oandapyV20.endpoints.instruments as instruments
 
+except Exception as e:
+    
+    print(e) 
+    
 class strategy(object):
 
     '''

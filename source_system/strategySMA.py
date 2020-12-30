@@ -1,18 +1,24 @@
-import zmq
-import os
-import sys
-import tables  
-import tstables  
-import pandas as pd
-from pandas.tseries.offsets import BDay
-import datetime
-import talib
-import numpy as np
-import time
-import utility_functions as uf
-from strategy import *
-from indicators import *
+try:
+    
+    import zmq
+    import os
+    import sys
+    import tables  
+    import tstables  
+    import pandas as pd
+    from pandas.tseries.offsets import BDay
+    import datetime
+    import talib
+    import numpy as np
+    import time
+    import utility_functions as uf
+    from strategy import *
+    from indicators import *
 
+except Exception as e:
+    
+    print(e) 
+    
 class SMA_Crossover(strategy):
     
     def __init__(self,config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number):

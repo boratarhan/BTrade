@@ -1,13 +1,19 @@
-import datetime
-import pandas as pd
-import os
-import tstables  
-import tables 
-import configparser  
-import chart_studio.plotly as ply
-from plotly import tools
-import plotly.graph_objs as go
+try:
+    
+    import datetime
+    import pandas as pd
+    import os
+    import tstables  
+    import tables 
+    import configparser  
+    import chart_studio.plotly as ply
+    from plotly import tools
+    import plotly.graph_objs as go
 
+except Exception as e:
+    
+    print(e) 
+    
 # Change the current working directory to the folder where the file is located.
 cwd = os.path.dirname(__file__)
 os.chdir(cwd)

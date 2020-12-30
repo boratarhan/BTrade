@@ -18,7 +18,9 @@ class backtest_strategy_SMA(backtest_base):
     
         self.add_indicators(SMA1, SMA2)
 
-        self.data[self.decision_frequency] = self.data[self.decision_frequency].loc[(self.data[self.decision_frequency].index >= self.date_to_start_trading) & (self.data[self.decision_frequency].index <= self.end_date),:]
+        #self.data[self.decision_frequency] = self.data[self.decision_frequency].loc[(self.data[self.decision_frequency].index >= self.date_to_start_trading) & (self.data[self.decision_frequency].index <= self.end_date),:]
+        for e_granularity in self.data_granularity:
+            self.data[e_granularity] = self.data[e_granularity].loc[(self.data[e_granularity].index >= self.start_date) & (self.data[e_granularity].index <= self.end_date),:]
 
         print('-' * 55)
         msg = 'Running SMA strategy | SMA1 = %d & SMA2 = %d' % (SMA1, SMA2)
@@ -27,24 +29,26 @@ class backtest_strategy_SMA(backtest_base):
         print(msg)
         
         for date, _ in self.data[self.decision_frequency].iterrows():
+            
+            if date >=self.date_to_start_trading:
 
-            ''' 
-            Get signal
-            Create buy/sell order
-            -	Calculate PL
-            -	Calculate required margin
-            Check all open orders
-            - 	Either add to the list
-            -	Or eliminate some from list, move to ListofClosedOrders
-            '''
-            #self.run_core_strategy()
-
-            if self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA2)] > self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA1)]:
-                self.go_short(date=date, units=10000)
-            elif self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA2)] < self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA1)]:
-                self.go_long(date=date, units=10000)
-                                
-            self.update(date)
+                ''' 
+                Get signal
+                Create buy/sell order
+                -	Calculate PL
+                -	Calculate required margin
+                Check all open orders
+                - 	Either add to the list
+                -	Or eliminate some from list, move to ListofClosedOrders
+                '''
+                #self.run_core_strategy()
+    
+                if self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA2)] > self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA1)]:
+                    self.go_short(date=date, units=10000)
+                elif self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA2)] < self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA1)]:
+                    self.go_long(date=date, units=10000)
+                                    
+                self.update(date)
             
         self.close_all_trades(date)
         self.update(date)

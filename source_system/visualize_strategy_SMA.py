@@ -1,13 +1,19 @@
-import datetime
-import pandas as pd
-import os
-import tstables  
-import tables 
-import configparser  
-import plotly as ply
-from plotly import tools
-import plotly.graph_objs as go
+try:
+    
+    import datetime
+    import pandas as pd
+    import os
+    import tstables  
+    import tables 
+    import configparser  
+    import plotly as ply
+    from plotly import tools
+    import plotly.graph_objs as go
 
+except Exception as e:
+    
+    print(e) 
+    
 # configuration
 config = configparser.ConfigParser()
 config.read('..\..\configinfo.cfg')

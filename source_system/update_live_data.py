@@ -1,19 +1,18 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Dec 26 12:29:22 2020
+try:
+        
+    import configparser
+    import datetime
+    import feeder
+    import sys
+    import tables 
+    import tstables  
+    import time
+    import utility_functions as uf
 
-@author: boratarhan
-"""
-
-import configparser
-import datetime
-import feeder
-import sys
-import tables 
-import tstables  
-import time
-import utility_functions as uf
-
+except Exception as e:
+    
+    print(e) 
+    
 def ContinueLooping(config,symbol,granularity,account_type,socket_number,download_frequency,update_signal_frequency,download_data_start_date,download_data_end_date,verbose,retries):
     
     DownloadCompleted = False

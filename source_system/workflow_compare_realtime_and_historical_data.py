@@ -1,20 +1,26 @@
-import datetime
-import pandas as pd
-import os
-import tables 
-import tstables  
-import configparser
-import strategy
-import oandapyV20
-import oandapyV20.endpoints.instruments as instruments
-import oandapyV20.endpoints.pricing as pricing
-import oandapyV20.endpoints.forexlabs as labs
-from oandapyV20.exceptions import V20Error
-from oandapyV20.exceptions import StreamTerminated
-import utility_functions as uf
-import time
-import feeder
+try:
+    
+    import datetime
+    import pandas as pd
+    import os
+    import tables 
+    import tstables  
+    import configparser
+    import strategy
+    import oandapyV20
+    import oandapyV20.endpoints.instruments as instruments
+    import oandapyV20.endpoints.pricing as pricing
+    import oandapyV20.endpoints.forexlabs as labs
+    from oandapyV20.exceptions import V20Error
+    from oandapyV20.exceptions import StreamTerminated
+    import utility_functions as uf
+    import time
+    import feeder
 
+except Exception as e:
+    
+    print(e) 
+    
 config = configparser.ConfigParser()
 config.read('..\..\configinfo.cfg')
 

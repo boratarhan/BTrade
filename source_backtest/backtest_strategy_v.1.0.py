@@ -8,18 +8,23 @@ class backtest_strategy_v_1_0(backtest_base):
     def go_short(self, date, units):
         self.open_short_trade(units, date=date)
 
-    def calculate_price_distribution(self):
+    def calculate_price_distribution(self, date):
         
-        pass
-        
-
-
+        data = self.data[self.data_granularity[0]]
+        data_filtered = data.loc[(data.index <= date) & (data.index >= date-datetime.timedelta(days=0, hours=1, minutes=0)), :]
+                
+        self.data[self.decision_frequency].loc[date, 'mean_bid_c'] = data_filtered['bid_c'].mean()
+        self.data[self.decision_frequency].loc[date, 'std_bid_c'] = data_filtered['bid_c'].std()
+        self.data[self.decision_frequency].loc[date, 'bid_ask_spread'] = data_filtered.iloc[-1:, data_filtered.columns.get_loc('bid_c')].values[0] - data_filtered.iloc[-1:, data_filtered.columns.get_loc('ask_c')].values[0]
+        self.data[self.decision_frequency].loc[date, 'std / bid_ask_spread'] = np.abs( self.data[self.decision_frequency].loc[date, 'std_bid_c'] / self.data[self.decision_frequency].loc[date, 'bid_ask_spread'] )
+                                
     def run_strategy(self):
 
-        self.data[self.decision_frequency] = self.data[self.decision_frequency].loc[(self.data[self.decision_frequency].index >= self.date_to_start_trading) & (self.data[self.decision_frequency].index <= self.end_date),:]
-        
-        self.calculate_price_distribution()
-        
+#       try: 
+            
+        for e_granularity in self.data_granularity:
+            self.data[e_granularity] = self.data[e_granularity].loc[(self.data[e_granularity].index >= self.start_date) & (self.data[e_granularity].index <= self.end_date),:]
+                
         print('-' * 55)
         msg = 'Running strategy v.1.0'
         msg += '\nFixed costs %.2f | ' % self.ftc
@@ -27,36 +32,52 @@ class backtest_strategy_v_1_0(backtest_base):
         print(msg)
         
         for date, _ in self.data[self.decision_frequency].iterrows():
+            
+            if date >=self.date_to_start_trading:
 
-            ''' 
-            Get signal
-            Create buy/sell order
-            -	Calculate PL
-            -	Calculate required margin
-            Check all open orders
-            - 	Either add to the list
-            -	Or eliminate some from list, move to ListofClosedOrders
-            '''
-            #self.run_core_strategy()
-                                        
-            self.update(date)
-                
+                print('Date: ', date)
+                self.calculate_price_distribution(date)
+    
+                ''' 
+                Get signal
+                Create buy/sell order
+                -	Calculate PL
+                -	Calculate required margin
+                Check all open orders
+                - 	Either add to the list
+                -	Or eliminate some from list, move to ListofClosedOrders
+                '''
+                                                            
+                self.update(date)
+            
+        filename = os.path.join( self.backtest_folder, 'data.xlsx')
+        self.data[self.decision_frequency].to_excel(filename)
+            
+        '''                
         self.close_all_trades(date)
         self.update(date)
         self.close_out()
 
         self.calculate_stats()
-                
+        '''
+
+#        except:
+            
+#            print("error!!!!!!")
+            
 if __name__ == '__main__':
+    
+     cwd = os.path.dirname(__file__)
+     os.chdir(cwd)
 
      symbol = 'EUR_USD'
      account_type = 'backtest'
      granularity = ['1M']
      decision_frequency = '1H'
      granularity.append(decision_frequency)
-     start_datetime = datetime.datetime(2020,12,24,4,35,0)
+     start_datetime = datetime.datetime(2020,12,1,0,0,0)
      end_datetime = datetime.datetime(2021,1,1,0,0,0)
-     idle_duration_before_start_trading = datetime.timedelta(days=0, hours=0, minutes=5)
+     idle_duration_before_start_trading = datetime.timedelta(days=0, hours=1, minutes=0)
      initial_equity = 10000
      marginpercent = 100
      ftc=0.0

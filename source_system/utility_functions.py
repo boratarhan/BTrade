@@ -1,10 +1,14 @@
-# -*- coding: utf-8 -*-
+try:
+    
+    import datetime
+    import pandas as pd
+    import os
+    import tables 
 
-import datetime
-import pandas as pd
-import os
-import tables 
-
+except Exception as e:
+    
+    print(e) 
+    
 class desc(tables.IsDescription):
     ''' Description of TsTables table structure.
     '''

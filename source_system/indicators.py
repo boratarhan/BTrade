@@ -1,7 +1,13 @@
-import numpy as np
-import talib
-import pandas as pd
+try:
+    
+    import numpy as np
+    import talib
+    import pandas as pd
 
+except Exception as e:
+    
+    print(e) 
+    
 def AddSMA(df, indicator_list, askbidmid, ohlc, length):
     column_name = 'SMA_{}_{}_{}'.format(length, askbidmid, ohlc)
     df[column_name] = talib.SMA(np.asarray(df['{}_{}'.format(askbidmid, ohlc)]), length)

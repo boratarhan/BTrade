@@ -1,18 +1,24 @@
-import datetime
-import pandas as pd
-import os
-import tables 
-import tstables  
-import configparser
-import strategy
-import oandapyV20
-import oandapyV20.endpoints.instruments as instruments
-import oandapyV20.endpoints.pricing as pricing
-import oandapyV20.endpoints.forexlabs as labs
-from oandapyV20.exceptions import V20Error
-from oandapyV20.exceptions import StreamTerminated
-import utility_functions as uf
+try:
+    
+    import datetime
+    import pandas as pd
+    import os
+    import tables 
+    import tstables  
+    import configparser
+    import strategy
+    import oandapyV20
+    import oandapyV20.endpoints.instruments as instruments
+    import oandapyV20.endpoints.pricing as pricing
+    import oandapyV20.endpoints.forexlabs as labs
+    from oandapyV20.exceptions import V20Error
+    from oandapyV20.exceptions import StreamTerminated
+    import utility_functions as uf
 
+except Exception as e:
+    
+    print(e) 
+    
 symbol = 'EUR_USD'
 granularity = 'S5'
 account_type = 'live'

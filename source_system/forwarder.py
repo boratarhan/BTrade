@@ -1,7 +1,13 @@
-import zmq
-import time
-import sys
+try:
+    
+    import zmq
+    import time
+    import sys
 
+except Exception as e:
+    
+    print(e) 
+    
 class forwarder(object):
     ''' 
     Forwarder object acts as a stable point between critical objects

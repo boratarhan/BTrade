@@ -1,17 +1,23 @@
-import zmq
-import os
-import tables  
-import tstables  
-import pandas as pd
-from pandas.tseries.offsets import BDay
-import datetime
-import talib
-import numpy as np
-import time
-import utility_functions as uf
-from strategy import *
-from indicators import *
+try:
+    
+    import zmq
+    import os
+    import tables  
+    import tstables  
+    import pandas as pd
+    from pandas.tseries.offsets import BDay
+    import datetime
+    import talib
+    import numpy as np
+    import time
+    import utility_functions as uf
+    from strategy import *
+    from indicators import *
 
+except Exception as e:
+    
+    print(e) 
+    
 class SimpleStrategy(strategy):
     
     '''

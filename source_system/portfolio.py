@@ -1,21 +1,27 @@
-import oandapyV20
-import oandapyV20.endpoints.instruments as instruments
-import oandapyV20.endpoints.pricing as pricing
-import oandapyV20.endpoints.accounts as accounts
-import oandapyV20.endpoints.orders as orders
-from oandapyV20.exceptions import V20Error
-import zmq
-import pandas as pd
-import tables 
-import tstables  
-import datetime
-import configparser
-import time
-import utility_functions as uf
-import threading
-import os
-import sys
-import configparser
+try:
+    
+    import oandapyV20
+    import oandapyV20.endpoints.instruments as instruments
+    import oandapyV20.endpoints.pricing as pricing
+    import oandapyV20.endpoints.accounts as accounts
+    import oandapyV20.endpoints.orders as orders
+    from oandapyV20.exceptions import V20Error
+    import zmq
+    import pandas as pd
+    import tables 
+    import tstables  
+    import datetime
+    import configparser
+    import time
+    import utility_functions as uf
+    import threading
+    import os
+    import sys
+    import configparser
+
+except Exception as e:
+    
+    print(e) 
     
 class portfolio(object):
 

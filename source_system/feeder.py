@@ -1,38 +1,44 @@
-import oandapyV20
-import oandapyV20.endpoints.instruments as instruments
-import oandapyV20.endpoints.pricing as pricing
-import oandapyV20.endpoints.forexlabs as labs
-from oandapyV20.exceptions import V20Error
-from oandapyV20.exceptions import StreamTerminated
-from requests.exceptions import ConnectionError
-import zmq
-import pandas as pd
-import tables 
-import tstables 
-import json
-import configparser
-import datetime
-import time
-import utility_functions as uf
-import os
-import sys
+try:
+    
+    import oandapyV20
+    import oandapyV20.endpoints.instruments as instruments
+    import oandapyV20.endpoints.pricing as pricing
+    import oandapyV20.endpoints.forexlabs as labs
+    from oandapyV20.exceptions import V20Error
+    from oandapyV20.exceptions import StreamTerminated
+    from requests.exceptions import ConnectionError
+    import zmq
+    import pandas as pd
+    import tables 
+    import tstables 
+    import json
+    import configparser
+    import datetime
+    import time
+    import utility_functions as uf
+    import os
+    import sys
+   
+    '''
+    The code should be updated based on deprecation warnings. However, it may require extensive work.
+    I will keep it in this version as long as it works.
+    Turn off warnings for keeping the screen cleaner.
+    '''
+    import warnings
+    warnings.filterwarnings("ignore", category=Warning) 
+    
+    '''
+    import logging
+    logging.basicConfig(
+        filename="v20.log",
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(name)s : %(message)s',
+    )
+    '''
 
-'''
-The code should be updated based on deprecation warnings. However, it may require extensive work.
-I will keep it in this version as long as it works.
-Turn off warnings for keeping the screen cleaner.
-'''
-import warnings
-warnings.filterwarnings("ignore", category=Warning) 
-
-'''
-import logging
-logging.basicConfig(
-    filename="v20.log",
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s : %(message)s',
-)
-'''
+except Exception as e:
+    
+    print(e) 
 
 isAlive = True
 

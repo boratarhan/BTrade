@@ -1,7 +1,13 @@
-import numpy as np
-import talib
-import pandas as pd
+try:
+    
+    import numpy as np
+    import talib
+    import pandas as pd
 
+except Exception as e:
+    
+    print(e) 
+    
 # integer = CDLDOJISTAR(open, high, low, close)
 def Add_CDLDOJISTAR(df, indicator_list, askbidmid):
     

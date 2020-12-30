@@ -338,7 +338,9 @@ class backtest_base(object):
 
         self.add_indicators()
 
-        self.data[self.decision_frequency] = self.data[self.decision_frequency].iloc[(self.data[self.decision_frequency].index.date >= self.date_to_start_trading) and (self.data[self.decision_frequency].index.date <=self.end),:]
+        #self.data[self.decision_frequency] = self.data[self.decision_frequency].iloc[(self.data[self.decision_frequency].index.date >= self.date_to_start_trading) and (self.data[self.decision_frequency].index.date <=self.end),:]
+        for e_granularity in self.data_granularity:
+            self.data[e_granularity] = self.data[e_granularity].loc[(self.data[e_granularity].index >= self.start_date) & (self.data[e_granularity].index <= self.end_date),:]
         
         print('-' * 55)
         msg = 'Running strategy '
@@ -348,28 +350,30 @@ class backtest_base(object):
                 
         for date, _ in self.data[self.decision_frequency].iterrows():
             
-            '''
-            In case we need to update P/L using more refined data (e.g. hourly) and make decisions more 
-            aggregate time period (e.g. daily), assume transaction is done at a certain hour of the day, 
-            e.g. CST or UTC time. Below, I assume 9:00 PM UTC, 4 PM EST, 3 PM CST.
-            '''
-            if date.hour == 9:
-                    
-                ''' 
-                Get signal
-                Create buy/sell order
+            if date >=self.date_to_start_trading:
 
-                Check all open orders
-                - 	Either add to the list
-                -	Or eliminate some from list, move to ListofClosedOrders
                 '''
-
-            '''
-            At every time step
-            -	Calculate PL
-            -	Calculate required margin
-            '''
-            self.run_core_strategy()
+                In case we need to update P/L using more refined data (e.g. hourly) and make decisions more 
+                aggregate time period (e.g. daily), assume transaction is done at a certain hour of the day, 
+                e.g. CST or UTC time. Below, I assume 9:00 PM UTC, 4 PM EST, 3 PM CST.
+                '''
+                if date.hour == 9:
+                        
+                    ''' 
+                    Get signal
+                    Create buy/sell order
+    
+                    Check all open orders
+                    - 	Either add to the list
+                    -	Or eliminate some from list, move to ListofClosedOrders
+                    '''
+    
+                '''
+                At every time step
+                -	Calculate PL
+                -	Calculate required margin
+                '''
+                self.run_core_strategy()
 
         self.close_all_trades(date)
         self.update(date)
