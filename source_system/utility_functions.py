@@ -122,13 +122,14 @@ def pickle_df(df, folderpath, filename):
 
 def read_hdf_to_df(folderpath, filename):
         
+    df_temp = pd.DataFrame()
     filepath = os.path.join( folderpath, filename)
+    print(filepath)
     if os.path.exists( filepath ):
         df_temp = pd.read_hdf(filepath)
+        df_temp = df_temp[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c', 'volume']]
     else:
         print("Filepath ({}) for reading hdf file does not exist".format(filepath))
-
-    df_temp = df_temp[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c', 'volume']]
 
     return df_temp
     

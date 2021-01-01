@@ -26,11 +26,11 @@ class backtest_strategy_v_1_0(backtest_base):
                 
                 if etrade.longshort == 'long':
                     
-                    self.go_short(date, units=1000)
+                    self.go_short(date, units=10000)
                 
                 elif etrade.longshort == 'short':
                     
-                    self.go_long(date, units=1000) 
+                    self.go_long(date, units=10000) 
                     
         '''                                
         for etrade in self.listofOpenTrades:
@@ -93,7 +93,7 @@ class backtest_strategy_v_1_0(backtest_base):
                 else:
                                                            
                     takeprofit = 10000 * self.data[self.decision_frequency].loc[date, 'std_bid_c']
-                    stoploss = -100000 * self.data[self.decision_frequency].loc[date, 'std_bid_c']
+                    stoploss = -30000 * self.data[self.decision_frequency].loc[date, 'std_bid_c']
                     
                     self.close_trades(date, takeprofit, stoploss)
 
@@ -117,10 +117,11 @@ if __name__ == '__main__':
 
      symbol = 'EUR_USD'
      account_type = 'backtest'
-     granularity = ['1M']
-     decision_frequency = '1M'
+     granularity = ['S5']
+     decision_frequency = 'S5'
      granularity.append(decision_frequency)
-     start_datetime = datetime.datetime(2020,1,1,0,0,0)
+     granularity = list(np.unique(granularity))
+     start_datetime = datetime.datetime(2020,12,1,0,0,0)
      end_datetime = datetime.datetime(2021,1,1,0,0,0)
      idle_duration_before_start_trading = datetime.timedelta(days=0, hours=1, minutes=0)
      initial_equity = 10000
@@ -136,7 +137,7 @@ if __name__ == '__main__':
 
      bb = backtest_strategy_v_1_0(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
      #bb.check_data_quality()
-
+     
      bb.run_strategy()
      
      #bb.plot()
@@ -151,7 +152,7 @@ if __name__ == '__main__':
      
      bb.monte_carlo_simulator(250)
  
-     viz.visualize(bb.symbol, bb.data[bb.decision_frequency], bb.listofClosedTrades)
+     #viz.visualize(bb.symbol, bb.data[bb.decision_frequency], bb.listofClosedTrades)
      
      bb.analyze_trades()
      

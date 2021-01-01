@@ -1326,7 +1326,7 @@ class backtest_base(object):
 
         plt.title('Quantiles Based on Monte Carlo Simulations')
         self.simulations_df_quantiles[self.quantile_columns].plot()
-        plt.savefig('{}\\Quantiles_Based_on_Mone_Carlo_Simulations.pdf'.format(self.backtest_folder))
+        plt.savefig('{}\\Quantiles_Based_on_Monte_Carlo_Simulations.pdf'.format(self.backtest_folder))
         plt.show()
         plt.close()
     
