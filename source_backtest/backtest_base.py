@@ -64,6 +64,9 @@ class Trade(object):
         self.entry_unit = units #number of units of base currency
         self.longshort = 'long' if self.units > 0 else 'short'
         self.entrydate = entrydate
+        self.entrydateHOD = entrydate.hour
+        self.entrydateDOW = entrydate.day_name()
+        self.entrydateMOY = entrydate.month_name()
         self.entryprice = entrypriceask if self.units > 0 else entrypricebid
         # Always remember: ask price > bid price
         # When entering a long trade we pay ask price
@@ -613,6 +616,8 @@ class backtest_base(object):
         self.realizedcumulativepips = sum( etrade.realizedpips for etrade in self.listofClosedTrades )
         self.unrealizedpips = sum( etrade.unrealizedpips for etrade in self.listofOpenTrades )
         
+        self.units_net = sum( etrade.units for etrade in self.listofOpenTrades )
+        
         self.balance = self.initial_equity + self.realizedcumulativeprofitloss
         self.equity = self.balance + self.unrealizedprofitloss
         self.required_margin = sum( etrade.required_margin for etrade in self.listofOpenTrades )
@@ -621,6 +626,7 @@ class backtest_base(object):
         for etrade in self.listofOpenTrades:
             etrade.share_within_equity.append( etrade.trade_size / self.equity )
 
+        
         self.stat_number_of_open_trades.append(len(self.listofOpenTrades))
         self.data[self.decision_frequency].loc[date,'units_net'] = self.units_net
         self.data[self.decision_frequency].loc[date,'equity'] = self.equity                    
@@ -1077,6 +1083,9 @@ class backtest_base(object):
             self.df_trades.loc[eTrade.ID,'EntryUnit'] = eTrade.entry_unit
             self.df_trades.loc[eTrade.ID,'longShort'] = eTrade.longshort
             self.df_trades.loc[eTrade.ID,'EntryDate'] = eTrade.entrydate
+            self.df_trades.loc[eTrade.ID,'HOD'] = eTrade.entrydateHOD
+            self.df_trades.loc[eTrade.ID,'DOW'] = eTrade.entrydateDOW
+            self.df_trades.loc[eTrade.ID,'MOY'] = eTrade.entrydateMOY
             self.df_trades.loc[eTrade.ID,'EntryPrice'] = eTrade.entryprice
             self.df_trades.loc[eTrade.ID,'RealizedProfitloss'] = eTrade.realizedprofitloss
             self.df_trades.loc[eTrade.ID,'RealizedPips'] = eTrade.realizedpips
