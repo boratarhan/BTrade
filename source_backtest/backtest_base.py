@@ -158,10 +158,12 @@ class Trade(object):
 
         self.bars = self.bars + 1
 
+        '''
         if self.verbose == True:
             
             print('ID:', self.ID, 'units:', self.units, 'p/l:', self.unrealizedprofitloss, 'pips',  self.unrealizedpips, 'margin:', self.required_margin, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
-                                      
+         '''
+                            
     def close(self, untransactedunits, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
 
         '''
@@ -243,7 +245,8 @@ class backtest_base(object):
     Base class for event-based backtesting of trading strategies.
     '''
 
-    def __init__(self, symbol, account_type, data_granularity, decision_frequency, start_date, end_date, idle_duration_before_start_trading, initial_equity, marginpercent, ftc=0.0, ptc=0.0, verbose=False, create_data=False):
+    def __init__(self, strategy_name, symbol, account_type, data_granularity, decision_frequency, start_date, end_date, idle_duration_before_start_trading, initial_equity, marginpercent, ftc=0.0, ptc=0.0, verbose=False, create_data=False):
+        self.strategy_name = strategy_name
         self.symbol = symbol # Same as trade symbol
         self.account_type = account_type # should be set to backtest, eventually used for file/folder name specification
         self.data_granularity = data_granularity # Data granularity
@@ -262,7 +265,7 @@ class backtest_base(object):
         self.input_data_filename = {}
 
         self.backtest_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
-        self.backtest_folder = self.file_path_ohlc = '..\\..\\results_backtest\\{}'.format(self.backtest_name)
+        self.backtest_folder = self.file_path_ohlc = '..\\..\\results_backtest\\{}-{}'.format(self.strategy_name, self.backtest_name)
         if( not os.path.exists(self.backtest_folder)):
             os.mkdir(self.backtest_folder) 
         
@@ -686,7 +689,7 @@ class backtest_base(object):
         '''
         fig1 = self.data[self.decision_frequency]['ask_c'].plot(figsize=(10, 6), title=self.symbol)
         fig2 = fig1.get_figure()
-        fig2.savefig('{}\\data.pdf'.format(self.backtest_folder))
+        fig2.savefig('{}\\data.png'.format(self.backtest_folder))
         plt.show()
         plt.close()
         
@@ -694,7 +697,7 @@ class backtest_base(object):
 
         fig1 = self.data[self.decision_frequency][['cumret-strategy','cumret-max', 'return-asset']].plot(figsize=(10,6), title='Returns')
         fig2 = fig1.get_figure()
-        fig2.savefig('{}\\returns.pdf'.format(self.backtest_folder))
+        fig2.savefig('{}\\returns.png'.format(self.backtest_folder))
         plt.show()
         plt.close()
 
@@ -703,7 +706,7 @@ class backtest_base(object):
         #plt.autoscale(enable=True, axis='both', tight=None)
         plt.title('PnL vs. Trade Number')
         plt.plot(self.listofrealizedprofitloss, 'ro', markersize = 4)
-        plt.savefig('{}\\PnL_vs_Trade_Number.pdf'.format(self.backtest_folder))
+        plt.savefig('{}\\PnL_vs_Trade_Number.png'.format(self.backtest_folder))
         plt.show()
         plt.close()
         
@@ -719,7 +722,7 @@ class backtest_base(object):
         plt.ylabel('Number of Trades')
         plt.xlabel('Profit/Loss')
         plt.hist(val_pnl, bins=range( np.int(np.floor(min(val_pnl))), np.int(np.ceil(max(val_pnl))) + binwidth, binwidth))
-        plt.savefig('{}\\PnL_histogram.pdf'.format(self.backtest_folder))
+        plt.savefig('{}\\PnL_histogram.png'.format(self.backtest_folder))
         plt.show()
         plt.close()
         
@@ -727,7 +730,7 @@ class backtest_base(object):
 
         fig1 = self.data[self.decision_frequency][['drawdown']].plot(figsize=(10,6), title='Drawdown')
         fig2 = fig1.get_figure()
-        fig2.savefig('{}\\drawdown.pdf'.format(self.backtest_folder))
+        fig2.savefig('{}\\drawdown.png'.format(self.backtest_folder))
         plt.show()
         plt.close()
 
@@ -747,7 +750,7 @@ class backtest_base(object):
         plt.title("MAE vs PnL for winning trades")
         plt.xlabel("MAE")
         plt.ylabel("PnL")
-        plt.savefig('{}\\MAE_vs_PnL_for_winning_trade.pdf'.format(self.backtest_folder))
+        plt.savefig('{}\\MAE_vs_PnL_for_winning_trade.png'.format(self.backtest_folder))
         plt.show()
         plt.close()
            
@@ -765,7 +768,7 @@ class backtest_base(object):
         plt.title("MAE vs PnL for losing trades")
         plt.xlabel("MAE")
         plt.ylabel("PnL")
-        plt.savefig('{}\\MAE_vs_PnL_for_losing_trade.pdf'.format(self.backtest_folder))
+        plt.savefig('{}\\MAE_vs_PnL_for_losing_trade.png'.format(self.backtest_folder))
         plt.show()
         plt.close()
 
@@ -785,7 +788,7 @@ class backtest_base(object):
         plt.title("MFE vs PnL for winning trades")
         plt.xlabel("MFE")
         plt.ylabel("PnL")
-        plt.savefig('{}\\MFE_vs_PnL_for_winning_trade.pdf'.format(self.backtest_folder))
+        plt.savefig('{}\\MFE_vs_PnL_for_winning_trade.png'.format(self.backtest_folder))
         plt.show()
         plt.close()
            
@@ -803,7 +806,7 @@ class backtest_base(object):
         plt.title("MFE vs PnL for losing trades")
         plt.xlabel("MFE")
         plt.ylabel("PnL")
-        plt.savefig('{}\\MFE_vs_PnL_for_losing_trade.pdf'.format(self.backtest_folder))
+        plt.savefig('{}\\MFE_vs_PnL_for_losing_trade.png'.format(self.backtest_folder))
         plt.show()
         plt.close()
 
@@ -834,7 +837,7 @@ class backtest_base(object):
         '''
         fig1 = self.df_edge_ratio['mean'].plot(figsize=(10, 6), title='edge-ratio curve for {}'.format(self.symbol))
         fig2 = fig1.get_figure()
-        fig2.savefig('{}\\edge_ratio.pdf'.format(self.backtest_folder))
+        fig2.savefig('{}\\edge_ratio.png'.format(self.backtest_folder))
         plt.show()
         plt.close()
         
@@ -1229,86 +1232,93 @@ class backtest_base(object):
         of trade returns. If there is no autocorrelation between trade results, then
         monte carlo can be used.        
         '''
-        self.durbin_watson_test(self.listofrealizedprofitloss)
         
-        no_of_rows = self.calculate_number_of_trades_to_simulate()
-        no_of_cols = int(no_of_simulations)
-        
-        # generate column names
-        columns = ['Sim%d' % i for i in range(1, no_of_cols+1, 1)]
-        rows = [i for i in range(1, no_of_rows+1, 1)]
-        
-        # generate sample paths for a selected set of trades
-        self.simulations_df = pd.DataFrame( index=rows, columns=columns )
-        
-        self.simulations_maxdrawdown_pct = []
-        self.simulations_profit_pct = []
-
-        for eSim in columns:
-        
-            temp = [ self.initial_equity ]
-                   
-            total = self.initial_equity
+        if len(self.listofrealizedprofitloss) > 0:
             
-            for eperiod in rows[:-1]:
-        
-                total = total + random.choice(self.listofrealizedprofitloss)
-                temp.append( total )
+            self.durbin_watson_test(self.listofrealizedprofitloss)
+            
+            no_of_rows = self.calculate_number_of_trades_to_simulate()
+            no_of_cols = int(no_of_simulations)
+            
+            # generate column names
+            columns = ['Sim%d' % i for i in range(1, no_of_cols+1, 1)]
+            rows = [i for i in range(1, no_of_rows+1, 1)]
+            
+            # generate sample paths for a selected set of trades
+            self.simulations_df = pd.DataFrame( index=rows, columns=columns )
+            
+            self.simulations_maxdrawdown_pct = []
+            self.simulations_profit_pct = []
+    
+            for eSim in columns:
+            
+                temp = [ self.initial_equity ]
+                       
+                total = self.initial_equity
                 
-            self.simulations_df[eSim] = temp
-        
-            '''
-            Temporary calculations to find out max drawdown percent and profit percent
-            '''
-            self.simulations_df['cumret-strategy_{}'.format(eSim)] = ( self.simulations_df[eSim] / self.initial_equity - 1 )
-            self.simulations_df['cumret-max_{}'.format(eSim)] = self.simulations_df['cumret-strategy_{}'.format(eSim)].cummax()
-            self.simulations_df['cumret-min_{}'.format(eSim)] = self.simulations_df['cumret-strategy_{}'.format(eSim)].cummin()
-            self.simulations_df['drawdown_pct_{}'.format(eSim)] = ( (1+self.simulations_df['cumret-max_{}'.format(eSim)]) - (1+self.simulations_df['cumret-strategy_{}'.format(eSim)]) ) / (1+self.simulations_df['cumret-max_{}'.format(eSim)])
-            self.simulations_df.loc[self.simulations_df['drawdown_pct_{}'.format(eSim)] == np.inf, 'drawdown_pct_{}'.format(eSim)] = 0
+                for eperiod in rows[:-1]:
             
-            self.simulations_maxdrawdown_pct.append( self.simulations_df['drawdown_pct_{}'.format(eSim)].max() )
-            self.simulations_profit_pct.append( self.simulations_df['cumret-strategy_{}'.format(eSim)].iloc[-1] )
-
-        self.simulations_mean_maxdrawdown_pct = np.mean( self.simulations_maxdrawdown_pct )
-        self.simulations_median_maxdrawdown_pct = statistics.median( self.simulations_maxdrawdown_pct )
-       
-        self.simulations_mean_profit_pct = np.mean( self.simulations_profit_pct )
-        self.simulations_median_profit_pct = statistics.median( self.simulations_profit_pct ) 
-
-        '''
-        Ideally Calmar ratio should be above 2
-        '''
-        self.calmar_ratio = self.simulations_median_profit_pct / self.simulations_median_maxdrawdown_pct
-        if self.calmar_ratio < 2:
-            print("Ideally Calmar ratio should be above 2!")
-
-        print('-' * 55)
-        msg = 'Monte Carlo Simulation Results:  '
-        msg += '\nMean Profit Percent:         %.2f ' % (self.simulations_mean_profit_pct)
-        msg += '\nMedian Profit Percent:       %.2f ' % (self.simulations_median_profit_pct)
-        msg += '\nMean Max Drawdown Percent:   %.2f ' % (self.simulations_mean_maxdrawdown_pct)
-        msg += '\nMedian Max Drawdown Percent: %.2f ' % (self.simulations_median_maxdrawdown_pct)
-        msg += '\nCalmar Ratio                %.4f  ' % self.calmar_ratio
-        print(msg)
-
-        self.calculate_quantiles_from_MonteCarlo(columns)
-        self.plot_quantiles_from_MonteCarlo()
-
-        for eSim in columns:
+                    total = total + random.choice(self.listofrealizedprofitloss)
+                    temp.append( total )
+                    
+                self.simulations_df[eSim] = temp
+            
+                '''
+                Temporary calculations to find out max drawdown percent and profit percent
+                '''
+                self.simulations_df['cumret-strategy_{}'.format(eSim)] = ( self.simulations_df[eSim] / self.initial_equity - 1 )
+                self.simulations_df['cumret-max_{}'.format(eSim)] = self.simulations_df['cumret-strategy_{}'.format(eSim)].cummax()
+                self.simulations_df['cumret-min_{}'.format(eSim)] = self.simulations_df['cumret-strategy_{}'.format(eSim)].cummin()
+                self.simulations_df['drawdown_pct_{}'.format(eSim)] = ( (1+self.simulations_df['cumret-max_{}'.format(eSim)]) - (1+self.simulations_df['cumret-strategy_{}'.format(eSim)]) ) / (1+self.simulations_df['cumret-max_{}'.format(eSim)])
+                self.simulations_df.loc[self.simulations_df['drawdown_pct_{}'.format(eSim)] == np.inf, 'drawdown_pct_{}'.format(eSim)] = 0
+                
+                self.simulations_maxdrawdown_pct.append( self.simulations_df['drawdown_pct_{}'.format(eSim)].max() )
+                self.simulations_profit_pct.append( self.simulations_df['cumret-strategy_{}'.format(eSim)].iloc[-1] )
+    
+            self.simulations_mean_maxdrawdown_pct = np.mean( self.simulations_maxdrawdown_pct )
+            self.simulations_median_maxdrawdown_pct = statistics.median( self.simulations_maxdrawdown_pct )
+           
+            self.simulations_mean_profit_pct = np.mean( self.simulations_profit_pct )
+            self.simulations_median_profit_pct = statistics.median( self.simulations_profit_pct ) 
+    
             '''
-            Delete temporary calculations
-            '''            
-            del self.simulations_df['cumret-strategy_{}'.format(eSim)]
-            del self.simulations_df['cumret-max_{}'.format(eSim)]
-            del self.simulations_df['cumret-min_{}'.format(eSim)]
-            del self.simulations_df['drawdown_pct_{}'.format(eSim)]
-
-        self.calculate_risk_of_ruin(no_of_simulations)
-
-        self.simulations_df['mean'] = self.simulations_df.mean(axis=1)
-        self.simulations_df['mean'].plot(title='Mean Equity vs Trades')
+            Ideally Calmar ratio should be above 2
+            '''
+            self.calmar_ratio = self.simulations_median_profit_pct / self.simulations_median_maxdrawdown_pct
+            if self.calmar_ratio < 2:
+                print("Ideally Calmar ratio should be above 2!")
+    
+            print('-' * 55)
+            msg = 'Monte Carlo Simulation Results:  '
+            msg += '\nMean Profit Percent:         %.2f ' % (self.simulations_mean_profit_pct)
+            msg += '\nMedian Profit Percent:       %.2f ' % (self.simulations_median_profit_pct)
+            msg += '\nMean Max Drawdown Percent:   %.2f ' % (self.simulations_mean_maxdrawdown_pct)
+            msg += '\nMedian Max Drawdown Percent: %.2f ' % (self.simulations_median_maxdrawdown_pct)
+            msg += '\nCalmar Ratio                %.4f  ' % self.calmar_ratio
+            print(msg)
+    
+            self.calculate_quantiles_from_MonteCarlo(columns)
+            self.plot_quantiles_from_MonteCarlo()
+    
+            for eSim in columns:
+                '''
+                Delete temporary calculations
+                '''            
+                del self.simulations_df['cumret-strategy_{}'.format(eSim)]
+                del self.simulations_df['cumret-max_{}'.format(eSim)]
+                del self.simulations_df['cumret-min_{}'.format(eSim)]
+                del self.simulations_df['drawdown_pct_{}'.format(eSim)]
+    
+            self.calculate_risk_of_ruin(no_of_simulations)
+    
+            self.simulations_df['mean'] = self.simulations_df.mean(axis=1)
+            self.simulations_df['mean'].plot(title='Mean Equity vs Trades')
+            
+            self.write_monte_carlo_simulation_results_to_excel()
         
-        self.write_monte_carlo_simulation_results_to_excel()
+        else:
+            
+            print("No trade has been taken, therefore skipping MC Simulation")
 
     def calculate_quantiles_from_MonteCarlo(self, columns):
         '''
@@ -1326,7 +1336,7 @@ class backtest_base(object):
 
         plt.title('Quantiles Based on Monte Carlo Simulations')
         self.simulations_df_quantiles[self.quantile_columns].plot()
-        plt.savefig('{}\\Quantiles_Based_on_Monte_Carlo_Simulations.pdf'.format(self.backtest_folder))
+        plt.savefig('{}\\Quantiles_Based_on_Monte_Carlo_Simulations.png'.format(self.backtest_folder))
         plt.show()
         plt.close()
     
@@ -1412,7 +1422,7 @@ class backtest_base(object):
         plt.title('Number of periods before trades turn profitable')
         plt.ylabel('Frequency')
         plt.xlabel('Number of periods')
-        plt.savefig('{}\\Periods_before_profitable.pdf'.format(self.backtest_folder))
+        plt.savefig('{}\\Periods_before_profitable.png'.format(self.backtest_folder))
         plt.close()
         
         print('Mean number of periods (trade length < 24):', mean(self.periods_before_profitable_list_filtered))
@@ -1421,7 +1431,7 @@ class backtest_base(object):
         plt.title('Number of periods before trades turn profitable (trade length < 24)')
         plt.ylabel('Frequency')
         plt.xlabel('Number of periods')
-        plt.savefig('{}\\Periods_before_profitable_short.pdf'.format(self.backtest_folder))
+        plt.savefig('{}\\Periods_before_profitable_short.png'.format(self.backtest_folder))
         plt.close()
 
     def create_backtest_data(self):
@@ -1492,12 +1502,13 @@ class backtest_base(object):
         
 if __name__ == '__main__':
 
+     strategy_name = 'strategy v.X.X'
      symbol = 'EUR_USD'
      account_type = 'backtest'
      data_granularity = ['S5']
      decision_frequency = '1H'
      data_granularity.append(decision_frequency)
-
+     data_granularity = list(np.unique(data_granularity))
      start_datetime = datetime.datetime(2010,1,1,0,0,0)
      end_datetime = datetime.datetime.now()
      idle_duration_before_start_trading = datetime.timedelta(days=0, hours=0, minutes=0)
@@ -1508,7 +1519,7 @@ if __name__ == '__main__':
      verbose=False
      create_data=False
     
-     bb = backtest_base(symbol, account_type, data_granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
+     bb = backtest_base(strategy_name, symbol, account_type, data_granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
 
      bb.check_data_quality()
 

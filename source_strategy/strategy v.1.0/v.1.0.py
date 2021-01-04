@@ -4,9 +4,13 @@ import os
 
 from backtest_base import *
 
+strategy_name = 'strategy v.1.0'
 symbol = 'EUR_USD'
 account_type = 'backtest'
+data_granularity = ['1M']
 decision_frequency = '1M'
+data_granularity.append(decision_frequency)
+data_granularity = list(np.unique(data_granularity))
 start_datetime = datetime.datetime(2020,12,1,0,0,0)
 end_datetime = datetime.datetime(2021,1,1,0,0,0)
 idle_duration_before_start_trading = datetime.timedelta(days=0, hours=0, minutes=1)     
@@ -26,7 +30,7 @@ WindowLenght = 1
 #-----------------------------------------------------------------------------
 '''
 granularity = '1H'
-bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
+bb = backtest_base(strategy_name, symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
 
 bb.data['HOD'] = bb.data.index.hour
 bb.data.loc[:,'bid_h-l'] = bb.data.loc[:,'bid_h'] - bb.data.loc[:,'bid_l']
@@ -48,7 +52,7 @@ fig1.savefig('Bid High-Low vs. Hour of Day (No outlier).pdf')
 #-----------------------------------------------------------------------------
 '''   
 granularity = '1H'
-bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
+bb = backtest_base(strategy_name, symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
 
 bb.data['HOD'] = bb.data.index.hour
 bb.data.loc[:,'net_move'] = np.abs(bb.data['bid_c'] - bb.data['bid_c'].shift(WindowLenght))
@@ -71,27 +75,26 @@ fig1.savefig('Net move {} vs. Hour of Day (No outlier).pdf'.format(granularity))
 '''
 #-----------------------------------------------------------------------------
 
-granularity = '1M'
-bb = backtest_base(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
+bb = backtest_base(strategy_name, symbol, account_type, data_granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
 
 cwd = os.path.dirname(__file__)
 os.chdir(cwd)
 
-bb.data['HOD'] = bb.data.index.hour
-bb.data.loc[:,'bid_ask_spread'] = bb.data.loc[:,'bid_c'] - bb.data.loc[:,'ask_c']
+bb.data[decision_frequency]['HOD'] = bb.data[decision_frequency].index.hour
+bb.data[decision_frequency].loc[:,'bid_ask_spread'] = bb.data[decision_frequency].loc[:,'bid_c'] - bb.data[decision_frequency].loc[:,'ask_c']
 
-data = bb.data.reset_index().groupby(['HOD'])['bid_ask_spread'].apply(np.array)
+data = bb.data[decision_frequency].reset_index().groupby(['HOD'])['bid_ask_spread'].apply(np.array)
 data = data.apply(lambda x: x[~np.isnan(x)] )
 
 fig1, ax1 = plt.subplots()
-ax1.set_title('Bid Ask Spread {} vs. Hour of Day'.format(granularity))
+ax1.set_title('Bid Ask Spread {} vs. Hour of Day'.format(decision_frequency))
 ax1.boxplot(data)
-fig1.savefig('Bid Ask Spread {} vs. Hour of Day.pdf'.format(granularity))
+fig1.savefig('Bid Ask Spread {} vs. Hour of Day.pdf'.format(decision_frequency))
 
 fig1, ax1 = plt.subplots()
-ax1.set_title('Bid Ask Spread {} vs. Hour of Day'.format(granularity))
+ax1.set_title('Bid Ask Spread {} vs. Hour of Day'.format(decision_frequency))
 ax1.boxplot(data, showfliers=False)
-fig1.savefig('Bid Ask Spread {} vs. Hour of Day (No outlier).pdf'.format(granularity))
+fig1.savefig('Bid Ask Spread {} vs. Hour of Day (No outlier).pdf'.format(decision_frequency))
 
 #-----------------------------------------------------------------------------
 
