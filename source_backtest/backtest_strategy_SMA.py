@@ -43,13 +43,15 @@ class backtest_strategy_SMA(backtest_base):
                 '''
                 #self.run_core_strategy()
     
-                if self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA2)] > self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA1)]:
-                    self.go_short(date=date, units=10000)
-                elif self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA2)] < self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA1)]:
-                    self.go_long(date=date, units=10000)
-                                    
+                if self.units_net == 0:
+
+                    if self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA2)] > self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA1)]:
+                        self.go_short(date=date, units=10000)
+                    elif self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA2)] < self.data[self.decision_frequency].loc[date,'SMA_{}_bid_c'.format(SMA1)]:
+                        self.go_long(date=date, units=10000)
+                                     
                 self.update(date)
-            
+                
         self.close_all_trades(date)
         self.update(date)
         self.close_out()
@@ -58,14 +60,15 @@ class backtest_strategy_SMA(backtest_base):
                 
 if __name__ == '__main__':
 
+     strategy_name = 'SMA'
      symbol = 'EUR_USD'
      account_type = 'backtest'
-     granularity = ['1M']
-     decision_frequency = '1M'
+     granularity = ['1H']
+     decision_frequency = '1H'
      granularity.append(decision_frequency)
-     start_datetime = datetime.datetime(2020,12,24,4,35,0)
+     start_datetime = datetime.datetime(2020,12,1,0,0,0)
      end_datetime = datetime.datetime(2021,1,1,0,0,0)
-     idle_duration_before_start_trading = datetime.timedelta(days=0, hours=0, minutes=5)
+     idle_duration_before_start_trading = datetime.timedelta(days=0, hours=5, minutes=0)
      initial_equity = 10000
      marginpercent = 100
      ftc=0.0
@@ -77,15 +80,16 @@ if __name__ == '__main__':
      # A mini lot = 10,000 units of base currency.
      # A micro lot = 1,000 units of base currency.
 
-     bb = backtest_strategy_SMA(symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
+     bb = backtest_strategy_SMA(strategy_name, symbol, account_type, granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
      #bb.check_data_quality()
 
      bb.run_strategy(3, 5)
      
      #bb.plot()
-     
+
      filename = '{}_data.xlsx'.format(bb.symbol)
      uf.write_df_to_excel(bb.data[bb.decision_frequency], bb.backtest_folder, filename)
+     '''
      
      filename = '{}_data.pkl'.format(bb.symbol)
      uf.pickle_df(bb.data[bb.decision_frequency], bb.backtest_folder, filename)
@@ -99,4 +103,5 @@ if __name__ == '__main__':
      bb.analyze_trades()
      
      bb.calculate_average_number_of_bars_before_profitability()
+     '''
      

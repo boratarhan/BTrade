@@ -102,7 +102,7 @@ class strategy(object):
             print("Received message: {}".format(msg))
 
             self.read_data()
-            
+                        
             self.core_strategy()
 
             '''

@@ -89,6 +89,10 @@ class Trade(object):
         self.verbose = verbose # Set to True to get detailed output during execution for debugging
         self.trade_size = abs(self.units) * self.entryprice * self.marginpercent / 100
         self.share_within_equity = [] # In practice we do not want the trade size exceed 1-2% of the equity. We willkeep an eye on this.
+        
+        
+        self.take_profit = None
+        self.stop_loss = { 'units': None, 'price': None }
             
     def update(self, price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
 
@@ -104,6 +108,30 @@ class Trade(object):
         price_c = price_bid_c if self.units > 0 else price_ask_c      
         price_h = price_bid_h if self.units > 0 else price_ask_h      
         price_l = price_bid_l if self.units > 0 else price_ask_l      
+
+        if self.units > 0:
+
+            if ( self.take_profit != None ) and ( price_c >= self.take_profit ):
+
+                self.close(-self.units, date, price_bid_c, price_ask_c, price_bid_h, price_ask_h, price_bid_l, price_ask_l )
+                return
+            
+            elif ( self.take_profit != None ) and ( price_c <= self.stop_loss['price'] ):
+                
+                self.close(-self.stop_loss['units'], date, price_bid_c, price_ask_c, price_bid_h, price_ask_h, price_bid_l, price_ask_l )
+                return
+               
+        if self.units < 0:
+
+            if ( self.take_profit != None ) and ( price_c < self.take_profit ):
+
+                self.close(-self.units, date, price_bid_c, price_ask_c, price_bid_h, price_ask_h, price_bid_l, price_ask_l )
+                return
+
+            elif ( self.take_profit != None ) and ( price_c > self.stop_loss['price'] ):
+                
+                self.close(-self.stop_loss['units'], date, price_bid_c, price_ask_c, price_bid_h, price_ask_h, price_bid_l, price_ask_l )
+                return
 
         tempmaxFavorableExcursion = 0.0
         tempmaxAdverseExcursion = 0.0
@@ -164,7 +192,7 @@ class Trade(object):
             print('ID:', self.ID, 'units:', self.units, 'p/l:', self.unrealizedprofitloss, 'pips',  self.unrealizedpips, 'margin:', self.required_margin, 'maxFavorableExcursion:', self.maxFavorableExcursion, 'maxAdverseExcursion:', self.maxAdverseExcursion)
          '''
                             
-    def close(self, untransactedunits, exitdate, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l ):
+    def close(self, untransactedunits, exitdate, price_bid_c, price_ask_c, price_bid_h, price_ask_h, price_bid_l, price_ask_l ):
 
         '''
         Since when we enter a long trade we pay ask price, we use bid price for closing long trade
@@ -449,7 +477,7 @@ class backtest_base(object):
                 '''
                 etrade = self.listofOpenShortTrades[-1]
 
-                IsOpen, units_to_buy = etrade.close(units_to_buy, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
+                IsOpen, units_to_buy = etrade.close(units_to_buy, date, price_bid_c, price_ask_c, price_bid_h, price_ask_h, price_bid_l, price_ask_l )
                 '''
                 If IsOpen is False that means that the existing short trade is closed.
                 If units_to_buy (returned parameter) is zero that means that units_to_buy (input parameter) is greater than the size of the existing short trade. 
@@ -489,7 +517,7 @@ class backtest_base(object):
         
         for etrade in self.listofOpenLongTrades:
             self.units_net = self.units_net - etrade.units
-            etrade.close(-etrade.units, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
+            etrade.close(-etrade.units, date, price_bid_c, price_ask_c, price_bid_h, price_ask_h, price_bid_l, price_ask_l )
             self.listofOpenTrades.remove(etrade)
             self.listofClosedTrades.append(etrade)
     
@@ -534,7 +562,7 @@ class backtest_base(object):
                 '''
                 etrade = self.listofOpenLongTrades[-1]
 
-                IsOpen, units_to_sell = etrade.close(-units_to_sell, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
+                IsOpen, units_to_sell = etrade.close(-units_to_sell, date, price_bid_c, price_ask_c, price_bid_h, price_ask_h, price_bid_l, price_ask_l )
                 '''
                 If IsOpen is False that means that the existing long trade is closed.
                 If units_to_sell (returned parameter) is zero that means that units_to_sell (input parameter) is greater than the size of the existing long trade. 
@@ -572,7 +600,7 @@ class backtest_base(object):
         
         for etrade in self.listofOpenShortTrades:
             self.units_net = self.units_net - etrade.units
-            etrade.close(-etrade.units, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
+            etrade.close(-etrade.units, date, price_bid_c, price_ask_c, price_bid_h, price_ask_h, price_bid_l, price_ask_l )
             self.listofOpenTrades.remove(etrade)
             self.listofClosedTrades.append(etrade)
     
@@ -595,12 +623,12 @@ class backtest_base(object):
         
         while len(self.listofOpenTrades)>0:
             etrade = self.listofOpenTrades[0]
-            print("self.units_net: {}".format(self.units_net))
+            #print("self.units_net: {}".format(self.units_net))
             self.units_net = self.units_net - etrade.units
-            print("self.units_net: {}".format(self.units_net))
-            etrade.close(-etrade.units, date, price_bid_c, price_ask_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l )
+            #print("self.units_net: {}".format(self.units_net))
+            etrade.close(-etrade.units, date, price_bid_c, price_ask_c, price_bid_h, price_ask_h, price_bid_l, price_ask_l )
             self.listofOpenTrades.remove(etrade)
-            print(self.listofOpenTrades)
+            #print(self.listofOpenTrades)
             self.listofClosedTrades.append(etrade)
         
     def update(self, date):
@@ -1169,7 +1197,7 @@ class backtest_base(object):
         self.data[self.decision_frequency]['outlier_any'] = self.data[self.decision_frequency][['outlier_ask_h_over_c','outlier_ask_l_over_c','outlier_ask_c_over_c','outlier_bid_h_over_c','outlier_bid_l_over_c','outlier_bid_c_over_c']].any(axis='columns')
 
         print('Data Quality:')
-        print('Total number of data set is {}'.format( len(self.data) ))
+        print('Total number of data set is {}'.format( len(self.data[self.decision_frequency]) ))
         print('Total number of outliers (exceed 3 std) is {}'.format( len(self.data[self.decision_frequency][self.data[self.decision_frequency]['outlier_any'] == True]) )) 
         print('Percentage of outliers in the data set is {0:.2f}%'.format( len(self.data[self.decision_frequency][self.data[self.decision_frequency]['outlier_any'] == True]) / len(self.data[self.decision_frequency]) * 100 ) ) 
         
@@ -1505,7 +1533,7 @@ if __name__ == '__main__':
      strategy_name = 'strategy v.X.X'
      symbol = 'EUR_USD'
      account_type = 'backtest'
-     data_granularity = ['S5']
+     data_granularity = ['1H']
      decision_frequency = '1H'
      data_granularity.append(decision_frequency)
      data_granularity = list(np.unique(data_granularity))
