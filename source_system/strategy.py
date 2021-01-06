@@ -124,6 +124,8 @@ class strategy(object):
 
             self.read_data()
 
+            self.get_position_for_instrument()
+            
             self.core_strategy()
 
             '''
@@ -243,6 +245,7 @@ class strategy(object):
         r = accounts.AccountDetails(accountID=self.accountID)
         df = pd.DataFrame(self.api.request(r))
                 
+        print("--------------------------------------")
         print('Net Positions:') 
 
         for e_position in df['account']['positions']:

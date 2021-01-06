@@ -73,22 +73,22 @@ class Strategy_v_2_2(strategy):
                         msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Short', self.symbol, 1000, 0 , 0, 0, 0 )
                         print("Sending message: {}".format(msg))                   
                         self.socket_pub_portfolio.send_string(msg)
-
+    
             else:
                 
-                if self.unrealizedPL > 6:
+                if float(self.unrealizedPL) > 6:
                 
                     self.close_position(1000)
                 
-                elif self.unrealizedPL <= -3:
+                elif float(self.unrealizedPL) <= -3:
                 
                     self.close_position(1000)
-                                                                                              
+         
         except Exception as e:
             
             print(e)
             print('Something went wrong in order creation')
-
+        
 if __name__ == '__main__':
         
     import configparser
@@ -105,13 +105,13 @@ if __name__ == '__main__':
         
         strategy_name = "Trading Strategy v.2.2"
         
+
         symbol = sys.argv[1]
         granularity = sys.argv[2]
         account_type = sys.argv[3]
         socket_number_feeder = int(sys.argv[4])
         socket_number_portfolio = int(sys.argv[5])
         daily_lookback = int(sys.argv[6])
-
         '''
         # For testing:
         symbol = 'EUR_USD'
@@ -132,10 +132,7 @@ if __name__ == '__main__':
         print("daily_lookback:", daily_lookback)
         print("--------------")
 
-            
-        # execute only if run as the entry point into the program
         s1 = Strategy_v_2_2(config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number_feeder,socket_number_portfolio)
-        s1.start()
         
     except Exception as e:
         
@@ -145,3 +142,7 @@ if __name__ == '__main__':
                 
         time.sleep(30)
         
+    else:
+        
+        s1.start()
+                
