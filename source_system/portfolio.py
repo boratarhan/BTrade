@@ -33,16 +33,36 @@ class portfolio(object):
 
         self.config = config
         self.account_type = account_type
-        self.socket_number = socket_number
+        self.socket_pub_socket_number = socket_number
+        self.socket_sub_socket_number = socket_number + 3 
+
+        '''
+        Open two socket connections.
+        Publisher is used for publishing messages to forwarder/strategy that the order was sent to broker.
+        Subscriber receives messages from forwarder/strategy that the strategy/order decision has been completed. 
+        Portfolio then continues waiting updates from strategy.
+        '''        
+        self.context_pub = zmq.Context()
+        self.socket_pub = self.context_pub.socket(zmq.PUB)
+        self.socket_pub.set_hwm(0)
+        self.socket_pub.connect("tcp://127.0.0.1:{}".format(self.socket_pub_socket_number))
+        
+        self.context_sub = zmq.Context()
+        self.socket_sub = self.context_sub.socket(zmq.SUB)
+        self.socket_sub.setsockopt_string(zmq.SUBSCRIBE, "")
+        self.socket_sub.connect("tcp://127.0.0.1:{}".format(self.socket_sub_socket_number))
+        
         
         '''
         Subscribe to the feeds coming from strategy objects
+        '''
         '''
         self.context_sub = zmq.Context()
         self.socket_sub = self.context_sub.socket(zmq.SUB)
         self.socket_sub.setsockopt_string(zmq.SUBSCRIBE, '')
         self.socket_sub.set_hwm(0)
         self.socket_sub.bind("tcp://127.0.0.1:{}".format(self.socket_number))
+        '''
         
         self.position = {}
 

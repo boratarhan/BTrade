@@ -21,9 +21,9 @@ except Exception as e:
     
 class SMA_Crossover(strategy):
     
-    def __init__(self,config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number):
+    def __init__(self,config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number_feeder,socket_number_portfolio):
         
-        strategy.__init__(self,config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number)
+        strategy.__init__(self,config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number_feeder,socket_number_portfolio)
                        
     def core_strategy(self):
         
@@ -55,7 +55,7 @@ class SMA_Crossover(strategy):
 
                 msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Short', self.symbol, 1000, 0 , 0, 0, 0 )
                 print("Sending message: {}".format(msg))                   
-                self.socket_pub_porfolio.send_string(msg)
+                self.socket_pub_portfolio.send_string(msg)
                             
             elif self.df_aggregate['1T']['SMA_5_bid_c'][-1] < self.df_aggregate['1T']['SMA_3_bid_c'][-1]:
     
@@ -64,12 +64,12 @@ class SMA_Crossover(strategy):
     
                 msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Long', self.symbol, 1000, 0 , 0, 0, 0 )
                 print("Sending message: {}".format(msg))                   
-                self.socket_pub_porfolio.send_string(msg)
+                self.socket_pub_portfolio.send_string(msg)
                         
             else:
                 
                 pass
-                                           
+                               
         except Exception as e:
             
             print(e)
@@ -94,15 +94,17 @@ if __name__ == '__main__':
         symbol = sys.argv[1]
         granularity = sys.argv[2]
         account_type = sys.argv[3]
-        socket_number = int(sys.argv[4])
-        daily_lookback = int(sys.argv[5])
+        socket_number_feeder = int(sys.argv[4])
+        socket_number_portfolio = int(sys.argv[5])
+        daily_lookback = int(sys.argv[6])
 
         '''
         # For testing:
         symbol = 'EUR_USD'
         granularity = 'S5'
         account_type = 'practice'
-        socket_number = 5556
+        socket_number_feeder = 5556
+        socket_number_portfolio = 5552
         daily_lookback = 10
         '''
         
@@ -111,12 +113,13 @@ if __name__ == '__main__':
         print("symbol:", symbol)
         print("granularity:", granularity)
         print("account_type:", account_type)
-        print("socket_number:", socket_number)
+        print("socket_number (w/ Feeder):", socket_number_feeder)
+        print("socket_number (w/ Portfolio):", socket_number_portfolio)
         print("daily_lookback:", daily_lookback)
         print("--------------")
             
         # execute only if run as the entry point into the program
-        s1 = SMA_Crossover(config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number)
+        s1 = SMA_Crossover(config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number_feeder,socket_number_portfolio)
         s1.start()
         
     except Exception as e:

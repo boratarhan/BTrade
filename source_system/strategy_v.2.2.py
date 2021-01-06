@@ -21,9 +21,9 @@ except Exception as e:
     
 class Strategy_v_2_2(strategy):
     
-    def __init__(self,config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number):
+    def __init__(self,config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number_feeder,socket_number_portfolio):
         
-        strategy.__init__(self,config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number)
+        strategy.__init__(self,config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number_feeder,socket_number_portfolio)
                        
     def core_strategy(self):
         
@@ -52,7 +52,7 @@ class Strategy_v_2_2(strategy):
             
             temp_index = self.df_aggregate['1T'].index[-1]
             
-            if self.df_status.loc[:,'signal'].sum() == 0:
+            if self.net_position == 0:
         
                 if ( self.df_aggregate['1T'].loc[temp_index,'net-move'] < 0.002 ) and ( self.df_aggregate['1T'].loc[temp_index, 'ratio-move'] < 0.05 ):
                                
@@ -63,7 +63,7 @@ class Strategy_v_2_2(strategy):
             
                         msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Long', self.symbol, 1000, 0 , 0, 0, 0 )
                         print("Sending message: {}".format(msg))                   
-                        self.socket_pub_porfolio.send_string(msg)
+                        self.socket_pub_portfolio.send_string(msg)
                     
                     else:
                                     
@@ -72,7 +72,17 @@ class Strategy_v_2_2(strategy):
         
                         msg = '{} {} {} {} {} {} {} {}'.format('MARKET', 'Short', self.symbol, 1000, 0 , 0, 0, 0 )
                         print("Sending message: {}".format(msg))                   
-                        self.socket_pub_porfolio.send_string(msg)
+                        self.socket_pub_portfolio.send_string(msg)
+
+            else:
+                
+                if self.unrealizedPL > 6:
+                
+                    self.close_position(1000)
+                
+                elif self.unrealizedPL <= -3:
+                
+                    self.close_position(1000)
                                                                                               
         except Exception as e:
             
@@ -95,32 +105,36 @@ if __name__ == '__main__':
         
         strategy_name = "Trading Strategy v.2.2"
         
-        '''
         symbol = sys.argv[1]
         granularity = sys.argv[2]
         account_type = sys.argv[3]
-        socket_number = int(sys.argv[4])
-        daily_lookback = int(sys.argv[5])
+        socket_number_feeder = int(sys.argv[4])
+        socket_number_portfolio = int(sys.argv[5])
+        daily_lookback = int(sys.argv[6])
 
         '''
         # For testing:
         symbol = 'EUR_USD'
         granularity = 'S5'
         account_type = 'practice'
-        socket_number = 5556
+        socket_number_feeder = 5556
+        socket_number_portfolio = 5552
         daily_lookback = 10
+        '''
         
         print("--- STRATEGY ---")
         print("Strategy name:", strategy_name)
         print("symbol:", symbol)
         print("granularity:", granularity)
         print("account_type:", account_type)
-        print("socket_number:", socket_number)
+        print("socket_number (w/ Feeder):", socket_number_feeder)
+        print("socket_number (w/ Portfolio):", socket_number_portfolio)
         print("daily_lookback:", daily_lookback)
         print("--------------")
+
             
         # execute only if run as the entry point into the program
-        s1 = Strategy_v_2_2(config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number)
+        s1 = Strategy_v_2_2(config,strategy_name,symbol,account_type,daily_lookback,granularity,socket_number_feeder,socket_number_portfolio)
         s1.start()
         
     except Exception as e:
