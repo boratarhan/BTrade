@@ -76,11 +76,11 @@ class Strategy_v_2_2(strategy):
     
             else:
                 
-                if float(self.unrealizedPL) > 6:
+                if float(self.unrealizedPL) > 0.6:
                 
                     self.close_position(1000)
                 
-                elif float(self.unrealizedPL) <= -3:
+                elif float(self.unrealizedPL) <= -0.3:
                 
                     self.close_position(1000)
          

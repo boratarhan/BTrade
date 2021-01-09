@@ -304,7 +304,8 @@ class feeder(object):
 
         data = pd.DataFrame()
         
-        if len(raw) > 0:
+        if not raw:
+        #if len(raw) > 0: # To resolve the error of "object of type 'NoneType' has no len()"
             
             '''
             Convert raw data to time-open-high-low-close-volume format        

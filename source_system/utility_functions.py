@@ -31,11 +31,8 @@ def read_database(symbol, granularity, account_type, read_start_dt, read_end_dt)
     print("Reading from database located at: ", file_path)
 
     f = tables.open_file(file_path,'r')
-    print(type(f))
     ts = f.root.data._f_get_timeseries()
-    print(type(ts))    
     rows = ts.read_range(read_start_dt,read_end_dt)
-    print(type(rows))
     f.close()
     
     return rows
@@ -124,9 +121,9 @@ def read_hdf_to_df(folderpath, filename):
         
     df_temp = pd.DataFrame()
     filepath = os.path.join( folderpath, filename)
-    print(filepath)
     if os.path.exists( filepath ):
         df_temp = pd.read_hdf(filepath)
+        print('Reading dataframe from {}'.format(filepath))
         df_temp = df_temp[['ask_o', 'ask_h', 'ask_l', 'ask_c', 'bid_o', 'bid_h', 'bid_l', 'bid_c', 'volume']]
     else:
         print("Filepath ({}) for reading hdf file does not exist".format(filepath))
