@@ -13,8 +13,8 @@ os.chdir(cwd)
 strategy_name = 'strategy v.4.0'
 symbol = 'EUR_USD'
 account_type = 'backtest'
-data_granularity = ['1H']
-decision_frequency = '1H'
+data_granularity = ['1M']
+decision_frequency = '1M'
 data_granularity.append(decision_frequency)
 data_granularity = list(np.unique(data_granularity))
 start_datetime = datetime.datetime(2020,1,1,0,0,0)
@@ -31,9 +31,9 @@ create_data=False
 # A mini lot = 10,000 units of base currency.
 # A micro lot = 1,000 units of base currency.
 
-list_parameter_window_lenght = [10,30,60]
+list_parameter_window_lenght = [60]
 list_parameter_reward_risk_ratio = [0.5,2]
-list_parameter_xxx = [0.0005,0.0010,0.0020]
+list_parameter_xxx = [0.0010]
 
 report = {}
 

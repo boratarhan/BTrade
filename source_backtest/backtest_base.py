@@ -292,7 +292,7 @@ class backtest_base(object):
         self.input_data_foldername = os.path.join( '..\\..\\datastore', '_{}'.format(self.account_type), '{}'.format(self.symbol) )
         self.input_data_filename = {}
 
-        self.backtest_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
+        self.backtest_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S.%f")[:-3]
         self.backtest_folder = self.file_path_ohlc = '..\\..\\results_backtest\\{}-{}'.format(self.strategy_name, self.backtest_name)
         if( not os.path.exists(self.backtest_folder)):
             os.mkdir(self.backtest_folder) 
@@ -942,10 +942,15 @@ class backtest_base(object):
 
         pnl = self.listofrealizedprofitloss.mean()
         std = self.listofrealizedprofitloss[self.listofrealizedprofitloss<threshold].std()
-        self.sortino_ratio = pnl / std
-
-        msg = 'Sortino Ratio for threshold of {0:.2f}: {1:.3f}'.format(threshold, round(self.sortino_ratio,3))
-        print(msg)
+        if std != 0.0:
+            self.sortino_ratio = pnl / std
+            msg = 'Sortino Ratio for threshold of {0:.2f}: {1:.3f}'.format(threshold, round(self.sortino_ratio,3))
+            print(msg)
+        else:
+            self.sortino_ratio = 0
+            msg = 'Not enough trade / standard deviation to calculate Sortino Ratio'
+            print(msg)
+            
 
     def calculate_average_win(self):
 
