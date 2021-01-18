@@ -23,9 +23,9 @@ class backtest_strategy(backtest_base):
             self.data[e_granularity] = self.data[e_granularity].dropna()
                 
     def run_strategy(self,window_lenght):
-
+        
         self.add_indicators(window_lenght)
-            
+               
         for e_granularity in self.data_granularity:
             self.data[e_granularity] = self.data[e_granularity].loc[(self.data[e_granularity].index >= self.start_date) & (self.data[e_granularity].index <= self.end_date),:]
 
@@ -57,7 +57,7 @@ class backtest_strategy(backtest_base):
                 _, price_bid_c, _, _, _, _ = self.get_price(date)
 
                 if self.units_net != 0:
-                
+
                     if self.units_net > 0:
                         
                         if price_bid_c >= trigger_long_takeprofit or price_bid_c <= trigger_long_stoploss:
@@ -71,10 +71,10 @@ class backtest_strategy(backtest_base):
                             self.close_all_trades(date)
                             
                 elif self.units_net == 0:
-                 
-                    trigger_short = self.data[e_granularity].loc[date, 'lowest_bid_l'] 
 
-                    trigger_long = self.data[e_granularity].loc[date, 'highest_bid_h']
+                    trigger_short = self.data[e_granularity].at[date, 'lowest_bid_l'] 
+
+                    trigger_long = self.data[e_granularity].at[date, 'highest_bid_h']
 
                     previous_date = self.data[e_granularity].index[self.data[e_granularity].index.get_loc(date) - 1]
                     _, price_bid_c_previous, _, _, _, _ = self.get_price(previous_date)
@@ -82,31 +82,32 @@ class backtest_strategy(backtest_base):
                     if price_bid_c <= trigger_short and price_bid_c_previous >= trigger_short:
                          
                          self.open_short_trade(1000, date)
-                         trigger_short_takeprofit = self.data[e_granularity].loc[date, 'lowest_bid_l'] - self.reward_risk_ratio * self.risked_amount
-                         trigger_short_stoploss = self.data[e_granularity].loc[date, 'lowest_bid_l'] + self.risked_amount
+                         trigger_short_takeprofit = self.data[e_granularity].at[date, 'lowest_bid_l'] - self.reward_risk_ratio * self.risked_amount
+                         trigger_short_stoploss = self.data[e_granularity].at[date, 'lowest_bid_l'] + self.risked_amount
                          
                     elif price_bid_c >= trigger_long and price_bid_c_previous <= trigger_long:
                          
                          self.open_long_trade(1000, date)
-                         trigger_long_takeprofit = self.data[e_granularity].loc[date, 'highest_bid_h'] + self.reward_risk_ratio * self.risked_amount
-                         trigger_long_stoploss = self.data[e_granularity].loc[date, 'highest_bid_h'] - self.risked_amount
+                         trigger_long_takeprofit = self.data[e_granularity].at[date, 'highest_bid_h'] + self.reward_risk_ratio * self.risked_amount
+                         trigger_long_stoploss = self.data[e_granularity].at[date, 'highest_bid_h'] - self.risked_amount
                          
                     else:
  
                          pass                        
 
-                self.data[e_granularity].loc[date, 'trigger_long_takeprofit'] = trigger_long_takeprofit
-                self.data[e_granularity].loc[date, 'trigger_long_stoploss'] = trigger_long_stoploss
-                self.data[e_granularity].loc[date, 'trigger_short_takeprofit'] = trigger_short_takeprofit
-                self.data[e_granularity].loc[date, 'trigger_short_stoploss'] = trigger_short_stoploss
-                
+                self.data[e_granularity].at[date, 'trigger_long_takeprofit'] = trigger_long_takeprofit
+                self.data[e_granularity].at[date, 'trigger_long_stoploss'] = trigger_long_stoploss
+                self.data[e_granularity].at[date, 'trigger_short_takeprofit'] = trigger_short_takeprofit
+                self.data[e_granularity].at[date, 'trigger_short_stoploss'] = trigger_short_stoploss
+                                
                 self.update(date)
-                
+
         self.close_all_trades(date)
         self.update(date)
         self.close_out()
 
         self.calculate_stats()
+               
         
 if __name__ == '__main__':
     
@@ -116,8 +117,8 @@ if __name__ == '__main__':
      strategy_name = 'strategy v.4.0'
      symbol = 'EUR_USD'
      account_type = 'backtest'
-     data_granularity = ['1H']
-     decision_frequency = '1H'
+     data_granularity = ['1M']
+     decision_frequency = '1M'
      data_granularity.append(decision_frequency)
      data_granularity = list(np.unique(data_granularity))
      start_datetime = datetime.datetime(2020,1,1,0,0,0)

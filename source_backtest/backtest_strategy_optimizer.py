@@ -83,14 +83,9 @@ if __name__ == '__main__':
 
     input_arg = []
 
-    '''
-    list_parameter_window_lenght = [60, 120, 240, 480, 720]
-    list_parameter_reward_risk_ratio = [0.5,2.0]
-    list_parameter_risked_amount = [0.020, 0.0040, 0.0080]
-    '''
-    list_parameter_window_lenght = [120]
-    list_parameter_reward_risk_ratio = [2.0]
-    list_parameter_risked_amount = [0.0080]
+    list_parameter_window_lenght = [60, 120, 240, 480, 720, 1440]
+    list_parameter_reward_risk_ratio = [0.5, 1.0, 2.0]
+    list_parameter_risked_amount = [0.020, 0.0040, 0.0060, 0.0080]
     
     for window_lenght in list_parameter_window_lenght:
     

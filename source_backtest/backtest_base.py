@@ -9,6 +9,7 @@ try:
     import matplotlib.pyplot as plt
     from matplotlib.ticker import MaxNLocator
     import datetime
+    import time
     import tables 
     plt.style.use('seaborn')
     
@@ -60,6 +61,7 @@ class Trade(object):
         self.symbol = symbol # Symbol for currency, e.g. EUR_USD
         self.base_currency = self.symbol[:3]
         self.quote_currency = self.symbol[-3:]
+        self.initial_units = units #number of units of base currency
         self.units = units #number of units of base currency
         self.entry_unit = units #number of units of base currency
         self.longshort = 'long' if self.units > 0 else 'short'
@@ -86,10 +88,10 @@ class Trade(object):
         self.maxFavorableExcursionList = []
         self.maxAdverseExcursionList = []
         self.bars = 0
+        self.length = datetime.timedelta(0)
         self.verbose = verbose # Set to True to get detailed output during execution for debugging
         self.trade_size = abs(self.units) * self.entryprice * self.marginpercent / 100
         self.share_within_equity = [] # In practice we do not want the trade size exceed 1-2% of the equity. We willkeep an eye on this.
-        
         
         self.take_profit = None
         self.stop_loss = { 'units': None, 'price': None }
@@ -254,9 +256,13 @@ class Trade(object):
         '''
         Calculate trade statistics at the close
         '''
-
+    
         self.update(price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l)
-
+        
+        for e_transaction in self.exittransactions:
+            
+            self.length = self.length + float(np.abs( e_transaction['units'] / self.initial_units )) *  ( e_transaction['date'] - self.entrydate )
+        
         return self.IsOpen, abs(untransactedunits)
 
     def __repr__(self):
@@ -372,7 +378,6 @@ class backtest_base(object):
 
         self.add_indicators()
 
-        #self.data[self.decision_frequency] = self.data[self.decision_frequency].iloc[(self.data[self.decision_frequency].index.date >= self.date_to_start_trading) and (self.data[self.decision_frequency].index.date <=self.end),:]
         for e_granularity in self.data_granularity:
             self.data[e_granularity] = self.data[e_granularity].loc[(self.data[e_granularity].index >= self.start_date) & (self.data[e_granularity].index <= self.end_date),:]
         
@@ -426,14 +431,14 @@ class backtest_base(object):
         Return price for a given date.
         '''
 
-        price_ask_c = self.data[self.decision_frequency].loc[date,'ask_c']
-        price_bid_c = self.data[self.decision_frequency].loc[date,'bid_c']
+        price_ask_c = self.data[self.decision_frequency].at[date,'ask_c']
+        price_bid_c = self.data[self.decision_frequency].at[date,'bid_c']
 
-        price_ask_h = self.data[self.decision_frequency].loc[date,'ask_h']
-        price_bid_h = self.data[self.decision_frequency].loc[date,'bid_h']
+        price_ask_h = self.data[self.decision_frequency].at[date,'ask_h']
+        price_bid_h = self.data[self.decision_frequency].at[date,'bid_h']
 
-        price_ask_l = self.data[self.decision_frequency].loc[date,'ask_l']
-        price_bid_l = self.data[self.decision_frequency].loc[date,'bid_l']
+        price_ask_l = self.data[self.decision_frequency].at[date,'ask_l']
+        price_bid_l = self.data[self.decision_frequency].at[date,'bid_l']
             
         return price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l
 
@@ -441,7 +446,7 @@ class backtest_base(object):
         ''' 
         Enter into long trade on a given date
         '''
-        self.data[self.decision_frequency].loc[date,'units_to_buy'] = self.data[self.decision_frequency].loc[date,'units_to_buy'] + units_to_buy
+        self.data[self.decision_frequency].at[date,'units_to_buy'] = self.data[self.decision_frequency].at[date,'units_to_buy'] + units_to_buy
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
 
@@ -505,7 +510,7 @@ class backtest_base(object):
         Close all long trades.
         '''
         
-        self.data[self.decision_frequency].loc[date,'units_to_sell'] = self.units_net
+        self.data[self.decision_frequency].at[date,'units_to_sell'] = self.units_net
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
 
@@ -525,7 +530,7 @@ class backtest_base(object):
         ''' 
         Enter into short trade on a given date
         '''                
-        self.data[self.decision_frequency].loc[date,'units_to_sell'] = self.data[self.decision_frequency].loc[date,'units_to_sell'] - units_to_sell
+        self.data[self.decision_frequency].at[date,'units_to_sell'] = self.data[self.decision_frequency].at[date,'units_to_sell'] - units_to_sell
 
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
     
@@ -590,7 +595,7 @@ class backtest_base(object):
         Close all short trades.
         '''
         price_ask_c, price_bid_c, price_ask_h, price_bid_h, price_ask_l, price_bid_l = self.get_price(date)
-        self.data[self.decision_frequency].loc[date,'units_to_buy'] = -self.units_net
+        self.data[self.decision_frequency].at[date,'units_to_buy'] = -self.units_net
 
         if self.verbose:
 
@@ -612,9 +617,9 @@ class backtest_base(object):
         
         print("self.units_net: {}".format(self.units_net))
         if self.units_net < 0:
-            self.data[self.decision_frequency].loc[date,'units_to_buy'] = self.data[self.decision_frequency].loc[date,'units_to_buy'] - self.units_net
+            self.data[self.decision_frequency].at[date,'units_to_buy'] = self.data[self.decision_frequency].at[date,'units_to_buy'] - self.units_net
         elif self.units_net > 0:
-            self.data[self.decision_frequency].loc[date,'units_to_sell'] = self.data[self.decision_frequency].loc[date,'units_to_sell'] + self.units_net
+            self.data[self.decision_frequency].at[date,'units_to_sell'] = self.data[self.decision_frequency].at[date,'units_to_sell'] + self.units_net
         
         if self.verbose:
             print('%s | closing all trades' %date)
@@ -657,17 +662,17 @@ class backtest_base(object):
         for etrade in self.listofOpenTrades:
             etrade.share_within_equity.append( etrade.trade_size / self.equity )
 
-        
         self.stat_number_of_open_trades.append(len(self.listofOpenTrades))
-        self.data[self.decision_frequency].loc[date,'units_net'] = self.units_net
-        self.data[self.decision_frequency].loc[date,'equity'] = self.equity                    
-        self.data[self.decision_frequency].loc[date,'balance'] = self.balance                    
-        self.data[self.decision_frequency].loc[date,'realized cumulative P/L'] = self.realizedcumulativeprofitloss                   
-        self.data[self.decision_frequency].loc[date,'unrealized P/L'] = self.unrealizedprofitloss   
-        self.data[self.decision_frequency].loc[date,'realized cumulative pips'] = self.realizedcumulativepips                   
-        self.data[self.decision_frequency].loc[date,'unrealized pips'] = self.unrealizedpips   
-        self.data[self.decision_frequency].loc[date,'required margin'] = self.required_margin
-        self.data[self.decision_frequency].loc[date,'free margin'] = self.free_margin             
+
+        self.data[self.decision_frequency].at[date,'units_net'] = self.units_net
+        self.data[self.decision_frequency].at[date,'equity'] = self.equity                    
+        self.data[self.decision_frequency].at[date,'balance'] = self.balance                    
+        self.data[self.decision_frequency].at[date,'realized cumulative P/L'] = self.realizedcumulativeprofitloss                   
+        self.data[self.decision_frequency].at[date,'unrealized P/L'] = self.unrealizedprofitloss   
+        self.data[self.decision_frequency].at[date,'realized cumulative pips'] = self.realizedcumulativepips                   
+        self.data[self.decision_frequency].at[date,'unrealized pips'] = self.unrealizedpips   
+        self.data[self.decision_frequency].at[date,'required margin'] = self.required_margin
+        self.data[self.decision_frequency].at[date,'free margin'] = self.free_margin             
         
         if self.verbose:
             print('Date: {0}, Equity: {1:.2f}, Realized Cumulative P/L: {2:.2f}, Unrealized P/L: {3:.2f}, Realized Cumulative pips: {4:.2f}, Unrealized pips: {5:.2f}'.format( date, self.equity, self.realizedcumulativeprofitloss, self.unrealizedprofitloss, self.realizedcumulativepips, self.unrealizedpips ) )
@@ -1115,26 +1120,26 @@ class backtest_base(object):
         
         for eTrade in self.listofClosedTrades:
                 
-            self.df_trades.loc[eTrade.ID,'Symbol'] = eTrade.symbol
-            self.df_trades.loc[eTrade.ID,'EntryUnit'] = eTrade.entry_unit
-            self.df_trades.loc[eTrade.ID,'longShort'] = eTrade.longshort
-            self.df_trades.loc[eTrade.ID,'EntryDate'] = eTrade.entrydate
-            self.df_trades.loc[eTrade.ID,'HOD'] = eTrade.entrydateHOD
-            self.df_trades.loc[eTrade.ID,'DOW'] = eTrade.entrydateDOW
-            self.df_trades.loc[eTrade.ID,'MOY'] = eTrade.entrydateMOY
-            self.df_trades.loc[eTrade.ID,'EntryPrice'] = eTrade.entryprice
-            self.df_trades.loc[eTrade.ID,'RealizedProfitloss'] = eTrade.realizedprofitloss
-            self.df_trades.loc[eTrade.ID,'RealizedPips'] = eTrade.realizedpips
-            self.df_trades.loc[eTrade.ID,'MaxFavorableExcursion'] = eTrade.maxFavorableExcursion
-            self.df_trades.loc[eTrade.ID,'MaxAdverseExcursion'] = eTrade.maxAdverseExcursion
-            self.df_trades.loc[eTrade.ID,'MarginPercent'] = eTrade.marginpercent
+            self.df_trades.at[eTrade.ID,'Symbol'] = eTrade.symbol
+            self.df_trades.at[eTrade.ID,'EntryUnit'] = eTrade.entry_unit
+            self.df_trades.at[eTrade.ID,'longShort'] = eTrade.longshort
+            self.df_trades.at[eTrade.ID,'EntryDate'] = eTrade.entrydate
+            self.df_trades.at[eTrade.ID,'HOD'] = eTrade.entrydateHOD
+            self.df_trades.at[eTrade.ID,'DOW'] = eTrade.entrydateDOW
+            self.df_trades.at[eTrade.ID,'MOY'] = eTrade.entrydateMOY
+            self.df_trades.at[eTrade.ID,'EntryPrice'] = eTrade.entryprice
+            self.df_trades.at[eTrade.ID,'RealizedProfitloss'] = eTrade.realizedprofitloss
+            self.df_trades.at[eTrade.ID,'RealizedPips'] = eTrade.realizedpips
+            self.df_trades.at[eTrade.ID,'MaxFavorableExcursion'] = eTrade.maxFavorableExcursion
+            self.df_trades.at[eTrade.ID,'MaxAdverseExcursion'] = eTrade.maxAdverseExcursion
+            self.df_trades.at[eTrade.ID,'MarginPercent'] = eTrade.marginpercent
                                         
             for idx, exTrade in enumerate(eTrade.exittransactions):
                 
-                self.df_trades.loc[eTrade.ID,'exit_{}_date'.format(idx)] = exTrade['date']
-                self.df_trades.loc[eTrade.ID,'exit_{}_unit'.format(idx)] = exTrade['units']
-                self.df_trades.loc[eTrade.ID,'exit_{}_price'.format(idx)] = exTrade['price']
-                self.df_trades.loc[eTrade.ID,'exit_{}_realized P&L'.format(idx)] = exTrade['realized P&L']                
+                self.df_trades.at[eTrade.ID,'exit_{}_date'.format(idx)] = exTrade['date']
+                self.df_trades.at[eTrade.ID,'exit_{}_unit'.format(idx)] = exTrade['units']
+                self.df_trades.at[eTrade.ID,'exit_{}_price'.format(idx)] = exTrade['price']
+                self.df_trades.at[eTrade.ID,'exit_{}_realized P&L'.format(idx)] = exTrade['realized P&L']                
                 
         now = datetime.datetime.now()
         filename = '{}_trades.xlsx'.format(self.symbol)
@@ -1159,9 +1164,9 @@ class backtest_base(object):
 
             for index, row in self.df_temp[:-1].iterrows():
 
-                if self.df_temp.loc[index, 'CumRealizedPips'] >= self.df_temp.loc[index,'AvgCumRealizedPips']:
+                if self.df_temp.at[index, 'CumRealizedPips'] >= self.df_temp.at[index,'AvgCumRealizedPips']:
                     
-                    self.df_temp.loc[index+1, 'WindowLength_{}_Accept'.format(WindowLenght)] = 1
+                    self.df_temp.at[index+1, 'WindowLength_{}_Accept'.format(WindowLenght)] = 1
 
             self.df_temp['FilteredRealizedPips_{}_Accept'.format(WindowLenght)] = self.df_temp['RealizedPips'] * self.df_temp['WindowLength_{}_Accept'.format(WindowLenght)]
             self.df_temp['FilteredCumRealizedPips_{}_Accept'.format(WindowLenght)] =self.df_temp['FilteredRealizedPips_{}_Accept'.format(WindowLenght)].cumsum()
@@ -1416,7 +1421,7 @@ class backtest_base(object):
         
             for i in range( 1, len(eTrade.stat_unrealizedprofitloss)+1 ):
                 
-                self.trade_performance_over_time.loc[eTrade.ID, i] = eTrade.stat_unrealizedprofitloss[i-1]
+                self.trade_performance_over_time.at[eTrade.ID, i] = eTrade.stat_unrealizedprofitloss[i-1]
         
         filename = '{}_trades_performance_over_time.xlsx'.format(self.symbol)
         uf.write_df_to_excel(self.trade_performance_over_time, self.backtest_folder, filename)
