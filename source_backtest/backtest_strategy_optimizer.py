@@ -19,17 +19,17 @@ def process_item(input_arg):
     
     window_lenght = int(input_arg[0])
     reward_risk_ratio = float(input_arg[1])
-    xxx = float(input_arg[2])
+    risked_amount = float(input_arg[2])
 
     report = {}
-    run_ID = '{}-{}-{}'.format(window_lenght, reward_risk_ratio, xxx)
+    run_ID = '{}-{}-{}'.format(window_lenght, reward_risk_ratio, risked_amount)
     report[run_ID]= {}
  
     strategy_name = 'strategy v.4.0'
     symbol = 'EUR_USD'
     account_type = 'backtest'
-    data_granularity = ['1H']
-    decision_frequency = '1H'
+    data_granularity = ['1M']
+    decision_frequency = '1M'
     data_granularity.append(decision_frequency)
     data_granularity = list(np.unique(data_granularity))
     start_datetime = datetime.datetime(2020,1,1,0,0,0)
@@ -42,7 +42,7 @@ def process_item(input_arg):
     verbose=True
     create_data=False
         
-    bb = backtest_strategy(strategy_name, symbol, account_type, data_granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data, reward_risk_ratio, xxx)
+    bb = backtest_strategy(strategy_name, symbol, account_type, data_granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data, reward_risk_ratio, risked_amount)
     
     bb.run_strategy(window_lenght)
          
@@ -56,6 +56,7 @@ def process_item(input_arg):
     
     report[run_ID]['numberofClosedLongTrades'] = bb.numberofClosedLongTrades
     report[run_ID]['numberofClosedShortTrades'] = bb.numberofClosedShortTrades
+    report[run_ID]['numberofTrades'] = bb.numberofClosedShortTrades + bb.numberofClosedShortTrades
     report[run_ID]['sharpe_ratio'] = bb.sharpe_ratio
     report[run_ID]['sortino_ratio'] = bb.sortino_ratio
     report[run_ID]['average_win'] = bb.average_win
@@ -82,19 +83,24 @@ if __name__ == '__main__':
 
     input_arg = []
 
-    list_parameter_window_lenght = [60, 240, 720]
+    '''
+    list_parameter_window_lenght = [60, 120, 240, 480, 720]
     list_parameter_reward_risk_ratio = [0.5,2.0]
-    list_parameter_xxx = [0.0010]
-
+    list_parameter_risked_amount = [0.020, 0.0040, 0.0080]
+    '''
+    list_parameter_window_lenght = [120]
+    list_parameter_reward_risk_ratio = [2.0]
+    list_parameter_risked_amount = [0.0080]
+    
     for window_lenght in list_parameter_window_lenght:
     
         for reward_risk_ratio in list_parameter_reward_risk_ratio:
 
-            for xxx in list_parameter_xxx:
+            for risked_amount in list_parameter_risked_amount:
 
-                input_arg.append( (window_lenght, reward_risk_ratio, xxx) )
+                input_arg.append( (window_lenght, reward_risk_ratio, risked_amount) )
                 
-    p = Pool(6)
+    p = Pool(10)
     results = p.map(process_item, input_arg)
 
     df = pd.DataFrame()
@@ -103,9 +109,9 @@ if __name__ == '__main__':
     
         for reward_risk_ratio in list_parameter_reward_risk_ratio:
 
-            for xxx in list_parameter_xxx:
+            for risked_amount in list_parameter_risked_amount:
             
-                run_ID = '{}-{}-{}'.format(window_lenght, reward_risk_ratio, xxx)
+                run_ID = '{}-{}-{}'.format(window_lenght, reward_risk_ratio, risked_amount)
                 
                 df[run_ID] = results[i][run_ID].values
                 df.index = results[i][run_ID].index

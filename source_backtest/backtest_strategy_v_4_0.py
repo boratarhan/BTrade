@@ -2,10 +2,10 @@ from backtest_base import *
      
 class backtest_strategy(backtest_base):
 
-    def __init__(self,strategy_name, symbol, account_type, data_granularity, decision_frequency, start_date, end_date, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data, reward_risk_ratio, xxx):
+    def __init__(self,strategy_name, symbol, account_type, data_granularity, decision_frequency, start_date, end_date, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data, reward_risk_ratio, risked_amount):
 
         self.reward_risk_ratio = reward_risk_ratio
-        self.xxx = xxx
+        self.risked_amount = risked_amount
         
         backtest_base.__init__(self,strategy_name, symbol, account_type, data_granularity, decision_frequency, start_date, end_date, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data)
       
@@ -82,14 +82,14 @@ class backtest_strategy(backtest_base):
                     if price_bid_c <= trigger_short and price_bid_c_previous >= trigger_short:
                          
                          self.open_short_trade(1000, date)
-                         trigger_short_takeprofit = self.data[e_granularity].loc[date, 'lowest_bid_l'] - self.reward_risk_ratio * self.xxx
-                         trigger_short_stoploss = self.data[e_granularity].loc[date, 'lowest_bid_l'] + self.xxx
+                         trigger_short_takeprofit = self.data[e_granularity].loc[date, 'lowest_bid_l'] - self.reward_risk_ratio * self.risked_amount
+                         trigger_short_stoploss = self.data[e_granularity].loc[date, 'lowest_bid_l'] + self.risked_amount
                          
                     elif price_bid_c >= trigger_long and price_bid_c_previous <= trigger_long:
                          
                          self.open_long_trade(1000, date)
-                         trigger_long_takeprofit = self.data[e_granularity].loc[date, 'highest_bid_h'] + self.reward_risk_ratio * self.xxx 
-                         trigger_long_stoploss = self.data[e_granularity].loc[date, 'highest_bid_h'] - self.xxx
+                         trigger_long_takeprofit = self.data[e_granularity].loc[date, 'highest_bid_h'] + self.reward_risk_ratio * self.risked_amount
+                         trigger_long_stoploss = self.data[e_granularity].loc[date, 'highest_bid_h'] - self.risked_amount
                          
                     else:
  
@@ -101,7 +101,7 @@ class backtest_strategy(backtest_base):
                 self.data[e_granularity].loc[date, 'trigger_short_stoploss'] = trigger_short_stoploss
                 
                 self.update(date)
-    
+                
         self.close_all_trades(date)
         self.update(date)
         self.close_out()
@@ -131,17 +131,18 @@ if __name__ == '__main__':
      create_data=False
      window_lenght = 10
      reward_risk_ratio = 2
-     xxx = 0.005
+     risked_amount = 0.005
 
      # A standard lot = 100,000 units of base currency. 
      # A mini lot = 10,000 units of base currency.
      # A micro lot = 1,000 units of base currency.
 
-     bb = backtest_strategy(strategy_name, symbol, account_type, data_granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data, reward_risk_ratio, xxx)
+     bb = backtest_strategy(strategy_name, symbol, account_type, data_granularity, decision_frequency, start_datetime, end_datetime, idle_duration_before_start_trading, initial_equity, marginpercent, ftc, ptc, verbose, create_data, reward_risk_ratio, risked_amount)
      #bb.check_data_quality()
      
      bb.run_strategy(window_lenght)
      
+     '''
      bb.plot()
 
      filename = '{}_data.xlsx'.format(bb.symbol)
@@ -155,6 +156,7 @@ if __name__ == '__main__':
      bb.monte_carlo_simulator(250)
  
      #viz.visualize(bb.symbol, bb.data[bb.decision_frequency], bb.listofClosedTrades)
+     '''
      
      '''
      bb.analyze_trades()
